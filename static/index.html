@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Life-at-a-Glance</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="header-row">
+      <div class="brand">
+        <h1 class="site-title">Life-at-a-Glance</h1>
+        <span class="today" id="today"></span>
+      </div>
+      <div class="header-actions">
+        <div class="new-wrap">
+          <button class="btn btn-primary" id="new-btn" aria-haspopup="true" aria-expanded="false" aria-controls="new-menu">
+            + New
+          </button>
+          <div class="new-menu" id="new-menu" role="menu" aria-label="Create a new entry" hidden>
+            <button class="new-item" role="menuitem" data-qatype="project">Project</button>
+            <button class="new-item" role="menuitem" data-qatype="learning">Learning</button>
+            <button class="new-item" role="menuitem" data-qatype="goal">Goal</button>
+            <button class="new-item" role="menuitem" data-qatype="journal">Journal</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <nav class="tab-nav" role="tablist" aria-label="Sections">
+      <button class="tab-btn active" id="tab-overview" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+      <button class="tab-btn" id="tab-projects" role="tab" aria-selected="false" data-tab="projects">Projects</button>
+      <button class="tab-btn" id="tab-goals" role="tab" aria-selected="false" data-tab="goals">Goals</button>
+      <button class="tab-btn" id="tab-knowledge" role="tab" aria-selected="false" data-tab="knowledge">Knowledge</button>
+      <button class="tab-btn" id="tab-timeline" role="tab" aria-selected="false" data-tab="timeline">Timeline</button>
+    </nav>
+  </header>
+
+  <main id="main" class="container">
+
+    <section id="panel-overview" class="tab-panel active" role="tabpanel" aria-labelledby="tab-overview">
+      <div class="stat-strip" id="stat-strip" aria-label="Summary"></div>
+
+      <div class="panel-head">
+        <h2>Active Projects</h2>
+        <span class="muted" id="overview-projects-count"></span>
+      </div>
+      <div class="card-grid" id="overview-projects"></div>
+
+      <div class="panel-head">
+        <h2>Today's Journal</h2>
+        <span class="muted" id="overview-journal-count"></span>
+      </div>
+      <div class="journal-list" id="overview-journal"></div>
+    </section>
+
+    <section id="panel-projects" class="tab-panel" role="tabpanel" aria-labelledby="tab-projects">
+      <div class="panel-head">
+        <h2>Projects</h2>
+        <div class="filter-pills" role="group" aria-label="Filter projects by status">
+          <button class="filter-pill active" data-filter="all">All</button>
+          <button class="filter-pill" data-filter="active">Active</button>
+          <button class="filter-pill" data-filter="backlog">Backlog</button>
+          <button class="filter-pill" data-filter="done">Done</button>
+          <button class="filter-pill" data-filter="paused">Paused</button>
+        </div>
+      </div>
+      <div class="projects-cols" id="projects-cols"></div>
+    </section>
+
+    <section id="panel-goals" class="tab-panel" role="tabpanel" aria-labelledby="tab-goals">
+      <div class="panel-head">
+        <h2>Goals</h2>
+      </div>
+      <div id="goals-list"></div>
+    </section>
+
+    <section id="panel-knowledge" class="tab-panel" role="tabpanel" aria-labelledby="tab-knowledge">
+      <div class="panel-head">
+        <h2>Knowledge Log</h2>
+      </div>
+      <div class="filter-row">
+        <label class="sr-only" for="learn-tag-filter">Filter learnings by tag</label>
+        <input class="input" id="learn-tag-filter" type="text" placeholder="Filter by tag..." autocomplete="off">
+        <label class="sr-only" for="learn-date-filter">Filter learnings by date</label>
+        <input class="input" id="learn-date-filter" type="date">
+        <button class="btn btn-sm" id="learn-filter-clear">Clear</button>
+      </div>
+      <div id="learn-list"></div>
+    </section>
+
+    <section id="panel-timeline" class="tab-panel" role="tabpanel" aria-labelledby="tab-timeline">
+      <div class="panel-head">
+        <h2>Timeline</h2>
+        <span class="muted" id="timeline-count"></span>
+      </div>
+      <div class="timeline" id="timeline-list"></div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <span>Life-at-a-Glance &middot; Your life, one glance at a time.</span>
+  </footer>
+
+  <div class="modal-backdrop" id="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-head">
+        <h2 id="modal-title">Quick Add</h2>
+        <button class="btn-icon" id="modal-close" data-close aria-label="Close">&#215;</button>
+      </div>
+      <form id="quick-form">
+        <div class="field">
+          <label for="qa-type">Type</label>
+          <select class="input" id="qa-type" name="type">
+            <option value="project">Project</option>
+            <option value="learning">Learning</option>
+            <option value="goal">Goal</option>
+            <option value="journal">Journal</option>
+          </select>
+        </div>
+        <div id="qa-fields"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn" data-close>Cancel</button>
+          <button type="submit" class="btn btn-primary">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
