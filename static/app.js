@@ -10,20 +10,32 @@ const AREA_LABELS = {
   finance: "Finance",
   other: "Other",
 };
+const AREA_COLORS = {
+  career: "#F97316",
+  health: "#34D399",
+  family: "#FBBF24",
+  learning: "#C4B5FD",
+  finance: "#67E8F9",
+  other: "#9CA3AF",
+};
 const ENDPOINTS = {
   project: "/api/projects",
   learning: "/api/learnings",
   goal: "/api/goals",
   journal: "/api/journal",
 };
+const DAYS7 = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const SVG_NS = "http://www.w3.org/2000/svg";
 
 const state = {
   dashboard: null,
   projects: [],
   learnings: [],
+  journal: [],
   timeline: [],
   projectFilter: "all",
   timelineLoaded: false,
+  reportsDays: 7,
 };
 
 function esc(value) {
@@ -160,6 +172,343 @@ const FIELD_SETS = {
   ].join(""),
 };
 
+/* ---------- Chart helpers ---------- */
+
+function lastNDates(n) {
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    out.push(
+      d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0")
+    );
+  }
+  return out;
+}
+
+function countByDate(items) {
+  const counts = {};
+  items.forEach((i) => {
+    const key = String(i.date || "").slice(0, 10);
+    if (key) counts[key] = (counts[key] || 0) + 1;
+  });
+  return counts;
+}
+
+function svgEl(tag, attrs) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
+  return el;
+}
+
+function makeLinePath(points) {
+  return points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+}
+
+function lineChart({
+  series,
+  xLabels,
+  width = 440,
+  height = 170,
+  pad = { top: 18, right: 14, bottom: 26, left: 16 },
+  strokeWidth = 2.5,
+  showDots = true,
+  labelEvery = 1,
+}) {
+  const iw = width - pad.left - pad.right;
+  const ih = height - pad.top - pad.bottom;
+  const all = series.flatMap((s) => s.values);
+  const max = Math.max(1, ...all);
+  const n = xLabels.length;
+
+  const getX = (i) => pad.left + (n === 1 ? iw / 2 : (i / (n - 1)) * iw);
+  const getY = (v) => pad.top + ih - (v / max) * ih;
+
+  const svg = svgEl("svg", {
+    viewBox: `0 0 ${width} ${height}`,
+    role: "img",
+    "aria-label": "Chart",
+  });
+
+  for (let i = 0; i < n; i++) {
+    svg.appendChild(
+      svgEl("line", {
+        x1: getX(i), y1: pad.top, x2: getX(i) - 16, y2: height - pad.bottom,
+        stroke: "rgba(255,255,255,0.10)", "stroke-dasharray": "2 5",
+      })
+    );
+    const label = svgEl("text", { x: getX(i), y: height - 6, fill: "rgba(255,255,255,0.5)", "font-size": 9, "text-anchor": "middle" });
+    label.textContent = i % labelEvery === 0 ? xLabels[i] : "";
+    svg.appendChild(label);
+  }
+
+  series.forEach((s, si) => {
+    const pts = s.values.map((v, i) => ({ x: getX(i), y: getY(v) }));
+    const path = svgEl("path", {
+      d: makeLinePath(pts),
+      fill: "none",
+      stroke: s.color,
+      "stroke-width": strokeWidth,
+      ...(s.dashed ? { "stroke-dasharray": "4 5" } : {}),
+    });
+    if (s.gradient && si === 0) {
+      const grad = svgEl("linearGradient", { id: "lineGrad", x1: "0%", y1: "0%", x2: "100%", y2: "0%" });
+      [0, 0.5, 1].forEach((off, idx) => {
+        const stop = svgEl("stop", {
+          offset: `${off * 100}%`,
+          "stop-color": idx === 1 ? "#fff" : "rgba(255,255,255,0.25)",
+        });
+        grad.appendChild(stop);
+      });
+      svg.appendChild(grad);
+      path.setAttribute("stroke", "url(#lineGrad)");
+      path.style.filter = "drop-shadow(0px 4px 6px rgba(255,255,255,0.18))";
+    }
+    svg.appendChild(path);
+
+    if (showDots) {
+      pts.forEach((p) => {
+        svg.appendChild(
+          svgEl("circle", {
+            cx: p.x, cy: p.y, r: s.gradient ? 3.4 : 3,
+            fill: s.gradient ? "rgba(255,255,255,0.85)" : s.color,
+          })
+        );
+      });
+    }
+  });
+
+  return svg;
+}
+
+function renderReportsChart() {
+  const days = state.reportsDays;
+  const dates = lastNDates(days);
+  const learn = countByDate(state.learnings);
+  const jour = countByDate(state.journal);
+  const learnVals = dates.map((d) => learn[d] || 0);
+  const jourVals = dates.map((d) => jour[d] || 0);
+
+  $("#reports-learnings").textContent = learnVals.reduce((a, b) => a + b, 0);
+  $("#reports-journal").textContent = jourVals.reduce((a, b) => a + b, 0);
+  $("#reports-range").textContent = days === 7 ? "Last 7 days" : "Last 30 days";
+
+  const labels = dates.map((d) => formatDate(d).split(",")[0]);
+  const container = $("#reports-chart");
+  container.innerHTML = "";
+    container.appendChild(
+      lineChart({
+        series: [
+          { values: learnVals, color: "#fff", gradient: true },
+          { values: jourVals, color: "rgba(255,255,255,0.55)", dashed: true },
+        ],
+        xLabels: labels,
+        labelEvery: days === 30 ? 5 : 1,
+      })
+    );
+
+  const tooltip = document.createElement("div");
+  tooltip.className = "chart-tooltip";
+  tooltip.hidden = true;
+  container.appendChild(tooltip);
+
+  container.addEventListener("mousemove", (e) => {
+    const b = container.getBoundingClientRect();
+    const px = e.clientX - b.left;
+    const iw = b.width;
+    const idx = Math.min(dates.length - 1, Math.max(0, Math.round((px / iw) * (dates.length - 1))));
+    if (!dates[idx]) return;
+    tooltip.hidden = false;
+    tooltip.style.left = `${(idx / (dates.length - 1)) * 100}%`;
+    tooltip.innerHTML =
+      `<div class="tt-title">${esc(formatDate(dates[idx]))}</div>` +
+      `<div class="tt-row"><span>Learnings</span><b>${learn[dates[idx]] || 0}</b></div>` +
+      `<div class="tt-row"><span>Journal</span><b>${jour[dates[idx]] || 0}</b></div>`;
+  });
+  container.addEventListener("mouseleave", () => {
+    tooltip.hidden = true;
+  });
+}
+
+function renderWeeklyChart() {
+  const counts = countByDate(state.learnings);
+  const today = new Date();
+  const days = [];
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(today.getDate() - ((today.getDay() + 7) % 7) + i);
+    const iso =
+      d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    days.push(iso);
+  }
+  const thisWeek = days.map((d) => counts[d] || 0);
+  const lastWeek = days.map((d) => {
+    const dt = new Date(d + "T00:00:00");
+    dt.setDate(dt.getDate() - 7);
+    const iso =
+      dt.getFullYear() + "-" + String(dt.getMonth() + 1).padStart(2, "0") + "-" + String(dt.getDate()).padStart(2, "0");
+    return counts[iso] || 0;
+  });
+
+  $("#weekly-total").textContent = thisWeek.reduce((a, b) => a + b, 0);
+
+  const container = $("#weekly-chart");
+  container.innerHTML = "";
+  const svg = lineChart({
+    series: [
+      { values: thisWeek, color: "#F97316" },
+      { values: lastWeek, color: "#9CA3AF", dashed: true },
+    ],
+    xLabels: DAYS7,
+    width: 320,
+    height: 150,
+    pad: { top: 12, right: 10, bottom: 24, left: 10 },
+  });
+  container.appendChild(svg);
+}
+
+function hexLayout(total) {
+  const dirs = [
+    [1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1],
+  ];
+  const coords = [[0, 0]];
+  let ring = 1;
+  while (coords.length < total) {
+    let q = ring, r = 0;
+    for (const [dq, dr] of dirs) {
+      for (let i = 0; i < ring; i++) {
+        coords.push([q, r]);
+        q += dq;
+        r += dr;
+      }
+    }
+    ring++;
+  }
+  return coords.slice(0, total);
+}
+
+function renderHexAreas() {
+  const goals = (state.dashboard && state.dashboard.goals) || [];
+  const byArea = {};
+  goals.forEach((g) => {
+    const a = AREAS.includes(g.area) ? g.area : "other";
+    byArea[a] = (byArea[a] || 0) + 1;
+  });
+  const present = AREAS.filter((a) => byArea[a]);
+
+  const total = Math.max(1, present.length * 3);
+  const coords = hexLayout(total);
+  const size = 8;
+  const hw = Math.sqrt(3) * size;
+  const hh = 2 * size;
+  const vert = hh * 0.75;
+  const horiz = hw;
+
+  const xs = coords.map(([q, r]) => q * horiz + (r % 2 === 1 ? horiz / 2 : 0));
+  const ys = coords.map(([, r]) => r * vert);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+
+  const w = maxX - minX + horiz + 12;
+  const h = maxY - minY + hh + 12;
+
+  const svg = svgEl("svg", { viewBox: `0 0 ${w} ${h}`, width: "100%" });
+  const g = svgEl("g", { transform: `translate(${6 - minX}, ${6 - minY})` });
+
+  const sorted = present.slice().sort((a, b) => (byArea[b] || 0) - (byArea[a] || 0));
+  coords.forEach(([q, r], i) => {
+    const x = q * horiz + (r % 2 === 1 ? horiz / 2 : 0);
+    const y = r * vert;
+    const area = sorted[i % sorted.length];
+    const intensity = byArea[area] >= 3 ? 1 : byArea[area] === 2 ? 0.72 : 0.5;
+    const color = AREA_COLORS[area] || AREA_COLORS.other;
+    const pts =
+      `${x},${y - size} ${x + hw / 2},${y - size / 2} ${x + hw / 2},${y + size / 2} ` +
+      `${x},${y + size} ${x - hw / 2},${y + size / 2} ${x - hw / 2},${y - size / 2}`;
+    g.appendChild(
+      svgEl("polygon", {
+        points: pts,
+        fill: color,
+        "fill-opacity": intensity,
+        stroke: "rgba(255,255,255,0.85)",
+        "stroke-width": 1.2,
+      })
+    );
+  });
+
+  svg.appendChild(g);
+  const wrap = $("#hex-cluster");
+  wrap.innerHTML = "";
+  wrap.appendChild(svg);
+
+  $("#hex-list").innerHTML = present.length
+    ? present
+        .map(
+          (a) =>
+            `<div class="hex-item"><span><span class="ldot" style="background:${AREA_COLORS[a]}"></span>${AREA_LABELS[a]}</span><b>${byArea[a]}</b></div>`
+        )
+        .join("")
+    : `<div class="hex-item"><span style="color:var(--ink-faint)">No goals yet</span></div>`;
+}
+
+function renderWeekdayChart() {
+  const learn = countByDate(state.learnings);
+  const jour = countByDate(state.journal);
+  const today = new Date();
+  const values = [];
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(today.getDate() - ((today.getDay() - i + 7) % 7));
+    const iso =
+      d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    values.push((learn[iso] || 0) + (jour[iso] || 0));
+  }
+  const max = Math.max(1, ...values);
+  const wrap = $("#weekday-chart");
+  wrap.innerHTML = values
+    .map((v, i) => {
+      const hot = i === today.getDay();
+      const pct = Math.max(6, Math.round((v / max) * 100));
+      return `<div class="wd-col${hot ? " hot" : ""}">
+        <div class="wd-bar-wrap"><div class="wd-bar" style="height:${pct}%"></div></div>
+        <span class="wd-value">${v}</span>
+        <span class="wd-label">${DAYS7[i]}</span>
+      </div>`;
+    })
+    .join("");
+}
+
+function renderProjectStatus() {
+  const counts = { active: 0, backlog: 0, done: 0, paused: 0 };
+  state.projects.forEach((p) => {
+    const s = counts[p.status] !== undefined ? p.status : "backlog";
+    counts[s]++;
+  });
+  const total = Math.max(1, state.projects.length);
+  const labels = { active: "Active", backlog: "Backlog", done: "Done", paused: "Paused" };
+  const segs = ["active", "backlog", "done", "paused"]
+    .map(
+      (s) =>
+        `<div class="seg seg-${s}" style="flex:${counts[s]}" title="${labels[s]}: ${counts[s]}"></div>`
+    )
+    .join("");
+  const legend = ["active", "backlog", "done", "paused"]
+    .map(
+      (s) =>
+        `<div class="seg-legend-item"><span><span class="legend-dot seg-${s}" style="background:var(--${s === "active" ? "orange" : s === "backlog" ? "orange-mid" : s === "done" ? "orange-soft" : "ink-faint"})"></span>${labels[s]}</span><b>${counts[s]}</b></div>`
+    )
+    .join("");
+
+  $("#proj-status-body").innerHTML =
+    `<div class="widget-metric">${total}</div><div class="widget-sub">Total projects</div>` +
+    `<div class="seg-bar">${segs}</div>` +
+    `<div class="seg-legend">${legend}</div>`;
+}
+
+/* ---------- Card renderers ---------- */
+
 function projectCard(p) {
   const prio = p.priority || "medium";
   const done = p.status === "done";
@@ -240,8 +589,28 @@ function timelineItem(t) {
   </article>`;
 }
 
+/* ---------- Renderers ---------- */
+
+function updateClock() {
+  const now = new Date();
+  const options = {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  };
+  $("#today").textContent = now.toLocaleDateString("en-US", options).replace(",", " -");
+}
+
 function renderOverview(d) {
-  $("#today").textContent = formatDate(d.today);
+  $("#overview-sub").textContent =
+    d.active_projects.length
+      ? `${d.active_projects.length} active project${d.active_projects.length > 1 ? "s" : ""} · ${d.goals.filter((g) => g.status === "active").length} goals in motion`
+      : "Your life, one glance.";
+
   const active = d.active_projects || [];
   const backlog = d.backlog || [];
   const learnings = d.recent_learnings || [];
@@ -268,6 +637,12 @@ function renderOverview(d) {
   $("#stat-strip").innerHTML = stats
     .map((s) => `<div class="stat"><span class="stat-value">${s.value}</span><span class="stat-label">${s.label}</span></div>`)
     .join("");
+
+  renderReportsChart();
+  renderWeeklyChart();
+  renderHexAreas();
+  renderWeekdayChart();
+  renderProjectStatus();
 }
 
 function colBlock(title, items) {
@@ -333,6 +708,8 @@ function renderTimeline() {
     : emptyState("Timeline is empty.");
 }
 
+/* ---------- Data loading ---------- */
+
 async function loadDashboard() {
   try {
     state.dashboard = await fetchJSON("/api/dashboard");
@@ -361,6 +738,14 @@ async function loadLearnings() {
   }
 }
 
+async function loadJournal() {
+  try {
+    state.journal = await fetchJSON("/api/journal");
+  } catch (err) {
+    toast("Failed to load journal: " + err.message, "error");
+  }
+}
+
 async function loadTimeline() {
   try {
     state.timeline = await fetchJSON("/api/timeline");
@@ -371,7 +756,7 @@ async function loadTimeline() {
 }
 
 async function refreshAll() {
-  await Promise.all([loadDashboard(), loadProjects(), loadLearnings()]);
+  await Promise.all([loadDashboard(), loadProjects(), loadLearnings(), loadJournal()]);
   if (state.timelineLoaded) await loadTimeline();
 }
 
@@ -542,6 +927,32 @@ function bindEvents() {
     renderLearnings();
   });
 
+  $("#reports-range").addEventListener("click", () => {
+    state.reportsDays = state.reportsDays === 7 ? 30 : 7;
+    renderReportsChart();
+  });
+
+  $$(".side-btn").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      const which = btn.dataset.side;
+      if (which === "fullscreen") {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+        } else {
+          document.exitFullscreen && document.exitFullscreen();
+        }
+      } else if (which === "theme") {
+        toast("Theme toggle coming soon", "error");
+      } else if (which === "bell") {
+        toast("You're all caught up");
+      } else if (which === "message") {
+        toast("No new messages");
+      } else if (which === "lang") {
+        toast("English only for now");
+      }
+    })
+  );
+
   $("#qa-type").addEventListener("change", () => {
     $("#quick-form").reset();
     renderFields();
@@ -592,10 +1003,11 @@ function bindEvents() {
   });
 }
 
-async function init() {
-  $("#today").textContent = formatDate(todayISO());
+function init() {
+  updateClock();
+  setInterval(updateClock, 60000);
   bindEvents();
-  await refreshAll();
+  refreshAll();
 }
 
 init();
