@@ -104,6 +104,87 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
+# ---------- Tasks ----------
+
+def validate_task(data: schemas.TaskCreate | schemas.TaskUpdate):
+    status = data.status if isinstance(data, schemas.TaskCreate) else None
+    if status is not None and status not in schemas.TASK_STATUSES:
+        raise HTTPException(400, f"status must be one of {sorted(schemas.TASK_STATUSES)}")
+    priority = data.priority if isinstance(data, schemas.TaskCreate) else None
+    if priority is not None and priority not in schemas.PRIORITIES:
+        raise HTTPException(400, f"priority must be one of {sorted(schemas.PRIORITIES)}")
+
+
+def touch_project(db: Session, project_id: int):
+    project = db.get(models.Project, project_id)
+    if project:
+        project.updated_at = models.NOW()
+        db.commit()
+
+
+@app.get("/api/projects/{project_id}/tasks", response_model=list[schemas.TaskOut])
+def list_tasks(project_id: int, db: Session = Depends(get_db)):
+    project = db.get(models.Project, project_id)
+    if not project:
+        raise HTTPException(404, "project not found")
+    return (
+        db.query(models.Task)
+        .filter(models.Task.project_id == project_id)
+        .order_by(models.Task.updated_at.desc())
+        .all()
+    )
+
+
+@app.post("/api/projects/{project_id}/tasks", response_model=schemas.TaskOut, status_code=201)
+def create_task(project_id: int, data: schemas.TaskCreate, db: Session = Depends(get_db)):
+    if not db.get(models.Project, project_id):
+        raise HTTPException(404, "project not found")
+    validate_task(data)
+    task = models.Task(project_id=project_id, **data.model_dump())
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    touch_project(db, project_id)
+    return task
+
+
+@app.put("/api/tasks/{task_id}", response_model=schemas.TaskOut)
+def update_task(task_id: int, data: schemas.TaskUpdate, db: Session = Depends(get_db)):
+    task = db.get(models.Task, task_id)
+    if not task:
+        raise HTTPException(404, "task not found")
+    validate_task(data)
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(task, field, value)
+    db.commit()
+    db.refresh(task)
+    touch_project(db, task.project_id)
+    return task
+
+
+@app.patch("/api/tasks/{task_id}/status", response_model=schemas.TaskOut)
+def update_task_status(task_id: int, status: str = Query(...), db: Session = Depends(get_db)):
+    task = db.get(models.Task, task_id)
+    if not task:
+        raise HTTPException(404, "task not found")
+    if status not in schemas.TASK_STATUSES:
+        raise HTTPException(400, f"status must be one of {sorted(schemas.TASK_STATUSES)}")
+    task.status = status
+    db.commit()
+    db.refresh(task)
+    touch_project(db, task.project_id)
+    return task
+
+
+@app.delete("/api/tasks/{task_id}", status_code=204)
+def delete_task(task_id: int, db: Session = Depends(get_db)):
+    task = db.get(models.Task, task_id)
+    if not task:
+        raise HTTPException(404, "task not found")
+    db.delete(task)
+    db.commit()
+
+
 # ---------- Goals ----------
 
 @app.get("/api/goals", response_model=list[schemas.GoalOut])
@@ -306,6 +387,10 @@ def dashboard(db: Session = Depends(get_db)):
         .limit(15)
         .all()
     )
+    tasks = db.query(models.Task).all()
+    tasks_by_project: dict[int, list] = {}
+    for t in tasks:
+        tasks_by_project.setdefault(t.project_id, []).append(t)
     return {
         "today": today.isoformat(),
         "active_projects": [schemas.ProjectOut.model_validate(p) for p in active_projects],
@@ -313,6 +398,10 @@ def dashboard(db: Session = Depends(get_db)):
         "recent_learnings": [schemas.LearningOut.model_validate(l) for l in learnings],
         "goals": [schemas.GoalOut.model_validate(g) for g in goals],
         "journal": [schemas.JournalOut.model_validate(j) for j in journal],
+        "tasks_by_project": {
+            str(pid): [schemas.TaskOut.model_validate(t) for t in tasks]
+            for pid, tasks in tasks_by_project.items()
+        },
     }
 
 
@@ -350,6 +439,17 @@ def timeline(limit: int = Query(default=100, ge=1, le=500), db: Session = Depend
                 body=j.content,
                 tags=j.related_entity,
                 entity_id=j.id,
+            )
+        )
+    for t in db.query(models.Task).all():
+        items.append(
+            schemas.TimelineItem(
+                kind="task",
+                date=(t.due_date or t.updated_at.date()),
+                title=t.title,
+                body=f"Status: {t.status} | Priority: {t.priority}",
+                tags="",
+                entity_id=t.id,
             )
         )
     items.sort(key=lambda i: i.date, reverse=True)

@@ -8,6 +8,7 @@ PRIORITIES = {"high", "medium", "low"}
 GOAL_AREAS = {"career", "health", "family", "learning", "finance", "other"}
 GOAL_STATUSES = {"active", "completed", "paused"}
 JOURNAL_TYPES = {"milestone", "note", "reflection"}
+TASK_STATUSES = {"wanted", "planned", "in_progress", "done"}
 
 
 class ProjectBase(BaseModel):
@@ -120,6 +121,33 @@ class JournalOut(JournalBase):
 
     id: int
     created_at: datetime
+
+
+class TaskBase(BaseModel):
+    title: str
+    status: str = "wanted"
+    priority: str = "medium"
+    due_date: date | None = None
+
+
+class TaskCreate(TaskBase):
+    pass
+
+
+class TaskUpdate(BaseModel):
+    title: str | None = None
+    status: str | None = None
+    priority: str | None = None
+    due_date: date | None = None
+
+
+class TaskOut(TaskBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    project_id: int
+    created_at: datetime
+    updated_at: datetime
 
 
 class TimelineItem(BaseModel):

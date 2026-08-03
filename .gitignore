@@ -1,3 +1,4 @@
 data/life.db
 __pycache__/
 *.pyc
+.screenshots/

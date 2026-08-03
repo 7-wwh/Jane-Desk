@@ -1,14 +1,23 @@
-# Personal Dashboard — Design Specification
+# CHECK BOX — Design Specification
 
 ---
 
 ## Vision Statement
 
-This dashboard is a *daily companion*, not a productivity tool. It should feel like opening a well-loved planner — warm, unhurried, already on your side. It knows what day it is. It doesn't demand anything. It just shows you your life, clearly.
+This dashboard is a **life-status dashboard**: at one glance you see what your life is actually looking like. What are you working on? What tasks are wanted, planned, and in motion? Is everything going okay — or does something need attention? It is a *cockpit readout* — dark, dense, and honest. It knows what day it is. It doesn't demand anything. It just shows you your life, clearly.
 
-Inspirations: Duolingo's warmth and celebration of small moments, Notion Calendar's clean spatial reasoning, Day One's emotional tone, Headspace's purposeful simplicity.
+**One thing at a time.** The dashboard grows feature by feature, always keeping the whole legible. Today that means task planning and a projects timeline; tomorrow it may mean health and nutrition logging wired to external health APIs. Each new feature is a layer on top of a stable, focused core.
 
-Anti-patterns to avoid: dark glass morphism with neon accents, corporate KPI dashboards, cluttered widget grids, anything that feels like a SaaS tool.
+**The package is two things, not one:**
+
+1. **The dashboard** — a webpage backed by a local FastAPI + SQLite service (projects, goals, learnings, journal, tasks).
+2. **Agent skills living inside the repository** — a main `SKILL.md` at the repo root that tells any agent what this database and webpage do, and *redirects* it to per-part `SKILL.md` files (`skills/<part>/SKILL.md`) so the agent knows which specific part of the project to work on.
+
+When an agent is directed at this project, the root `SKILL.md` is the single entry point. From there it follows the redirect index to the right sub-skill.
+
+**The aesthetic** is extracted from a reference analytics dashboard (working title *CHECK BOX*): industrial dark mode, high contrast, data-dense, zero visual fluff. Near-black backgrounds, semantic green/orange only, all-caps card labels, stadium-pill shapes, and a signature Projects Timeline Gantt.
+
+Anti-patterns to avoid: glassmorphism, gradients, blue/purple/pink accents, mixed-case section headers, drop shadows, bounce animations, anything that reads as a marketing page. Status indicators must read as human, not as corporate KPI chrome.
 
 ---
 
@@ -16,16 +25,18 @@ Anti-patterns to avoid: dark glass morphism with neon accents, corporate KPI das
 
 | Role | Name | Hex | Use |
 |---|---|---|---|
-| Base | Warm White | `#FAFAF7` | Page background |
-| Surface | Linen | `#F0EBE3` | Card backgrounds |
-| Surface Alt | Sage Mint | `#E8F4E8` | Calm/nature cards, task tags |
-| Accent | Amber | `#F5A623` | Primary CTAs, the Today Ring glow, highlights |
-| Accent 2 | Soft Lavender | `#D6CCF0` | Events, calendar items, secondary pills |
-| Text | Deep Warm Black | `#1C1917` | All primary text |
-| Text Muted | Warm Grey | `#8C8580` | Timestamps, metadata, captions |
-| Divider | Parchment | `#E5DDD5` | Card borders, separators |
+| Background | Void | `#111111` | Page background — true near-black |
+| Surface | Surface | `#1C1C1C` | Card / panel background |
+| Surface Raised | Surface Hi | `#242424` | Hover states, elevated elements |
+| Border | Border | `#2E2E2E` | Card edges, dividers |
+| Accent | Lime | `#AAEB47` | Brand mark, active sidebar icon, key highlights |
+| Positive | Signal Green | `#6DC533` | Up metrics, done states, Gantt bars (ok) |
+| Negative / Warning | Signal Orange | `#F5A623` | Down metrics, overdue Gantt bars, danger |
+| Text | White Soft | `#E8E8E8` | Primary text, card headlines |
+| Text Muted | White Dim | `#9B9B9B` | Labels, secondary text, axis ticks |
+| Text Faint | White Ghost | `#5C5C5C` | Timestamps, captions, empty states |
 
-**Palette rationale:** No cool greys. No pure white or pure black. Every surface has warmth baked in so the screen never feels clinical. Amber is the emotional center — it reads as sunrise, energy, and welcome across all ages without being alarming or childish.
+**Key rule:** Orange = warning/down. Green = up. These are *semantic*, never decorative. The palette is deliberately free of blue, purple, and pink.
 
 ---
 
@@ -35,163 +46,180 @@ Anti-patterns to avoid: dark glass morphism with neon accents, corporate KPI das
 
 | Role | Face | Notes |
 |---|---|---|
-| Display / Greeting | Fraunces (Variable Optical) | A literary serif with a soft, expressive personality. Use at large sizes only — `opsz` 144 for big greeting, `opsz` 72 for section heads. It reads as warm and human without being whimsical. |
-| Body / Labels | Inter | Neutral and highly legible. Use at 15–16px for body, 13px for metadata. |
-| Timestamps / Counts | DM Mono | Monospaced precision for times, event counts, and the day-ring label. Keeps data legible without feeling technical. |
+| Everything | Inter (400/500/700/900) | Single family. Weights carry the hierarchy. |
+| Fallback | `-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif` | |
 
 ### Type Scale
 
-```
-Display (greeting):   Fraunces  56px / 700  lh 1.1
-Section head:         Fraunces  28px / 600  lh 1.2
-Card title:           Inter     18px / 600  lh 1.3
-Body:                 Inter     15px / 400  lh 1.6
-Caption / Meta:       Inter     13px / 400  lh 1.5  color: Warm Grey
-Timestamp:            DM Mono   12px / 400  lh 1.4  color: Warm Grey
-```
-
----
-
-## Signature Element — The Today Ring
-
-The single most memorable piece of this dashboard. A circular arc sits in the greeting panel, showing how far through the current day you are (midnight-to-midnight). It is not a goal ring, not a step counter — just a gentle clock-face that anchors you in *right now*.
-
-**Visual treatment:**
-- Outer ring: `#E5DDD5` (parchment) at 6px stroke
-- Progress arc: `#F5A623` (amber), rounded linecap, animated from 0 on load with a subtle ease-out
-- Inside the ring: greeting text — "Good morning, WeiHeng" in Fraunces display
-- Below the name: current date in DM Mono, `Monday · 3 Aug`
-- Behind the arc: a soft radial amber glow (`rgba(245, 166, 35, 0.08)`) — not a drop shadow, a *sunrise blush* that bleeds into the card
-
-**Size:** 220px diameter on desktop, 180px on mobile. Centered in the left panel.
-
-**Animation:** On page load, the arc sweeps from the top clockwise to the current time position over 900ms (ease-out cubic). No looping animation after that — it just sits there, real and still.
+| Token | Size | Weight | Transform | Spacing | Usage |
+|---|---|---|---|---|---|
+| Brand | 15px | 900 | UPPERCASE | +0.08em | `CHECK BOX` wordmark |
+| Page title | 16px | 700 | UPPERCASE | +0.04em | Subheader page title |
+| Card label | 13px | 700 | UPPERCASE | +0.08em | Card section labels |
+| Metric value | 38px | 700 | none | -0.02em | KPI numbers |
+| Metric sublabel | 12px | 400 | none | 0 | Metric captions |
+| Nav / pill | 13px | 500 | none | 0 | Tabs, filter pills |
+| Caption | 10–11px | 400 | none | +0.02em | Axis ticks, timestamps |
 
 ---
 
 ## Layout Architecture
 
-### Desktop (≥ 900px) — Two Column
+### Desktop (≥ 1100px) — Icon Sidebar + Topbar + Two-Column Main
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  HEADER — thin, minimal. Date nav + avatar/settings  │
-├───────────────────────┬─────────────────────────────┤
-│                       │                             │
-│   LEFT PANEL          │   RIGHT PANEL               │
-│   (38% width)         │   (62% width, scrollable)   │
-│                       │                             │
-│  ┌─────────────────┐  │  ┌─────────────────────┐   │
-│  │  TODAY RING     │  │  │  DAY TIMELINE        │   │
-│  │  + Greeting     │  │  │  (chunky event cards)│   │
-│  └─────────────────┘  │  └─────────────────────┘   │
-│                       │                             │
-│  ┌──────┐ ┌────────┐  │  ┌─────────────────────┐   │
-│  │FOCUS │ │WEATHER │  │  │  TASKS / INTENTIONS  │   │
-│  │TODAY │ │MOOD    │  │  │  (swipeable/tappable)│   │
-│  └──────┘ └────────┘  │  └─────────────────────┘   │
-│                       │                             │
-│  ┌─────────────────┐  │  ┌─────────────────────┐   │
-│  │  UPCOMING       │  │  │  HABIT STREAKS       │   │
-│  │  (next 3 items) │  │  │  (emoji-style dots)  │   │
-│  └─────────────────┘  │  └─────────────────────┘   │
-│                       │                             │
-└───────────────────────┴─────────────────────────────┘
+┌──┬───────────────────────────────────────────────────────────────┐
+│  │  [CHECK BOX]  [Tab][Tab][Tab][Tab][Tab]      [clock] [+]      │  ← Topbar (64px)
+│  ├───────────────────────────────────────────────────────────────┤
+│  │  OVERVIEW                                  [Last 30 days ▾]   │  ← Subheader (56px)
+│  ├────────────────────────────────────────────┬──────────────────┤
+│🤍│  Left column (~57%)                       │  Right (~43%)     │
+│🗓│  GREETING + TODAY RING (strip)             │  PROJECTS TIMELINE│
+│💎│  [PROJECTS metric] [KNOWLEDGE metric]      │  (Gantt)          │
+│⚙│  TASKS / INTENTIONS                        │  FOCUS            │
+│  │  HABIT STREAKS                            │  TODAY            │
+│  │  INSIGHTS grid (heatmap, donuts, bars)    │  UPCOMING         │
+│  └────────────────────────────────────────────┴──────────────────┘
 ```
 
-### Mobile (< 900px) — Single Column Stack
+- **Sidebar:** 64px icon-only, left-anchored, vertically centered icon stack. Active icon = lime background. Hidden on mobile (< 860px).
+- **Topbar:** 64px. Brand mark (lime box + check) + wordmark, pill nav tabs, clock, `+` add button.
+- **Subheader:** 56px. Uppercase page title on the left; contextual filters on the right (growth range on Overview, status pills on Projects).
+- **Main:** two columns — left ~57% cards grid, right ~43% Projects Timeline Gantt (sticky, scrollable within the viewport).
 
-```
-┌──────────────────┐
-│  TODAY RING      │
-│  + Greeting      │
-├──────────────────┤
-│  FOCUS + WEATHER │  (side by side)
-├──────────────────┤
-│  DAY TIMELINE    │
-├──────────────────┤
-│  TASKS           │
-├──────────────────┤
-│  HABITS          │
-└──────────────────┘
-```
+### Mobile (< 860px)
 
-**No hamburger menus, no sidebar nav, no tabs.** Everything is visible on one scroll. Navigation to settings or other views happens through the avatar icon (top right) and a simple bottom sheet on mobile.
+Single column stack. Sidebar hides; topbar tabs scroll horizontally. Metric cards stack, Gantt drops below Insights.
+
+**Navigation:** the topbar pills and the sidebar icons are the same tab system — clicking either switches the panel.
+
+---
+
+## Signature Element — The Projects Timeline Gantt
+
+The single most memorable piece of the dashboard. Stadium-pill bars floating on a dotted vertical grid, each bar representing a project's working span over the last 30 days.
+
+**Visual treatment:**
+- Y-axis (left of each row): project name (truncated, 12px) + start date in `DD.MM` format
+- X-axis: numeric 0–30 scale at the bottom, ticks every 5
+- Bars: `border-radius: 999px`, 18px tall, green (`#6DC533`) when healthy, orange (`#F5A623`) when the project has an overdue open task
+- Inside each bar: a circular project-initial dot (13px) on the left, and the task count on the right — iconography embedded in the data element
+- Grid: dotted vertical lines every day, no filled grid rows
+
+**Data mapping:** each non-done project spans from its earliest task `created_at` (or project `created_at`) to its latest task `created_at`/`due_date`. The bar is clamped to the trailing 30-day window. Orange when any open task has a `due_date` before today.
 
 ---
 
 ## Card System
 
-All cards share the same foundational feel: `border-radius: 20px`, `background: #F0EBE3`, `box-shadow: 0 1px 3px rgba(28,25,23,0.06)`. No heavy drop shadows. Cards feel like physical tiles, not floating glass.
+All cards share the same foundation: `background: #1C1C1C`, `border: 1px solid #2E2E2E`, `border-radius: 16px`, padding 22px. **No drop shadows** — separation is achieved purely through color contrast against `#111111`. Card headers are ALL-CAPS 13px labels with a `⋯` overflow affordance on the right.
 
 ### Card Types
 
-**1. Greeting + Today Ring Card** (Left, top)
-Full-height left panel anchor. The ring dominates. Below it: a short, single-line affirmation or quote that rotates daily — written simply, nothing motivational-poster. Example: *"Three things are on your list today."* or *"Clear evening ahead."*
+**1. Greeting + Today Ring Card** (Left, top, horizontal strip)
+A small 64px day-ring showing progress through the day (lime arc on a `#2E2E2E` track), greeting line ("Good morning") + date beside it, and a one-line daily affirmation right-aligned. Compact, not dominant.
 
-**2. Focus Card** (Left, small)
-One single task, elevated. The thing that matters most today. Displayed large — task name at 18px Semi-Bold, a small colored dot for category (amber = personal, lavender = project, sage = health), and a checkbox that animates to a strikethrough on tap. Nothing else.
+**2. Metric Cards** (Left, top row, two side-by-side)
+- **PROJECTS:** active project count (38px), delta badge (▲ green / ▼ orange, % vs previous month), "N finished this month" note, 14-day sparkline of project creation.
+- **KNOWLEDGE:** learnings this week, delta vs last week, total learnings, 14-day daily sparkline.
+Each metric has: colored triangle indicator, large bold number, small muted label, sparkline beneath (thin colored line on dark bg, no axes).
 
-**3. Weather Mood Card** (Left, small)
-Not a full weather widget. Just: an icon (sun, cloud, rain — SVG, not emoji), a temperature, and one word description. *"Warm"*, *"Overcast"*, *"Breezy"*. No hourly breakdown here — that's for a dedicated weather app.
+**3. Tasks / Intentions Card** (Left, middle)
+Full-width rows with ≥ 44px tap targets. Checkbox left (lime when checked), title center, project label under the title (10px, uppercase). Checked items get a strikethrough and dim.
 
-**4. Day Timeline** (Right, top — largest card)
-The backbone of the dashboard. A vertical time spine (DM Mono timestamps on the left, 5px wide vertical line in Parchment). Events hang off it as horizontal pill-cards. Each pill: title in Inter Semi-Bold, time in DM Mono Muted, category color on left border.
+**4. Habit Streaks Card** (Left, middle)
+Goal-derived habit rows: colored initial badge, goal name, 7-day dot row (green dot = activity that day, `#242424` = missed).
 
-Spacing is proportional — a 2-hour gap looks taller than a 30-minute gap. Current time is marked with a small amber dot on the spine.
+**5. Insights** (Left, lower)
+A single card wrapping the analytics grid: activity heatmap, project status donut, cumulative growth line, journal types donut, goals-by-area bars, top tags, weekly summary, daily activity bars, and life-area hexagons. All dark-themed SVG, no chart library.
 
-**5. Tasks / Intentions Card** (Right, middle)
-Three to five tasks, rendered as full-width rows with large tap targets (≥ 48px height per row per accessibility best practice). Checkbox left, title center, optional tag pill right. Checked items cross out with a subtle strikethrough and fade to muted — they don't disappear, which gives satisfaction without clutter.
+**6. Projects Timeline Gantt** (Right, top) — see signature element above.
 
-**6. Habit Streaks Card** (Right, bottom)
-Five to eight habits shown as a row of labeled icon-badges. Each badge: a small icon or initial letter, habit name below in 11px Inter, and a dot-row beneath showing the last 7 days (filled amber dot = done, parchment dot = missed). No numbers, no percentages. Visual, immediate, non-judgmental.
+**7. Focus Card** (Right) — the single highest-priority non-done task, with its checkbox.
+
+**8. Today Card** (Right) — today's journal + learning entries on a compact spine.
+
+**9. Upcoming Card** (Right) — next three dated projects.
+
+---
+
+## Component Patterns
+
+- **Metric tiles:** two metrics side-by-side with colored triangle indicator (▲ green up, ▼ orange down), large bold number, small muted label, sparkline beneath.
+- **Pills everywhere:** nav tabs, filter pills, buttons, badges, Gantt bars all use `border-radius: 999px`.
+- **Avatar / icon dots:** circular project-initial dots inside Gantt bars.
+- **Empty states:** written in the UI's own voice — "No active projects to chart.", "Nothing on the timeline yet — a clear day." Not "No data found."
 
 ---
 
 ## Interaction Design
 
-**Hover states:** Cards lift with `transform: translateY(-2px)` and a slightly deeper shadow on hover. Subtle enough for desktop; no hover on mobile.
-
-**Tap / Click feedback:** Checkboxes animate with a quick scale pulse (100ms) and color fill. No jank, no layout shift.
-
-**Loading state:** The ring arc starts at 0 and sweeps to the correct time position on first paint. Text fades in 200ms after the arc completes. No spinner. The animation *is* the loading state.
-
-**Empty states:** Written directly in the card, in the same voice as the rest of the UI. "Nothing on the timeline yet — a clear day." Not "No events found."
-
-**Transitions:** Page-level transitions are minimal. A 150ms opacity fade when switching days. No sliding panels or complex choreography — the dashboard is a *place*, not an app you navigate through.
+- **Hover:** cards and pills shift to `#242424` background. No scale, no shadows — restrained.
+- **Checkbox tap:** instant lime fill + checkmark. No bounce.
+- **Motion:** card entrance `fade + translate-Y(6px)`, 200ms ease-out. Metric numbers static (no count-up). Gantt bars render in place. No spring physics — this is a tool, not a marketing page.
+- **`prefers-reduced-motion`:** all animations/transitions disabled.
+- **Loading:** initial paint of greeting + ring is client-side (no API call). Data loads async into held space.
 
 ---
 
 ## Spacing System
 
-Base unit: `8px`. All spacing is a multiple of this.
+Base unit: `8px`.
 
 ```
---space-1:   4px   (tight internal padding, icon gaps)
---space-2:   8px   (within-card element spacing)
---space-3:  12px   (label-to-content gaps)
---space-4:  16px   (card internal padding, standard)
---space-5:  20px   (card internal padding, generous)
---space-6:  24px   (between-card gaps)
---space-8:  32px   (section separation)
---space-12: 48px   (major panel padding)
+--space-card-pad:  22px   (card internal padding)
+--space-gutter:    16px   (between-card gaps)
+--space-outer:     30px   (page outer padding)
 ```
 
-Minimum touch target: `48px` height on all interactive elements (per WCAG 2.5.5 AAA).
+- Sidebar: 64px wide.
+- Topbar: 64px tall. Subheader: 56px tall.
+- Border radius: cards `16px`, pills/buttons/nav `999px`, checkbox `6px`, dots `50%`.
+
+Minimum touch target: ~40px for dense interactive rows (task rows, nav).
 
 ---
 
-## Accessibility & Inclusivity
+## Accessibility
 
-These are non-negotiables, not afterthoughts.
+- All body text meets WCAG AA contrast (e.g. `#E8E8E8` on `#1C1C1C` ≈ 13:1; `#9B9B9B` on `#1C1C1C` ≈ 5.6:1).
+- `prefers-reduced-motion` fully respected.
+- Focus rings visible (`.skip-link` styled, inputs get a lime `:focus` border).
+- All icon SVGs carry `aria-label` or paired visible text.
+- No information conveyed by color alone where it matters (Gantt bars always show text; status dots have tooltips).
 
-- All text meets WCAG AA contrast (4.5:1 for body, 3:1 for large text against its background).
-- Amber on Warm White (`#F5A623` on `#FAFAF7`) is used only for decorative elements — never for text-on-color that must be legible.
-- Font sizes never go below 12px. Body defaults to 15–16px, which is comfortable for ages 12 to 70+.
-- `prefers-reduced-motion` respected: the ring arc draws instantly, no sweep animation.
-- Focus rings visible and styled — `outline: 2px solid #F5A623; outline-offset: 3px` — not hidden.
-- No information is conveyed by color alone (category dots always have a text label visible on hover/tap).
-- All icon SVGs carry `aria-label` or are paired with visible text.
+---
+
+## Status Layer
+
+The dashboard's core promise is "is everything doing okay?" — answered through status indicators layered on top of the cockpit layout.
+
+- **Per-area health.** One indicator per life area (career, health, family, learning, finance, other) aggregates the projects, goals, and recent activity that belong to it. Green/amber/red with a one-line reason.
+- **Per-project status.** Each project shows its own progress: open vs. done tasks, priority, and whether it is overdue or on track.
+- **Per-task planning state.** Tasks move through `wanted → planned → in_progress → done`. The planning view lets you mark what you *want to do* and what you *are going to do* next.
+- **Click-through.** Every status bar or item opens the item in a focused edit/detail panel. The status layer is navigation, not decoration.
+
+**Health rules are external.** The exact rules that decide "okay" vs. "needs attention" live in `skills/status/SKILL.md` (agent-readable) and may be refined independently of the UI. The dashboard consumes them; it does not hard-code them.
+
+---
+
+## Agent Skills
+
+Agent skills are shipped inside this repository so any agent pointed at the project can orient itself and start contributing.
+
+```
+SKILL.md                        # Entry point: what the DB + webpage do, redirect index
+skills/
+  status/SKILL.md               # Health/status rules (is everything doing okay?)
+  task-planning/SKILL.md        # The task feature: model, API, UI
+  backend/SKILL.md              # Data model + API conventions
+  frontend/SKILL.md             # Static app structure + rendering conventions
+  health/SKILL.md               # Future: nutrition/health integration (placeholder)
+```
+
+- The root `SKILL.md` is the single entry point. It describes the project and *redirects* to the sub-skill relevant to a given task.
+- Each sub-skill carries YAML frontmatter (`name:`, `description:`) so agent tooling can index it.
+- `AGENTS.md` stays as the short "how to write entries via the API" quick-start; the skills are the deep reference.
 
 ---
 
@@ -201,23 +229,26 @@ To keep the build honest:
 
 - Not a habit-tracking app. Habits are one small card, not the center.
 - Not a calendar replacement. The timeline shows today only. Navigating forward/back is secondary.
-- Not an analytics dashboard. No charts, no trend lines, no weekly summaries on the main view.
+- Not a corporate analytics tool. The dark KPI aesthetic is *borrowed* for density and legibility, but the metrics are the user's own life — the status layer is about acting, not vanity numbers.
 - Not customizable-everything. The structure is fixed; content is personal. Fewer choices = less friction every morning.
+- Not a lock-in. Health APIs come later and plug in behind the status layer; nothing about the current core depends on them.
 
 ---
 
 ## Implementation Notes
 
-**Stack recommendation:** Vanilla HTML/CSS/JS or lightweight React. No heavy charting libraries needed. The Today Ring can be rendered as an SVG `<circle>` with `stroke-dasharray` / `stroke-dashoffset`.
+**Stack:** Vanilla HTML/CSS/JS served by FastAPI's StaticFiles. No build step, no charting library — all charts are hand-rolled SVG (`svgEl`, `lineChart`, `donutSVG`, `sparkline` in `app.js`).
 
-**Fonts:** Load from Google Fonts — `Fraunces:opsz,wght@9..144,300..900`, `Inter:wght@400;600`, `DM+Mono:wght@400`.
+**Fonts:** Inter from Google Fonts (400–900).
 
-**Data layer:** JSON-driven. All content (tasks, events, habits) reads from a local JSON file or a simple REST call. The UI never hard-codes content strings.
+**Data layer:** REST API. The UI never hard-codes content strings. Everything renders from `state` populated by `/api/*`.
 
-**First screen rendered in ≤ 200ms.** The greeting and ring render from client-side time — no API call needed for the initial paint. Events and tasks load asynchronously; skeleton states (not spinners) hold their space.
+**First screen ≤ 200ms:** greeting and ring render from client-side time; data loads async into held space.
+
+**CSS tokens:** the design is tokenized in `:root` (`--color-*`, `--radius-*`, `--font-base`, `--space-*`). Any future theme (including returning to a warm light mode) is a token swap, not a rewrite.
 
 ---
 
 ## The One Rule
 
-If it would look at home in a corporate SaaS demo or an AI portfolio template, remove it. Every element earns its place by being useful, warm, or quietly beautiful. Usually all three.
+If it would look at home in a corporate SaaS demo, remove it. Every element earns its place by being dense, legible, and honest about the user's actual life. Usually all three.

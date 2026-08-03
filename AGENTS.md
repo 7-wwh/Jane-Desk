@@ -29,6 +29,9 @@ bin/post.sh goal '{"area":"health","title":"Run 5km","progress":40,"target_date"
 
 # Add a journal entry
 bin/post.sh journal '{"type":"milestone","content":"Finished first dashboard prototype","date":"2026-08-02"}'
+
+# Add a task under a project (project_id from /api/projects)
+bin/post.sh task 1 '{"title":"Wire up task API","status":"planned","priority":"high"}'
 ```
 
 Or use curl directly (JSON body, `Content-Type: application/json`). See the API
@@ -41,6 +44,8 @@ reference below for all endpoints. **No auth is required.**
   `active` (currently working), `backlog` (planned/future), `done`, `paused`.
 - **Long-term aspirations**: add to `goals` (area: career/health/family/learning/finance/other),
   set `progress` 0-100.
+- **Concrete next steps**: add to `tasks` under a project. Use `status`:
+  `wanted` (would like), `planned` (committed), `in_progress` (working now), `done` (finished).
 - **Notable moments**: add a `journal` entry (`type`: milestone/note/reflection).
 
 Keep entries short and factual. Tags are comma-separated (e.g. `python,fastapi,dashboard`).
@@ -69,6 +74,15 @@ Base: `http://127.0.0.1:8000` — all routes under `/api`.
 - `POST   /api/learnings` / `GET|PUT|DELETE /api/learnings/{id}`
 - Fields: `title` (req), `content`, `date` (YYYY-MM-DD, default today),
   `tags` (comma string), `related_project`
+
+### Tasks
+- `GET    /api/projects/{project_id}/tasks` — list tasks for a project
+- `POST   /api/projects/{project_id}/tasks` — create task under project
+- `GET|PUT|DELETE /api/tasks/{id}` — single task
+- `PATCH  /api/tasks/{id}/status?status=` — advance status
+  (`wanted`/`planned`/`in_progress`/`done`)
+- Fields: `title` (req), `status`, `priority` (high/medium/low), `due_date`
+  (YYYY-MM-DD or null)
 
 ### Journal
 - `GET    /api/journal?date=&type=`

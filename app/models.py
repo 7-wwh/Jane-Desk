@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Float, Integer, String, Text
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
@@ -18,6 +18,19 @@ class Project(Base):
     priority: Mapped[str] = mapped_column(String(10), default="medium")  # high/medium/low
     target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     tags: Mapped[str] = mapped_column(String(200), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=NOW)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=NOW, onupdate=NOW)
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="wanted")  # wanted/planned/in_progress/done
+    priority: Mapped[str] = mapped_column(String(10), default="medium")  # high/medium/low
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=NOW)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=NOW, onupdate=NOW)
 

@@ -11,12 +11,12 @@ const AREA_LABELS = {
   other: "Other",
 };
 const AREA_COLORS = {
-  career: "#C4593B",
-  health: "#5A8F5C",
-  family: "#F5A623",
-  learning: "#7A6FB0",
-  finance: "#3E8E8E",
-  other: "#8C8580",
+  career: "#F5A623",
+  health: "#6DC533",
+  family: "#AAEB47",
+  learning: "#E8E8E8",
+  finance: "#C9A24A",
+  other: "#5C5C5C",
 };
 const ENDPOINTS = {
   project: "/api/projects",
@@ -24,9 +24,12 @@ const ENDPOINTS = {
   goal: "/api/goals",
   journal: "/api/journal",
 };
-const STATUS_COLORS = { active: "#C4593B", backlog: "#7A6FB0", done: "#5A8F5C", paused: "#8C8580" };
-const PRIO_COLORS = { high: "#C4593B", medium: "#F5A623", low: "#5A8F5C" };
-const JTYPE_COLORS = { milestone: "#7A6FB0", note: "#3E8E8E", reflection: "#A05C7E" };
+const STATUS_COLORS = { active: "#AAEB47", backlog: "#9B9B9B", done: "#6DC533", paused: "#F5A623" };
+const PRIO_COLORS = { high: "#F5A623", medium: "#AAEB47", low: "#6DC533" };
+const JTYPE_COLORS = { milestone: "#6DC533", note: "#E8E8E8", reflection: "#F5A623" };
+const CHART_GRID = "rgba(46,46,46,0.8)";
+const CHART_LABEL = "#5C5C5C";
+const CHART_TRACK = "#2E2E2E";
 const DAYS7 = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -247,10 +250,10 @@ function lineChart({
     svg.appendChild(
       svgEl("line", {
         x1: getX(i), y1: pad.top, x2: getX(i) - 16, y2: height - pad.bottom,
-        stroke: "rgba(28,25,23,0.07)", "stroke-dasharray": "2 5",
+        stroke: CHART_GRID, "stroke-dasharray": "2 5",
       })
     );
-    const label = svgEl("text", { x: getX(i), y: height - 6, fill: "rgba(28,25,23,0.4)", "font-size": 9, "text-anchor": "middle" });
+    const label = svgEl("text", { x: getX(i), y: height - 6, fill: CHART_LABEL, "font-size": 9, "text-anchor": "middle" });
     label.textContent = i % labelEvery === 0 ? xLabels[i] : "";
     svg.appendChild(label);
   }
@@ -269,13 +272,13 @@ function lineChart({
       [0, 0.5, 1].forEach((off, idx) => {
         const stop = svgEl("stop", {
           offset: `${off * 100}%`,
-          "stop-color": idx === 1 ? "#F5A623" : "rgba(245,166,35,0.35)",
+          "stop-color": idx === 1 ? "#AAEB47" : "rgba(170,235,71,0.35)",
         });
         grad.appendChild(stop);
       });
       svg.appendChild(grad);
       path.setAttribute("stroke", "url(#lineGrad)");
-      path.style.filter = "drop-shadow(0px 3px 5px rgba(245,166,35,0.3))";
+      path.style.filter = "drop-shadow(0px 3px 5px rgba(170,235,71,0.3))";
     }
     svg.appendChild(path);
 
@@ -284,8 +287,8 @@ function lineChart({
         svg.appendChild(
           svgEl("circle", {
             cx: p.x, cy: p.y, r: s.gradient ? 3.4 : 3,
-            fill: s.gradient ? "#F5A623" : s.color,
-            stroke: s.gradient ? "#FAFAF7" : "none",
+            fill: s.gradient ? "#AAEB47" : s.color,
+            stroke: s.gradient ? "#111111" : "none",
             "stroke-width": s.gradient ? 1.5 : 0,
           })
         );
@@ -326,9 +329,9 @@ function renderGrowthChart() {
   container.appendChild(
     lineChart({
       series: [
-        { values: series.total, color: "#F5A623", gradient: true },
-        { values: series.learn, color: "#7A6FB0" },
-        { values: series.jour, color: "#3E8E8E", dashed: true },
+        { values: series.total, color: "#AAEB47", gradient: true },
+        { values: series.learn, color: "#E8E8E8" },
+        { values: series.jour, color: "#6DC533", dashed: true },
       ],
       xLabels: labels,
       labelEvery: days === 30 ? 4 : 9,
@@ -340,7 +343,7 @@ function donutSVG(parts, centerValue, centerLabel) {
   const total = Math.max(1, parts.reduce((s, p) => s + p.value, 0));
   const r = 50, c = 2 * Math.PI * r;
   const svg = svgEl("svg", { viewBox: "0 0 120 120", role: "img" });
-  svg.appendChild(svgEl("circle", { cx: 60, cy: 60, r, fill: "none", stroke: "#E5DDD5", "stroke-width": 14 }));
+  svg.appendChild(svgEl("circle", { cx: 60, cy: 60, r, fill: "none", stroke: CHART_TRACK, "stroke-width": 14 }));
   let offset = 0;
   parts.forEach((p) => {
     if (p.value <= 0) return;
@@ -419,7 +422,7 @@ function renderActivityHeatmap() {
   const start = new Date(end);
   start.setDate(end.getDate() - totalDays + 1);
 
-  const dayLabel = svgEl("text", { x: 0, y: 8, fill: "rgba(28,25,23,0.4)", "font-size": 9 });
+  const dayLabel = svgEl("text", { x: 0, y: 8, fill: CHART_LABEL, "font-size": 9 });
   dayLabel.textContent = "Mon";
   const w = weeks * (cell + gap) + 14;
   const h = 7 * (cell + gap);
@@ -434,7 +437,7 @@ function renderActivityHeatmap() {
     const iso = isoFromDate(d);
     const v = counts[iso] || 0;
     const inRange = d <= end && d >= start;
-    const alpha = !inRange ? 0 : v === 0 ? 0.08 : 0.3 + (v / max) * 0.7;
+    const alpha = !inRange ? 0 : v === 0 ? 0.15 : 0.3 + (v / max) * 0.7;
     svg.appendChild(
       svgEl("rect", {
         x: col * (cell + gap) + 14,
@@ -442,7 +445,7 @@ function renderActivityHeatmap() {
         width: cell,
         height: cell,
         rx: 2.5,
-        fill: v > 0 ? "#F5A623" : "rgba(28,25,23,0.06)",
+        fill: v > 0 ? "#6DC533" : CHART_TRACK,
         "fill-opacity": String(alpha),
       })
     );
@@ -481,7 +484,7 @@ function renderMonthlyBars(el) {
         const label = new Date(m + "-01").toLocaleDateString(undefined, { month: "short", year: "2-digit" });
         return `<div class="hbar-row">
           <span class="hbar-label">${label}</span>
-          <div class="hbar-track"><div class="hbar-fill" style="background:#F5A623;width:${Math.round((counts[m] / max) * 100)}%"></div></div>
+          <div class="hbar-track"><div class="hbar-fill" style="background:#6DC533;width:${Math.round((counts[m] / max) * 100)}%"></div></div>
           <span class="hbar-val">${counts[m]}</span>
         </div>`;
       })
@@ -501,7 +504,7 @@ function renderTagFreq(el) {
     el.innerHTML = emptyState("No tags yet.");
     return;
   }
-  renderHBar(el, items.map((i, idx) => ({ ...i, color: ["#F5A623", "#7A6FB0", "#C4593B", "#5A8F5C", "#3E8E8E", "#A05C7E"][idx % 6] })));
+  renderHBar(el, items.map((i, idx) => ({ ...i, color: ["#AAEB47", "#E8E8E8", "#F5A623", "#6DC533", "#C9A24A", "#9B9B9B"][idx % 6] })));
 }
 
 function renderGoalsByArea(el) {
@@ -551,8 +554,8 @@ function renderWeeklyChart() {
   container.innerHTML = "";
   const svg = lineChart({
     series: [
-      { values: thisWeek, color: "#F5A623" },
-      { values: lastWeek, color: "#C9C2B9", dashed: true },
+      { values: thisWeek, color: "#AAEB47" },
+      { values: lastWeek, color: "#5C5C5C", dashed: true },
     ],
     xLabels: DAYS7,
     width: 320,
@@ -625,7 +628,7 @@ function renderHexAreas() {
         points: pts,
         fill: color,
         "fill-opacity": intensity,
-        stroke: "rgba(28,25,23,0.12)",
+        stroke: CHART_TRACK,
         "stroke-width": 1.4,
       })
     );
@@ -643,7 +646,7 @@ function renderHexAreas() {
             `<div class="hex-item"><span><span class="ldot" style="background:${AREA_COLORS[a]}"></span>${AREA_LABELS[a]}</span><b>${byArea[a]}</b></div>`
         )
         .join("")
-    : `<div class="hex-item"><span style="color:var(--ink-faint)">No goals yet</span></div>`;
+    : `<div class="hex-item"><span style="color:var(--color-text-dim)">No goals yet</span></div>`;
 }
 
 function renderWeekdayChart() {
@@ -704,6 +707,29 @@ function renderProjectsCharts() {
 
 /* ---------- Card renderers ---------- */
 
+function projectTaskList(p) {
+  const tasks = tasksFor(p.id);
+  if (!tasks.length) {
+    return `<div class="proj-tasks empty-tasks">No tasks yet.</div>`;
+  }
+  const doneCount = tasks.filter((t) => t.status === "done").length;
+  const pct = Math.round((doneCount / tasks.length) * 100);
+  const rows = tasks
+    .map(
+      (t) => `<div class="pt-row${t.status === "done" ? " done" : ""}">
+        ${taskCheckbox(t)}
+        <span class="pt-title">${esc(t.title)}</span>
+        <span class="pt-state pt-${esc(t.status)}">${esc(t.status)}</span>
+      </div>`
+    )
+    .join("");
+  return `<div class="proj-progress">
+      <span class="proj-progress-label">${doneCount}/${tasks.length} done</span>
+      <div class="proj-progress-track"><div class="proj-progress-fill" style="width:${pct}%"></div></div>
+    </div>
+    <div class="proj-tasks">${rows}</div>`;
+}
+
 function projectCard(p) {
   const prio = p.priority || "medium";
   const done = p.status === "done";
@@ -718,6 +744,13 @@ function projectCard(p) {
       ${!done && p.status !== "active" ? `<span class="badge badge-status">${esc(p.status)}</span>` : ""}
     </div>
     <div class="chips">${tagChips(p.tags)}</div>
+    <div class="proj-task-block">
+      ${done ? "" : projectTaskList(p)}
+      <div class="add-task">
+        <input class="input add-task-input" type="text" placeholder="Add a task..." aria-label="Add a task to ${esc(p.title)}" maxlength="200" autocomplete="off">
+        <button class="btn btn-sm add-task-btn" data-action="task-add" data-id="${p.id}">Add</button>
+      </div>
+    </div>
     <div class="card-actions">
       ${done ? `<span class="meta">Done</span>` : `<button class="btn btn-sm" data-action="done" data-type="project" data-id="${p.id}">Mark done</button>`}
       <button class="btn btn-sm btn-danger" data-action="delete" data-type="project" data-id="${p.id}">Delete</button>
@@ -871,6 +904,19 @@ function renderDayTimeline() {
 }
 
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
+const TASK_STATE_ORDER = { in_progress: 0, planned: 1, wanted: 2, done: 3 };
+
+function tasksFor(projectId) {
+  const map = (state.dashboard && state.dashboard.tasks_by_project) || {};
+  return map[String(projectId)] || [];
+}
+
+function taskCheckbox(task, opts = {}) {
+  const done = task.status === "done";
+  return `<button class="checkbox${done ? " checked" : ""}" data-action="task-toggle" data-id="${task.id}" data-project="${task.project_id}" aria-label="${done ? "Completed" : "Mark done"}" title="Toggle done">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+  </button>`;
+}
 
 function renderFocus() {
   const goals = (state.dashboard && state.dashboard.goals) || [];
@@ -881,27 +927,44 @@ function renderFocus() {
     return pa - pb || String(a.target_date || "9999").localeCompare(String(b.target_date || "9999"));
   });
   const focus = sorted[0];
-  if (!focus) {
-    const goal = goals.find((g) => g.status === "active");
-    if (goal) {
+
+  if (focus) {
+    const tasks = tasksFor(focus.id);
+    const nextUp = tasks
+      .filter((t) => t.status !== "done")
+      .sort((a, b) => (TASK_STATE_ORDER[a.status] ?? 9) - (TASK_STATE_ORDER[b.status] ?? 9))
+      .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 1) - (PRIORITY_ORDER[b.priority] ?? 1))[0];
+    if (nextUp) {
       $("#focus-body").innerHTML = `<div class="focus-row">
-        <div class="focus-body"><p class="focus-title">${esc(goal.title)}</p>
-        <p class="focus-meta">${esc(AREA_LABELS[goal.area] || goal.area)} goal</p></div>
+        ${taskCheckbox(nextUp)}
+        <div class="focus-body">
+          <p class="focus-title">${esc(nextUp.title)}</p>
+          <p class="focus-meta">${esc(focus.title)} · ${esc(nextUp.status)}</p>
+        </div>
       </div>`;
-    } else {
-      $("#focus-body").innerHTML = `<p class="focus-empty">Nothing demanding attention today.</p>`;
+      return;
     }
+    $("#focus-body").innerHTML = `<div class="focus-row">
+      <button class="checkbox" data-action="done" data-type="project" data-id="${focus.id}" aria-label="Mark done" title="Mark done">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+      </button>
+      <div class="focus-body">
+        <p class="focus-title">${esc(focus.title)}</p>
+        <p class="focus-meta">${esc(focus.priority)} priority · ${focus.target_date ? "due " + esc(formatDate(focus.target_date)) : "no deadline"}</p>
+      </div>
+    </div>`;
     return;
   }
-  $("#focus-body").innerHTML = `<div class="focus-row">
-    <button class="checkbox" data-action="done" data-type="project" data-id="${focus.id}" aria-label="Mark done" title="Mark done">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-    </button>
-    <div class="focus-body">
-      <p class="focus-title">${esc(focus.title)}</p>
-      <p class="focus-meta">${esc(focus.priority)} priority · ${focus.target_date ? "due " + esc(formatDate(focus.target_date)) : "no deadline"}</p>
-    </div>
-  </div>`;
+
+  const goal = goals.find((g) => g.status === "active");
+  if (goal) {
+    $("#focus-body").innerHTML = `<div class="focus-row">
+      <div class="focus-body"><p class="focus-title">${esc(goal.title)}</p>
+      <p class="focus-meta">${esc(AREA_LABELS[goal.area] || goal.area)} goal</p></div>
+    </div>`;
+  } else {
+    $("#focus-body").innerHTML = `<p class="focus-empty">Nothing demanding attention today.</p>`;
+  }
 }
 
 function renderUpcoming() {
@@ -924,30 +987,27 @@ function renderUpcoming() {
 
 function renderTasks() {
   const active = state.projects.filter((p) => p.status === "active");
-  const done = state.projects.filter((p) => p.status === "done").slice(0, 4);
-  const rows = [
-    ...active.map((p) => ({
-      id: p.id,
-      title: p.title,
-      done: false,
-      kind: "project",
-    })),
-    ...done.map((p) => ({ id: p.id, title: p.title, done: true, kind: "project" })),
-  ];
-  if (!rows.length) {
-    $("#tasks-body").innerHTML = `<p class="task-empty">No tasks yet. Add a project to begin.</p>`;
+  const rows = [];
+  active.forEach((p) => {
+    tasksFor(p.id).forEach((t) => {
+      rows.push({ task: t, projectTitle: p.title });
+    });
+  });
+  rows.sort((a, b) => (TASK_STATE_ORDER[a.task.status] ?? 9) - (TASK_STATE_ORDER[b.task.status] ?? 9));
+  const open = rows.filter((r) => r.task.status !== "done");
+  const done = rows.filter((r) => r.task.status === "done").slice(0, 4);
+
+  if (!open.length && !done.length) {
+    $("#tasks-body").innerHTML = `<p class="task-empty">No tasks yet. Add tasks under a project to begin.</p>`;
     return;
   }
-  $("#tasks-body").innerHTML = rows
-    .map(
-      (t) => `<label class="task-row${t.done ? " done" : ""}">
-        <button class="checkbox${t.done ? " checked" : ""}" ${t.done ? "disabled aria-hidden='true'" : ""} data-action="${t.done ? "" : "done"}" data-type="${t.kind}" data-id="${t.id}" aria-label="${t.done ? "Completed" : "Mark done"}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-        </button>
-        <span class="task-label">${esc(t.title)}</span>
-      </label>`
-    )
-    .join("");
+  const rowHTML = (r, isDone) => `<label class="task-row${isDone ? " done" : ""}">
+    <button class="checkbox${isDone ? " checked" : ""}" ${isDone ? "disabled aria-hidden='true'" : ""} data-action="task-toggle" data-id="${r.task.id}" data-project="${r.task.project_id}" aria-label="${isDone ? "Completed" : "Mark done"}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+    </button>
+    <span class="task-label">${esc(r.task.title)} <span class="task-project">${esc(r.projectTitle)}</span></span>
+  </label>`;
+  $("#tasks-body").innerHTML = [...open.map((r) => rowHTML(r, false)), ...done.map((r) => rowHTML(r, true))].join("");
 }
 
 function renderHabits() {
@@ -985,6 +1045,164 @@ function renderHabits() {
     .join("");
 }
 
+/* ---------- Metric cards ---------- */
+
+function sparkline(values, { color = "#6DC533", width = 320, height = 48 } = {}) {
+  const max = Math.max(1, ...values);
+  const n = values.length;
+  const iw = width - 4;
+  const ih = height - 8;
+  const getX = (i) => 2 + (n === 1 ? iw / 2 : (i / (n - 1)) * iw);
+  const getY = (v) => 4 + ih - (v / max) * ih;
+  const pts = values.map((v, i) => ({ x: getX(i), y: getY(v) }));
+
+  const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}`, preserveAspectRatio: "none", role: "img", "aria-label": "Sparkline" });
+  const grad = svgEl("linearGradient", { id: "sparkGrad", x1: "0%", y1: "0%", x2: "0%", y2: "100%" });
+  grad.appendChild(svgEl("stop", { offset: "0%", "stop-color": color, "stop-opacity": "0.35" }));
+  grad.appendChild(svgEl("stop", { offset: "100%", "stop-color": color, "stop-opacity": "0" }));
+  svg.appendChild(grad);
+
+  const area = `${makeLinePath(pts)} L ${getX(n - 1)} ${height} L ${getX(0)} ${height} Z`;
+  svg.appendChild(svgEl("path", { d: area, fill: "url(#sparkGrad)" }));
+  svg.appendChild(svgEl("path", { d: makeLinePath(pts), fill: "none", stroke: color, "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round" }));
+  return svg;
+}
+
+function metricDelta(current, previous) {
+  const diff = current - previous;
+  const pct = previous === 0 ? (diff === 0 ? 0 : 100) : Math.round((Math.abs(diff) / previous) * 100);
+  return { diff, pct, up: diff >= 0 };
+}
+
+function renderMetricProjects() {
+  const active = state.projects.filter((p) => p.status === "active").length;
+  const now = new Date();
+  const thisM = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+  const prevD = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevM = prevD.getFullYear() + "-" + String(prevD.getMonth() + 1).padStart(2, "0");
+  const doneThis = state.projects.filter((p) => p.status === "done" && String(p.updated_at || "").slice(0, 7) === thisM).length;
+  const donePrev = state.projects.filter((p) => p.status === "done" && String(p.updated_at || "").slice(0, 7) === prevM).length;
+  const d = metricDelta(doneThis, donePrev);
+
+  const dates = lastNDates(14);
+  const created = dates.map((iso) => state.projects.filter((p) => String(p.created_at || "").slice(0, 10) === iso).length);
+  const color = d.up ? "#6DC533" : "#F5A623";
+
+  $("#metric-projects").innerHTML = `
+    <div class="metric-top">
+      <div><div class="metric-value">${active}</div><div class="metric-sublabel">active projects</div></div>
+      <span class="metric-badge ${d.up ? "up" : "down"}"><span>${d.up ? "▲" : "▼"}</span>${d.pct}%</span>
+    </div>
+    <div class="metric-note">${d.diff >= 0 ? "+" : ""}${d.diff} finished this month</div>
+    <div class="metric-spark">${sparkline(created, { color }).outerHTML}</div>`;
+}
+
+function renderMetricKnowledge() {
+  const counts = countByDate(state.learnings);
+  const thisWeek = lastNDates(7).reduce((s, d) => s + (counts[d] || 0), 0);
+  const prevDates = lastNDates(14).slice(0, 7);
+  const prevWeek = prevDates.reduce((s, d) => s + (counts[d] || 0), 0);
+  const d = metricDelta(thisWeek, prevWeek);
+
+  const daily = lastNDates(14).map((iso) => counts[iso] || 0);
+  const color = d.up ? "#6DC533" : "#F5A623";
+
+  $("#metric-knowledge").innerHTML = `
+    <div class="metric-top">
+      <div><div class="metric-value">${thisWeek}</div><div class="metric-sublabel">learnings this week</div></div>
+      <span class="metric-badge ${d.up ? "up" : "down"}"><span>${d.up ? "▲" : "▼"}</span>${d.pct}%</span>
+    </div>
+    <div class="metric-note">${d.diff >= 0 ? "+" : ""}${d.diff} vs last week · ${state.learnings.length} total</div>
+    <div class="metric-spark">${sparkline(daily, { color }).outerHTML}</div>`;
+}
+
+function renderMetrics() {
+  renderMetricProjects();
+  renderMetricKnowledge();
+}
+
+/* ---------- Projects Timeline Gantt ---------- */
+
+function dayIndex(iso, start) {
+  const t = new Date(String(iso || "").slice(0, 10) + "T00:00:00");
+  if (isNaN(t)) return 0;
+  return Math.max(0, Math.min(30, Math.round((t - start) / 86400000)));
+}
+
+function ganttShort(iso) {
+  if (!iso) return "";
+  const d = new Date(String(iso).slice(0, 10) + "T00:00:00");
+  if (isNaN(d)) return String(iso);
+  return String(d.getDate()).padStart(2, "0") + "." + String(d.getMonth() + 1).padStart(2, "0");
+}
+
+function projectInitial(title) {
+  return esc(String(title || "?").trim().charAt(0).toUpperCase() || "?");
+}
+
+function renderGantt() {
+  const projects = state.projects.filter((p) => p.status !== "done");
+  if (!projects.length) {
+    $("#gantt-chart").innerHTML = `<p class="empty">No active projects to chart.</p>`;
+    return;
+  }
+
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - 29);
+  start.setHours(0, 0, 0, 0);
+
+  const rows = projects
+    .map((p) => {
+      const tasks = tasksFor(p.id);
+      let first = null;
+      let last = null;
+      tasks.forEach((t) => {
+        const created = String(t.created_at || "").slice(0, 10);
+        const due = t.due_date;
+        if (created && (!first || created < first)) first = created;
+        if (due && (!last || due > last)) last = due;
+        if (created && (!last || created > last)) last = created;
+      });
+      if (!first) first = String(p.created_at || "").slice(0, 10);
+      if (!last) last = first;
+      const open = tasks.filter((t) => t.status !== "done");
+      const overdue = open.some((t) => t.due_date && t.due_date < todayISO());
+      const left = dayIndex(first, start);
+      const right = Math.max(left + 1, dayIndex(last, start));
+      return { p, tasks, first, last, open, overdue, left, right };
+    })
+    .sort((a, b) => String(a.first).localeCompare(String(b.first)));
+
+  const bars = rows
+    .map((r) => {
+      const pct = (n) => `${Math.round((n / 30) * 100)}%`;
+      return `<div class="gantt-row">
+        <div class="gantt-label">
+          <span class="gantt-name" title="${esc(r.p.title)}">${esc(r.p.title)}</span>
+          <span class="gantt-date">${ganttShort(r.first)}</span>
+        </div>
+        <div class="gantt-track">
+          <div class="gantt-bar ${r.overdue ? "warn" : "ok"}" style="left:${pct(r.left)};width:${pct(r.right - r.left)}">
+            <span class="gantt-dot">${projectInitial(r.p.title)}</span>
+            <span class="gantt-count">${r.tasks.length}</span>
+          </div>
+        </div>
+      </div>`;
+    })
+    .join("");
+
+  const ticks = Array.from({ length: 31 }, (_, i) => (i % 5 === 0 ? i : "")).map((i) => `<span class="gantt-tick">${i === 0 ? "" : i}</span>`).join("");
+
+  $("#gantt-chart").innerHTML = `<div class="gantt">
+    ${bars}
+    <div class="gantt-axis">
+      <span></span>
+      <div class="gantt-ticks">${ticks}</div>
+    </div>
+  </div>`;
+}
+
 function renderDaily() {
   renderGreeting();
   renderTodayRing();
@@ -996,6 +1214,8 @@ function renderDaily() {
 }
 
 function renderOverview(d) {
+  renderMetrics();
+  renderGantt();
   renderDaily();
   renderOverviewCharts();
   renderGoalsAreaChart();
@@ -1068,7 +1288,7 @@ function renderKnowledgeCharts() {
   container.innerHTML = "";
   container.appendChild(
     lineChart({
-      series: [{ values: vals, color: "#7A6FB0" }],
+      series: [{ values: vals, color: "#AAEB47" }],
       xLabels: labels,
       labelEvery: 9,
     })
@@ -1172,10 +1392,42 @@ async function loadTimeline() {
 
 async function refreshAll() {
   await Promise.all([loadDashboard(), loadProjects(), loadLearnings(), loadJournal()]);
+  renderMetrics();
+  renderGantt();
   renderDaily();
   renderOverviewCharts();
   renderGoalsAreaChart();
+  renderProjects();
+  renderProjectsCharts();
   if (state.timelineLoaded) await loadTimeline();
+}
+
+async function toggleTask(taskId, projectId) {
+  try {
+    const task = tasksFor(projectId).find((t) => t.id === taskId);
+    const next = task && task.status === "done" ? "wanted" : "done";
+    await fetchJSON(`/api/tasks/${taskId}/status?status=${encodeURIComponent(next)}`, { method: "PATCH" });
+    toast(next === "done" ? "Task done" : "Task reopened");
+    await refreshAll();
+  } catch (err) {
+    toast("Failed: " + err.message, "error");
+  }
+}
+
+async function addTask(projectId, inputEl) {
+  const title = (inputEl.value || "").trim();
+  if (!title) return;
+  try {
+    await fetchJSON(`/api/projects/${projectId}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, status: "wanted", priority: "medium" }),
+    });
+    toast("Task added");
+    await refreshAll();
+  } catch (err) {
+    toast("Failed: " + err.message, "error");
+  }
 }
 
 async function markDone(type, id) {
@@ -1204,6 +1456,8 @@ async function deleteItem(type, id) {
   }
 }
 
+const PAGE_TITLES = { overview: "Overview", projects: "Projects", goals: "Goals", knowledge: "Knowledge", timeline: "Timeline" };
+
 function switchTab(tab) {
   state.tab = tab;
   $$(".tab-btn").forEach((b) => {
@@ -1211,7 +1465,11 @@ function switchTab(tab) {
     b.classList.toggle("active", active);
     b.setAttribute("aria-selected", String(active));
   });
+  $$(".side-icon").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
   $$(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === "panel-" + tab));
+  $("#page-title").textContent = PAGE_TITLES[tab] || tab;
+  $("#sub-overview-filters").hidden = tab !== "overview";
+  $("#sub-project-filters").hidden = tab !== "projects";
   if (tab === "timeline") {
     if (!state.timelineLoaded) {
       state.timelineLoaded = true;
@@ -1339,6 +1597,7 @@ function bindEvents() {
   );
 
   $$(".tab-btn").forEach((btn) => btn.addEventListener("click", () => switchTab(btn.dataset.tab)));
+  $$(".side-icon").forEach((btn) => btn.addEventListener("click", () => switchTab(btn.dataset.tab)));
 
   $$(".filter-pill").forEach((pill) =>
     pill.addEventListener("click", () => setProjectFilter(pill.dataset.filter))
@@ -1357,26 +1616,14 @@ function bindEvents() {
     renderGrowthChart();
   });
 
-  $$(".side-btn").forEach((btn) =>
-    btn.addEventListener("click", () => {
-      const which = btn.dataset.side;
-      if (which === "fullscreen") {
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
-        } else {
-          document.exitFullscreen && document.exitFullscreen();
-        }
-      } else if (which === "theme") {
-        toast("Theme toggle coming soon", "error");
-      } else if (which === "bell") {
-        toast("You're all caught up");
-      } else if (which === "message") {
-        toast("No new messages");
-      } else if (which === "lang") {
-        toast("English only for now");
-      }
-    })
-  );
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.target.classList && e.target.classList.contains("add-task-input")) {
+      e.preventDefault();
+      const card = e.target.closest(".project-card");
+      const id = card ? Number(card.querySelector(".add-task-btn").dataset.id) : null;
+      if (id) addTask(id, e.target);
+    }
+  });
 
   $("#qa-type").addEventListener("change", () => {
     $("#quick-form").reset();
@@ -1424,6 +1671,11 @@ function bindEvents() {
       const { action: kind, type, id } = action.dataset;
       if (kind === "done") markDone(type, id);
       else if (kind === "delete") deleteItem(type, id);
+      else if (kind === "task-toggle") toggleTask(Number(id), Number(action.dataset.project));
+      else if (kind === "task-add") {
+        const card = action.closest(".project-card");
+        addTask(Number(id), card ? card.querySelector(".add-task-input") : null);
+      }
     }
   });
 }

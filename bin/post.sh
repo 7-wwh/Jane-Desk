@@ -4,17 +4,19 @@ set -euo pipefail
 BASE="${LIFE_DASH_URL:-http://127.0.0.1:8000}"
 
 if [ "$#" -lt 2 ]; then
-  echo "Usage: $0 <project|goal|learning|journal> '<json>'"
+  echo "Usage: $0 <project|task|goal|learning|journal> '<json>'"
+  echo "       $0 task <project_id> '<json>'"
   echo "       $0 list <project|goal|learning|journal> [filters]"
-  echo "       $0 delete <project|goal|learning|journal> <id>"
+  echo "       $0 delete <project|task|goal|learning|journal> <id>"
   echo ""
   echo "Examples:"
   echo "  $0 learning '{\"title\":\"Learned X\",\"content\":\"...\",\"tags\":\"python\"}'"
   echo "  $0 project '{\"title\":\"Build site\",\"status\":\"backlog\",\"priority\":\"high\"}'"
+  echo "  $0 task 1 '{\"title\":\"Wire up API\",\"status\":\"planned\",\"priority\":\"high\"}'"
   echo "  $0 goal '{\"area\":\"health\",\"title\":\"Run 5km\",\"progress\":40}'"
   echo "  $0 journal '{\"type\":\"milestone\",\"content\":\"Shipped it\"}'"
   echo "  $0 list projects"
-  echo "  $0 delete learning 3"
+  echo "  $0 delete task 3"
   exit 1
 fi
 
@@ -22,6 +24,18 @@ cmd="$1"
 shift
 
 case "$cmd" in
+  task|tasks)
+    if [ "$#" -lt 2 ]; then
+      echo "Usage: $0 task <project_id> '<json>'" >&2
+      exit 1
+    fi
+    PID="$1"
+    shift
+    curl -s -X POST "$BASE/api/projects/$PID/tasks" \
+      -H "Content-Type: application/json" \
+      -d "$1" | python3 -m json.tool
+    exit 0
+    ;;
   project|projects)
     ENDPOINT="projects" ;;
   goal|goals)
@@ -45,6 +59,7 @@ case "$cmd" in
     [ "$#" -ge 2 ] || { echo "Usage: $0 delete <entity> <id>" >&2; exit 1; }
     case "$1" in
       project|projects) ENDPOINT="projects" ;;
+      task|tasks) ENDPOINT="tasks" ;;
       goal|goals) ENDPOINT="goals" ;;
       learning|learnings) ENDPOINT="learnings" ;;
       journal|journals) ENDPOINT="journal" ;;

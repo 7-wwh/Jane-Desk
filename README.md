@@ -26,6 +26,7 @@
 **Life-at-a-Glance** is a self-hosted web dashboard that aggregates everything about the user's life:
 
 - **Projects** — what they are working on now (`active`), planning (`backlog`), finished (`done`), or paused.
+- **Tasks** — concrete next steps nested under projects (`wanted` → `planned` → `in_progress` → `done`).
 - **Goals** — long-term aspirations, grouped by life area (career / health / family / learning / finance).
 - **Learnings** — a knowledge log of things learned, one entry per insight.
 - **Journal** — a timeline of notable moments (milestones, notes, reflections).
@@ -36,8 +37,10 @@ Two audiences use it:
 
 | Audience | Uses |
 | :--- | :--- |
-| **Agents** (opencode, codex, claude…) | `POST` JSON to the API to log learnings, update project status, add goals, journal moments. |
+| **Agents** (opencode, codex, claude…) | `POST` JSON to the API to log learnings, update project status, add goals, journal moments. They also load a packaged set of **skills** (`SKILL.md` → `skills/`) that teach them *how* to use the dashboard. |
 | **Human** (phone/laptop, anywhere) | Read the rendered dashboard over Tailscale. |
+
+This repo is two products in one: the **dashboard app** (backend + frontend) and the **agent skill package** (instructions that make agents productive with it).
 
 ---
 
@@ -57,10 +60,10 @@ Two audiences use it:
                                              │ SQLAlchemy (ORM)
                                              ▼
                                    ┌─────────────────────┐
-                                   │  SQLite             │
-                                   │  data/life.db       │
-                                   │  (4 tables)         │
-                                   └─────────────────────┘
+                                    │  SQLite             │
+                                    │  data/life.db       │
+                                    │  (5 tables)         │
+                                    └─────────────────────┘
 
    BROWSER (phone/laptop via Tailscale)
    ──────────────────────────────────────────────┐
@@ -86,20 +89,27 @@ FastAPI does double duty: it exposes the **JSON API** under `/api/*` *and* **ser
 life-at-a-glance/
 ├── README.md                       ← you are here; the learning guide
 ├── AGENTS.md                       ← instructions for AI agents on how to write data
+├── SKILL.md                        ← entry point to the agent skill package
+├── skills/                         ← agent skills (loaded by agents to work with the dashboard)
+│   ├── status/SKILL.md             ←   how to set dashboard statuses & read health rules
+│   ├── task-planning/SKILL.md      ←   how to plan and sequence tasks
+│   ├── backend/SKILL.md            ←   how to add backend features
+│   ├── frontend/SKILL.md           ←   how to work on the UI
+│   └── health/SKILL.md             ←   (future) health/nutrition data rules
 ├── requirements.txt                ← Python dependencies (declared, installable)
 ├── .gitignore                      ← what NOT to commit (database, cache files)
 │
 ├── app/                            ← BACKEND (Python package)
 │   ├── __init__.py                 ← marks app/ as an importable package
 │   ├── database.py                 ← SQLite engine, session factory, DB dependency
-│   ├── models.py                   ← ORM models: the 4 database tables
+│   ├── models.py                   ← ORM models: the 5 database tables
 │   ├── schemas.py                  ← Pydantic schemas: validation + API shapes
 │   ├── main.py                     ← FastAPI app: every route + static mount
 │   └── seed.py                     ← one-time seed script (sample data)
 │
 ├── static/                         ← FRONTEND (served as-is, no build step)
 │   ├── index.html                  ← the page skeleton (shell + containers)
-│   ├── styles.css                  ← the design system (glassmorphism UI)
+│   ├── styles.css                  ← the design system (CHECK BOX dark theme)
 │   └── app.js                      ← all logic: fetch, state, render, charts
 │
 ├── bin/                            ← OPERATIONS scripts (run manually / by agents)
@@ -151,7 +161,7 @@ The **backend is the product** — it owns the data and the write path agents de
 
 - **Zero deployment friction** — restart the service and the new code is live.
 - **Fits the scale** — a personal dashboard doesn't need a framework's complexity.
-- **The design is achieved in CSS** — glassmorphism, cards, and charts are all hand-rolled (see the SVG chart helpers in `app.js`), no charting library required.
+- **The design is achieved in CSS** — dark industrial theme, cards, Gantt, and charts are all hand-rolled (see the SVG chart helpers in `app.js`), no charting library required.
 
 Trade-off acknowledged: frameworks give you state management and components; vanilla JS means we manage both by hand (see the `state` object in `app.js`). For a single-page dashboard of this size, that's the right call.
 
@@ -189,6 +199,8 @@ This project deliberately follows standard practice for a **FastAPI + SQLAlchemy
 | **Config & secrets hygiene** | No secrets in code; DB is gitignored; no auth is a *documented* MVP trade-off. |
 | **Deployment via init system** | systemd user service + `loginctl enable-linger` = survive reboots, no login required. |
 | **Agent-friendly interface** | `AGENTS.md` + `bin/post.sh` are a machine-readable contract, like an SDK for LLMs. |
+| **Skill package** | `SKILL.md` → `skills/*` split procedural guidance by task, so agents load only what they need. |
+| **Task hierarchy** | Tasks are a child table of projects (FK + `ON DELETE CASCADE`) — the same pattern as "issues under a board" in GitHub. |
 
 ### What a bigger production project would add
 
@@ -210,7 +222,7 @@ This project is at the "clean, well-organized small service" stage — which is 
 
 ## 6. The data model
 
-Four tables, each mapping 1:1 to a dashboard view. All use SQLAlchemy 2.0 `Mapped[type]` annotations (modern style replacing the old `Column()` API).
+Five tables. Projects and tasks form a **parent–child hierarchy**; the rest are flat, each mapping 1:1 to a dashboard view. All use SQLAlchemy 2.0 `Mapped[type]` annotations (modern style replacing the old `Column()` API).
 
 ### `projects`
 | Field | Type | Notes |
@@ -224,6 +236,19 @@ Four tables, each mapping 1:1 to a dashboard view. All use SQLAlchemy 2.0 `Mappe
 | `tags` | str | comma-separated |
 | `created_at` / `updated_at` | datetime | auto-set / auto-update |
 
+### `tasks`
+| Field | Type | Notes |
+| :--- | :--- | :--- |
+| `id` | int PK | auto-increment |
+| `project_id` | int FK → `projects.id` | **`ondelete=CASCADE`** — deleting a project removes its tasks |
+| `title` | str(200) | required |
+| `status` | str | `wanted` / `planned` / `in_progress` / `done` |
+| `priority` | str | `high` / `medium` / `low` |
+| `due_date` | date·null | optional due date |
+| `created_at` / `updated_at` | datetime | auto-set / auto-update |
+
+The **status progression** `wanted → planned → in_progress → done` mirrors a real workflow: *"would like" → "committed" → "working now" → "finished"*. The dashboard uses it to answer *what should I do next?* — picking the highest-priority non-done task across active projects.
+
 ### `goals`
 `area` (career/health/family/learning/finance/other), `title`, `description`, `progress` (float 0–100), `target_date`, `status` (`active`/`completed`/`paused`).
 
@@ -233,8 +258,8 @@ Four tables, each mapping 1:1 to a dashboard view. All use SQLAlchemy 2.0 `Mappe
 ### `journal`
 `date`, `type` (`milestone`/`note`/`reflection`), `content`, `related_entity`.
 
-**Why these four?** They are the four questions the dashboard answers at a glance:
-> *What am I building?* (projects) · *Where am I going?* (goals) · *What did I learn?* (learnings) · *What happened?* (journal)
+**Why these five?** They are the five questions the dashboard answers at a glance:
+> *What am I building?* (projects) · *What's the next step?* (tasks) · *Where am I going?* (goals) · *What did I learn?* (learnings) · *What happened?* (journal)
 
 Note the pragmatic choice of **string-encoded enums** (`status`, `type`, `priority`) instead of DB-level enum types. This keeps writes friendly for AI agents — a string like `"backlog"` is far easier for an LLM to produce correctly than an enum object or a foreign-key ID.
 
@@ -255,6 +280,9 @@ validate (schemas/validators) → query (SQLAlchemy) → serialize (schemas.*Out
 | `GET` | `/api/projects` | `status`, `q` | list of projects |
 | `POST` | `/api/projects` | — | created project (201) |
 | `GET` / `PUT` / `DELETE` | `/api/projects/{id}` | — | one / updated / 204 |
+| `GET` / `POST` | `/api/projects/{id}/tasks` | — | list / create task under project |
+| `GET` / `PUT` / `DELETE` | `/api/tasks/{id}` | — | one / updated / 204 |
+| `PATCH` | `/api/tasks/{id}/status` | `?status=` | advance status (`wanted`/`planned`/`in_progress`/`done`) |
 | `GET` | `/api/goals` | `area`, `status` | list of goals |
 | `POST` | `/api/goals` | — | created goal (201) |
 | `GET` / `PUT` / `DELETE` | `/api/goals/{id}` | — | one / updated / 204 |
@@ -269,8 +297,8 @@ validate (schemas/validators) → query (SQLAlchemy) → serialize (schemas.*Out
 
 ### The aggregate endpoints (read models)
 
-- **`GET /api/dashboard`** runs five queries in one request and returns everything the overview screen needs: `active_projects`, `backlog`, `recent_learnings` (10), `goals`, `journal` (15), plus `today`. This is a *single round-trip* for the frontend — a deliberate performance/UX choice.
-- **`GET /api/timeline`** pulls all learnings, projects, and journal entries, normalizes each into a `TimelineItem` (`kind`, `date`, `title`, `body`, `tags`, `entity_id`), sorts descending by date, and caps the result at `limit`. It fuses three heterogeneous entities into one feed — a classic "polymorphic timeline" problem.
+- **`GET /api/dashboard`** runs five queries in one request and returns everything the overview screen needs: `active_projects`, `backlog`, `recent_learnings` (10), `goals`, `journal` (15), plus `today` and `tasks_by_project` (tasks grouped by project id). This is a *single round-trip* for the frontend — a deliberate performance/UX choice.
+- **`GET /api/timeline`** pulls all learnings, projects, journal entries, and tasks, normalizes each into a `TimelineItem` (`kind`, `date`, `title`, `body`, `tags`, `entity_id`), sorts descending by date, and caps the result at `limit`. It fuses heterogeneous entities into one feed — a classic "polymorphic timeline" problem.
 
 ### Live interactive docs
 
@@ -318,13 +346,18 @@ Every fetch **writes into `state`**, then a matching `render*()` function **read
 | DOM container (`index.html`) | Render function (`app.js`) | What it draws |
 | :--- | :--- | :--- |
 | `#stat-strip` | `renderOverview()` | 5 quick stat tiles |
+| `#metric-projects` | `renderMetricProjects()` | PROJECTS metric tile: active count + delta + sparkline |
+| `#metric-knowledge` | `renderMetricKnowledge()` | KNOWLEDGE metric tile: learnings this week + delta + sparkline |
+| `#gantt-chart` | `renderGantt()` | Projects Timeline Gantt (30-day task spans) |
 | `#reports-chart` | `renderReportsChart()` | SVG line chart, learnings vs journal (7/30 days) |
 | `#proj-status-body` | `renderProjectStatus()` | segmented bar + legend of project statuses |
 | `#weekly-chart` | `renderWeeklyChart()` | SVG line chart, this week vs last week |
 | `#hex-cluster` + `#hex-list` | `renderHexAreas()` | hexagon cluster colored by goal area |
 | `#weekday-chart` | `renderWeekdayChart()` | weekday activity bars, today highlighted |
-| `#overview-projects` | `renderOverview()` | active project cards |
+| `#overview-projects` | `renderOverview()` | active project cards (each now shows its task checklist + completion bar) |
 | `#overview-journal` | `renderOverview()` | today's journal cards |
+| `#tasks-body` | `renderTasks()` | **today's tasks**: open first, then done, from active projects |
+| `#focus-body` | `renderFocus()` | **next-up task**: highest-priority non-done task of the top active project |
 | `#projects-cols` | `renderProjects()` | project list grouped by status |
 | `#goals-list` | `renderGoals()` | goals grouped by life area |
 | `#learn-list` | `renderLearnings()` | filtered learning cards |
@@ -332,12 +365,14 @@ Every fetch **writes into `state`**, then a matching `render*()` function **read
 
 ### 8.4 Charts are hand-rolled SVG
 
-There are **no chart libraries**. The four widgets build their own SVG/HTML:
+There are **no chart libraries**. The widgets build their own SVG/HTML:
 
 - `lineChart()` builds `<path>` and `<circle>` elements in a `<svg viewBox>` for the Reports and Weekly charts.
+- `sparkline()` draws the thin fill-gradient lines inside the metric cards.
+- `renderGantt()` lays out the **Projects Timeline** — stadium-pill bars with embedded project-initial dots on a dotted 30-day grid, the signature element of the design.
 - `renderHexAreas()` lays out hexagons in expanding rings (`hexLayout()`), coloring each by life-area color and opacity by goal count.
 - `renderWeekdayChart()` computes per-weekday totals and renders CSS bars with the "today" column highlighted.
-- `renderProjectStatus()` renders a segmented flex bar whose widths are proportional to project counts.
+- `renderDonut()` renders SVG donuts for project status and journal types.
 
 All aggregation (counting learnings per day, this-week vs last-week, weekday totals) happens **client-side** from the raw lists returned by the API. This keeps the backend simple — it returns raw rows; the frontend shapes them into charts.
 
@@ -356,6 +391,7 @@ The whole point: **agents feed the dashboard**. Two entry points:
 ```bash
 bin/post.sh learning '{"title":"Learned X","content":"details","tags":"python"}'
 bin/post.sh project '{"title":"New idea","status":"backlog","priority":"high"}'
+bin/post.sh task 1 '{"title":"Wire up the API","status":"planned","priority":"high"}'
 bin/post.sh goal '{"area":"health","title":"Run 5km","progress":40}'
 bin/post.sh journal '{"type":"milestone","content":"Shipped it"}'
 bin/post.sh list projects
@@ -384,6 +420,18 @@ Every agent that opens this repo reads `AGENTS.md` — it states the rules expli
 - Prefer `PUT` (update) over duplicating an existing entry.
 
 This is a *documented contract between humans and machines* — the same idea as writing an SDK reference.
+
+### The skill package (`SKILL.md` + `skills/`)
+
+Beyond the API, the repo ships **agent skills** — Markdown instructions agents can load to do dashboard work well:
+
+- **`SKILL.md`** (root) — the entry point. Tells an agent the package exists and where each part lives.
+- **`skills/status/SKILL.md`** — how to read and set the dashboard's status fields (project/task/goal statuses, plus the *health rules* the user provides separately).
+- **`skills/task-planning/SKILL.md`** — how to plan work as tasks: one next step at a time, the `wanted → planned → in_progress → done` progression, and keeping in-flight tasks to a minimum.
+- **`skills/backend/SKILL.md`** / **`skills/frontend/SKILL.md`** — how to extend the backend (routes/schemas/models) or the UI (rendering, styles) consistently.
+- **`skills/health/SKILL.md`** — placeholder for future health/nutrition data rules.
+
+The split mirrors how agents actually think: a general "how do I work on this repo" instruction plus focused playbooks for specific tasks. Health status rules are intentionally *external to the UI* — the dashboard shows what's happening; the rules for judging it live in the skills.
 
 ---
 
