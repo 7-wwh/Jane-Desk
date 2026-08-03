@@ -11,12 +11,12 @@ const AREA_LABELS = {
   other: "Other",
 };
 const AREA_COLORS = {
-  career: "#F97316",
-  health: "#34D399",
-  family: "#FBBF24",
-  learning: "#C4B5FD",
-  finance: "#67E8F9",
-  other: "#9CA3AF",
+  career: "#C4593B",
+  health: "#5A8F5C",
+  family: "#F5A623",
+  learning: "#7A6FB0",
+  finance: "#3E8E8E",
+  other: "#8C8580",
 };
 const ENDPOINTS = {
   project: "/api/projects",
@@ -24,6 +24,9 @@ const ENDPOINTS = {
   goal: "/api/goals",
   journal: "/api/journal",
 };
+const STATUS_COLORS = { active: "#C4593B", backlog: "#7A6FB0", done: "#5A8F5C", paused: "#8C8580" };
+const PRIO_COLORS = { high: "#C4593B", medium: "#F5A623", low: "#5A8F5C" };
+const JTYPE_COLORS = { milestone: "#7A6FB0", note: "#3E8E8E", reflection: "#A05C7E" };
 const DAYS7 = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -35,7 +38,7 @@ const state = {
   timeline: [],
   projectFilter: "all",
   timelineLoaded: false,
-  reportsDays: 7,
+  growthDays: 30,
 };
 
 function esc(value) {
@@ -70,6 +73,16 @@ function formatDate(iso) {
 
 function todayISO() {
   const d = new Date();
+  return (
+    d.getFullYear() +
+    "-" +
+    String(d.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(d.getDate()).padStart(2, "0")
+  );
+}
+
+function isoFromDate(d) {
   return (
     d.getFullYear() +
     "-" +
@@ -234,10 +247,10 @@ function lineChart({
     svg.appendChild(
       svgEl("line", {
         x1: getX(i), y1: pad.top, x2: getX(i) - 16, y2: height - pad.bottom,
-        stroke: "rgba(255,255,255,0.10)", "stroke-dasharray": "2 5",
+        stroke: "rgba(28,25,23,0.07)", "stroke-dasharray": "2 5",
       })
     );
-    const label = svgEl("text", { x: getX(i), y: height - 6, fill: "rgba(255,255,255,0.5)", "font-size": 9, "text-anchor": "middle" });
+    const label = svgEl("text", { x: getX(i), y: height - 6, fill: "rgba(28,25,23,0.4)", "font-size": 9, "text-anchor": "middle" });
     label.textContent = i % labelEvery === 0 ? xLabels[i] : "";
     svg.appendChild(label);
   }
@@ -256,13 +269,13 @@ function lineChart({
       [0, 0.5, 1].forEach((off, idx) => {
         const stop = svgEl("stop", {
           offset: `${off * 100}%`,
-          "stop-color": idx === 1 ? "#fff" : "rgba(255,255,255,0.25)",
+          "stop-color": idx === 1 ? "#F5A623" : "rgba(245,166,35,0.35)",
         });
         grad.appendChild(stop);
       });
       svg.appendChild(grad);
       path.setAttribute("stroke", "url(#lineGrad)");
-      path.style.filter = "drop-shadow(0px 4px 6px rgba(255,255,255,0.18))";
+      path.style.filter = "drop-shadow(0px 3px 5px rgba(245,166,35,0.3))";
     }
     svg.appendChild(path);
 
@@ -271,7 +284,9 @@ function lineChart({
         svg.appendChild(
           svgEl("circle", {
             cx: p.x, cy: p.y, r: s.gradient ? 3.4 : 3,
-            fill: s.gradient ? "rgba(255,255,255,0.85)" : s.color,
+            fill: s.gradient ? "#F5A623" : s.color,
+            stroke: s.gradient ? "#FAFAF7" : "none",
+            "stroke-width": s.gradient ? 1.5 : 0,
           })
         );
       });
@@ -281,53 +296,232 @@ function lineChart({
   return svg;
 }
 
-function renderReportsChart() {
-  const days = state.reportsDays;
+function renderGrowthChart() {
+  const days = state.growthDays;
   const dates = lastNDates(days);
   const learn = countByDate(state.learnings);
   const jour = countByDate(state.journal);
-  const learnVals = dates.map((d) => learn[d] || 0);
-  const jourVals = dates.map((d) => jour[d] || 0);
+  $("#growth-range").textContent = days === 30 ? "Last 30 days" : "Last 90 days";
 
-  $("#reports-learnings").textContent = learnVals.reduce((a, b) => a + b, 0);
-  $("#reports-journal").textContent = jourVals.reduce((a, b) => a + b, 0);
-  $("#reports-range").textContent = days === 7 ? "Last 7 days" : "Last 30 days";
+  const all = state.learnings.concat(state.journal);
+  const byDate = {};
+  all.forEach((i) => {
+    const k = String(i.date || "").slice(0, 10);
+    if (k) byDate[k] = (byDate[k] || 0) + 1;
+  });
+
+  const series = { learn: [], jour: [], total: [] };
+  let cumL = 0, cumJ = 0;
+  dates.forEach((d) => {
+    cumL += learn[d] || 0;
+    cumJ += jour[d] || 0;
+    series.learn.push(cumL);
+    series.jour.push(cumJ);
+    series.total.push(cumL + cumJ);
+  });
 
   const labels = dates.map((d) => formatDate(d).split(",")[0]);
-  const container = $("#reports-chart");
+  const container = $("#growth-chart");
   container.innerHTML = "";
-    container.appendChild(
-      lineChart({
-        series: [
-          { values: learnVals, color: "#fff", gradient: true },
-          { values: jourVals, color: "rgba(255,255,255,0.55)", dashed: true },
-        ],
-        xLabels: labels,
-        labelEvery: days === 30 ? 5 : 1,
+  container.appendChild(
+    lineChart({
+      series: [
+        { values: series.total, color: "#F5A623", gradient: true },
+        { values: series.learn, color: "#7A6FB0" },
+        { values: series.jour, color: "#3E8E8E", dashed: true },
+      ],
+      xLabels: labels,
+      labelEvery: days === 30 ? 4 : 9,
+    })
+  );
+}
+
+function donutSVG(parts, centerValue, centerLabel) {
+  const total = Math.max(1, parts.reduce((s, p) => s + p.value, 0));
+  const r = 50, c = 2 * Math.PI * r;
+  const svg = svgEl("svg", { viewBox: "0 0 120 120", role: "img" });
+  svg.appendChild(svgEl("circle", { cx: 60, cy: 60, r, fill: "none", stroke: "#E5DDD5", "stroke-width": 14 }));
+  let offset = 0;
+  parts.forEach((p) => {
+    if (p.value <= 0) return;
+    const len = (p.value / total) * c;
+    svg.appendChild(
+      svgEl("circle", {
+        cx: 60, cy: 60, r,
+        fill: "none",
+        stroke: p.color,
+        "stroke-width": 14,
+        "stroke-dasharray": `${len - 3} ${c - (len - 3)}`,
+        "stroke-dashoffset": -offset,
       })
     );
-
-  const tooltip = document.createElement("div");
-  tooltip.className = "chart-tooltip";
-  tooltip.hidden = true;
-  container.appendChild(tooltip);
-
-  container.addEventListener("mousemove", (e) => {
-    const b = container.getBoundingClientRect();
-    const px = e.clientX - b.left;
-    const iw = b.width;
-    const idx = Math.min(dates.length - 1, Math.max(0, Math.round((px / iw) * (dates.length - 1))));
-    if (!dates[idx]) return;
-    tooltip.hidden = false;
-    tooltip.style.left = `${(idx / (dates.length - 1)) * 100}%`;
-    tooltip.innerHTML =
-      `<div class="tt-title">${esc(formatDate(dates[idx]))}</div>` +
-      `<div class="tt-row"><span>Learnings</span><b>${learn[dates[idx]] || 0}</b></div>` +
-      `<div class="tt-row"><span>Journal</span><b>${jour[dates[idx]] || 0}</b></div>`;
+    offset += len;
   });
-  container.addEventListener("mouseleave", () => {
-    tooltip.hidden = true;
+  return { svg, total };
+}
+
+function renderDonut(el, parts, centerValue, centerLabel) {
+  const { svg } = donutSVG(parts, centerValue, centerLabel);
+  const wrap = document.createElement("div");
+  wrap.className = "donut-row";
+  const dWrap = document.createElement("div");
+  dWrap.className = "donut-wrap";
+  dWrap.appendChild(svg);
+  const center = document.createElement("div");
+  center.className = "donut-center";
+  center.innerHTML = `<b>${centerValue}</b><span>${esc(centerLabel)}</span>`;
+  dWrap.appendChild(center);
+  wrap.appendChild(dWrap);
+
+  const legend = document.createElement("div");
+  legend.className = "donut-legend";
+  parts.forEach((p) => {
+    const item = document.createElement("div");
+    item.className = "donut-item";
+    item.innerHTML =
+      `<span><span class="ldot" style="background:${p.color}"></span>${esc(p.label)}</span>` +
+      `<b>${p.value}</b>`;
+    legend.appendChild(item);
   });
+  wrap.appendChild(legend);
+  el.innerHTML = "";
+  el.appendChild(wrap);
+}
+
+function renderHBar(el, items) {
+  const max = Math.max(1, ...items.map((i) => i.value));
+  el.innerHTML = `<div class="hbar">` +
+    items
+      .map(
+        (i) => `<div class="hbar-row">
+          <span class="hbar-label" title="${esc(i.label)}">${esc(i.label)}</span>
+          <div class="hbar-track"><div class="hbar-fill" style="background:${i.color};width:${Math.round((i.value / max) * 100)}%"></div></div>
+          <span class="hbar-val">${i.value}</span>
+        </div>`
+      )
+      .join("") +
+    `</div>`;
+}
+
+function renderActivityHeatmap() {
+  const counts = {};
+  state.learnings.concat(state.journal).forEach((i) => {
+    const k = String(i.date || "").slice(0, 10);
+    if (k) counts[k] = (counts[k] || 0) + 1;
+  });
+
+  const weeks = 16;
+  const cell = 11, gap = 3;
+  const today = new Date();
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startDayOffset = ((end.getDay() + 1) % 7);
+  const totalDays = weeks * 7 + startDayOffset;
+  const start = new Date(end);
+  start.setDate(end.getDate() - totalDays + 1);
+
+  const dayLabel = svgEl("text", { x: 0, y: 8, fill: "rgba(28,25,23,0.4)", "font-size": 9 });
+  dayLabel.textContent = "Mon";
+  const w = weeks * (cell + gap) + 14;
+  const h = 7 * (cell + gap);
+  const svg = svgEl("svg", { viewBox: `0 0 ${w} ${h}`, role: "img" });
+
+  const max = Math.max(1, ...Object.values(counts));
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const col = Math.floor(i / 7);
+    const row = i % 7;
+    const iso = isoFromDate(d);
+    const v = counts[iso] || 0;
+    const inRange = d <= end && d >= start;
+    const alpha = !inRange ? 0 : v === 0 ? 0.08 : 0.3 + (v / max) * 0.7;
+    svg.appendChild(
+      svgEl("rect", {
+        x: col * (cell + gap) + 14,
+        y: row * (cell + gap),
+        width: cell,
+        height: cell,
+        rx: 2.5,
+        fill: v > 0 ? "#F5A623" : "rgba(28,25,23,0.06)",
+        "fill-opacity": String(alpha),
+      })
+    );
+    if (v > 0) {
+      const title = svgEl("title", {});
+      title.textContent = `${formatDate(iso)} — ${v} entry${v > 1 ? "s" : ""}`;
+      svg.lastChild.appendChild(title);
+    }
+  }
+  svg.prepend(dayLabel);
+  $("#heatmap-chart").innerHTML = "";
+  $("#heatmap-chart").appendChild(svg);
+  const withActivity = Object.values(counts).filter((v) => v > 0).length;
+  $("#heatmap-sub").textContent = `${withActivity} active days in the last ${weeks * 7} days`;
+}
+
+function monthKey(iso) {
+  return String(iso || "").slice(0, 7);
+}
+
+function renderMonthlyBars(el) {
+  const counts = {};
+  state.learnings.concat(state.journal).forEach((i) => {
+    const k = monthKey(i.date);
+    if (k) counts[k] = (counts[k] || 0) + 1;
+  });
+  const months = Object.keys(counts).sort().slice(-8);
+  if (!months.length) {
+    el.innerHTML = emptyState("No entries yet.");
+    return;
+  }
+  const max = Math.max(1, ...months.map((m) => counts[m]));
+  el.innerHTML = `<div class="hbar">` +
+    months
+      .map((m) => {
+        const label = new Date(m + "-01").toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+        return `<div class="hbar-row">
+          <span class="hbar-label">${label}</span>
+          <div class="hbar-track"><div class="hbar-fill" style="background:#F5A623;width:${Math.round((counts[m] / max) * 100)}%"></div></div>
+          <span class="hbar-val">${counts[m]}</span>
+        </div>`;
+      })
+      .join("") +
+    `</div>`;
+}
+
+function renderTagFreq(el) {
+  const freq = {};
+  state.learnings.forEach((l) => parseTags(l.tags).forEach((t) => (freq[t] = (freq[t] || 0) + 1)));
+  state.projects.forEach((p) => parseTags(p.tags).forEach((t) => (freq[t] = (freq[t] || 0) + 1)));
+  const items = Object.entries(freq)
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8);
+  if (!items.length) {
+    el.innerHTML = emptyState("No tags yet.");
+    return;
+  }
+  renderHBar(el, items.map((i, idx) => ({ ...i, color: ["#F5A623", "#7A6FB0", "#C4593B", "#5A8F5C", "#3E8E8E", "#A05C7E"][idx % 6] })));
+}
+
+function renderGoalsByArea(el) {
+  const goals = (state.dashboard && state.dashboard.goals) || [];
+  const byArea = {};
+  goals.forEach((g) => {
+    const a = AREAS.includes(g.area) ? g.area : "other";
+    byArea[a] = byArea[a] || [];
+    byArea[a].push(Number(g.progress) || 0);
+  });
+  const items = Object.entries(byArea).map(([area, progs]) => ({
+    label: AREA_LABELS[area] || area,
+    value: Math.round(progs.reduce((s, p) => s + p, 0) / progs.length),
+    color: AREA_COLORS[area] || AREA_COLORS.other,
+  }));
+  if (!items.length) {
+    el.innerHTML = emptyState("No goals yet.");
+    return;
+  }
+  renderHBar(el, items);
 }
 
 function renderWeeklyChart() {
@@ -357,8 +551,8 @@ function renderWeeklyChart() {
   container.innerHTML = "";
   const svg = lineChart({
     series: [
-      { values: thisWeek, color: "#F97316" },
-      { values: lastWeek, color: "#9CA3AF", dashed: true },
+      { values: thisWeek, color: "#F5A623" },
+      { values: lastWeek, color: "#C9C2B9", dashed: true },
     ],
     xLabels: DAYS7,
     width: 320,
@@ -431,8 +625,8 @@ function renderHexAreas() {
         points: pts,
         fill: color,
         "fill-opacity": intensity,
-        stroke: "rgba(255,255,255,0.85)",
-        "stroke-width": 1.2,
+        stroke: "rgba(28,25,23,0.12)",
+        "stroke-width": 1.4,
       })
     );
   });
@@ -480,31 +674,32 @@ function renderWeekdayChart() {
     .join("");
 }
 
-function renderProjectStatus() {
-  const counts = { active: 0, backlog: 0, done: 0, paused: 0 };
+function renderProjectsCharts() {
+  const statusCounts = { active: 0, backlog: 0, done: 0, paused: 0 };
+  const prioCounts = { high: 0, medium: 0, low: 0 };
   state.projects.forEach((p) => {
-    const s = counts[p.status] !== undefined ? p.status : "backlog";
-    counts[s]++;
+    if (statusCounts[p.status] !== undefined) statusCounts[p.status]++;
+    if (prioCounts[p.priority] !== undefined) prioCounts[p.priority]++;
   });
-  const total = Math.max(1, state.projects.length);
-  const labels = { active: "Active", backlog: "Backlog", done: "Done", paused: "Paused" };
-  const segs = ["active", "backlog", "done", "paused"]
-    .map(
-      (s) =>
-        `<div class="seg seg-${s}" style="flex:${counts[s]}" title="${labels[s]}: ${counts[s]}"></div>`
-    )
-    .join("");
-  const legend = ["active", "backlog", "done", "paused"]
-    .map(
-      (s) =>
-        `<div class="seg-legend-item"><span><span class="legend-dot seg-${s}" style="background:var(--${s === "active" ? "orange" : s === "backlog" ? "orange-mid" : s === "done" ? "orange-soft" : "ink-faint"})"></span>${labels[s]}</span><b>${counts[s]}</b></div>`
-    )
-    .join("");
 
-  $("#proj-status-body").innerHTML =
-    `<div class="widget-metric">${total}</div><div class="widget-sub">Total projects</div>` +
-    `<div class="seg-bar">${segs}</div>` +
-    `<div class="seg-legend">${legend}</div>`;
+  renderDonut(
+    $("#projects-status"),
+    ["active", "backlog", "done", "paused"].map((s) => ({
+      label: s.charAt(0).toUpperCase() + s.slice(1),
+      value: statusCounts[s],
+      color: STATUS_COLORS[s],
+    })),
+    state.projects.length,
+    "projects"
+  );
+  renderHBar(
+    $("#projects-priority"),
+    ["high", "medium", "low"].map((s) => ({
+      label: s.charAt(0).toUpperCase() + s.slice(1),
+      value: prioCounts[s],
+      color: PRIO_COLORS[s],
+    }))
+  );
 }
 
 /* ---------- Card renderers ---------- */
@@ -605,44 +800,235 @@ function updateClock() {
   $("#today").textContent = now.toLocaleDateString("en-US", options).replace(",", " -");
 }
 
-function renderOverview(d) {
-  $("#overview-sub").textContent =
-    d.active_projects.length
-      ? `${d.active_projects.length} active project${d.active_projects.length > 1 ? "s" : ""} · ${d.goals.filter((g) => g.status === "active").length} goals in motion`
-      : "Your life, one glance.";
+const AFFIRMATIONS = [
+  "Three things are on your list today.",
+  "Clear evening ahead.",
+  "One step at a time.",
+  "Today has a little room for the unexpected.",
+  "Small progress is still progress.",
+  "You are exactly where you need to be.",
+];
 
-  const active = d.active_projects || [];
-  const backlog = d.backlog || [];
-  const learnings = d.recent_learnings || [];
-  const goals = d.goals || [];
-  const journalToday = (d.journal || []).filter((j) => j.date === d.today);
+function greetingForHour(h) {
+  if (h >= 5 && h < 12) return "Good morning";
+  if (h >= 12 && h < 17) return "Good afternoon";
+  if (h >= 17 && h < 21) return "Good evening";
+  return "Good night";
+}
 
-  $("#overview-projects").innerHTML = active.length
-    ? active.map(projectCard).join("")
-    : emptyState("No active projects. Start one with the + New button.");
-  $("#overview-projects-count").textContent = active.length ? `${active.length} active` : "";
+function renderGreeting() {
+  const now = new Date();
+  $("#greet-line").textContent = greetingForHour(now.getHours());
+  $("#greet-date").textContent =
+    now.toLocaleDateString(undefined, { weekday: "long" }) +
+    " · " +
+    now.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  $("#affirmation").textContent = AFFIRMATIONS[dayOfYear % AFFIRMATIONS.length];
+}
 
-  $("#overview-journal").innerHTML = journalToday.length
-    ? journalToday.map(journalCard).join("")
-    : emptyState("No journal entries for today yet.");
-  $("#overview-journal-count").textContent = journalToday.length ? `${journalToday.length} entries` : "";
+function renderTodayRing() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const elapsed = now - start;
+  const total = 86400000;
+  const frac = Math.min(1, Math.max(0, elapsed / total));
+  const r = 96;
+  const circ = 2 * Math.PI * r;
+  const ring = $("#ring-progress");
+  const target = circ * (1 - frac);
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    ring.style.transition = "none";
+  }
+  ring.style.strokeDasharray = circ.toFixed(2);
+  requestAnimationFrame(() => {
+    ring.style.strokeDashoffset = target.toFixed(2);
+  });
+}
 
-  const stats = [
-    { value: active.length, label: "Active projects" },
-    { value: backlog.length, label: "Backlog" },
-    { value: goals.filter((g) => g.status === "active").length, label: "Active goals" },
-    { value: learnings.length, label: "Learnings" },
-    { value: journalToday.length, label: "Journal today" },
+function renderDayTimeline() {
+  const today = todayISO();
+  const items = [];
+  state.journal
+    .filter((j) => j.date === today)
+    .forEach((j) => items.push({ kind: "journal", title: j.content, meta: j.type }));
+  state.learnings
+    .filter((l) => l.date === today)
+    .forEach((l) => items.push({ kind: "learning", title: l.title, meta: "learning" }));
+  $("#day-timeline-sub").textContent = items.length ? `${items.length} item${items.length > 1 ? "s" : ""}` : "";
+  $("#day-timeline").innerHTML = items.length
+    ? items
+        .map(
+          (it) => `<div class="spine-item ${"kind-" + esc(it.kind)}">
+            <div class="spine-body">
+              <p class="spine-title">${esc(it.title)}</p>
+              <span class="spine-meta">${esc(it.meta)}</span>
+            </div>
+          </div>`
+        )
+        .join("")
+    : `<p class="spine-empty">Nothing on the timeline yet — a clear day.</p>`;
+}
+
+const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
+
+function renderFocus() {
+  const goals = (state.dashboard && state.dashboard.goals) || [];
+  const active = state.projects.filter((p) => p.status === "active");
+  const sorted = active.slice().sort((a, b) => {
+    const pa = PRIORITY_ORDER[a.priority] ?? 1;
+    const pb = PRIORITY_ORDER[b.priority] ?? 1;
+    return pa - pb || String(a.target_date || "9999").localeCompare(String(b.target_date || "9999"));
+  });
+  const focus = sorted[0];
+  if (!focus) {
+    const goal = goals.find((g) => g.status === "active");
+    if (goal) {
+      $("#focus-body").innerHTML = `<div class="focus-row">
+        <div class="focus-body"><p class="focus-title">${esc(goal.title)}</p>
+        <p class="focus-meta">${esc(AREA_LABELS[goal.area] || goal.area)} goal</p></div>
+      </div>`;
+    } else {
+      $("#focus-body").innerHTML = `<p class="focus-empty">Nothing demanding attention today.</p>`;
+    }
+    return;
+  }
+  $("#focus-body").innerHTML = `<div class="focus-row">
+    <button class="checkbox" data-action="done" data-type="project" data-id="${focus.id}" aria-label="Mark done" title="Mark done">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+    </button>
+    <div class="focus-body">
+      <p class="focus-title">${esc(focus.title)}</p>
+      <p class="focus-meta">${esc(focus.priority)} priority · ${focus.target_date ? "due " + esc(formatDate(focus.target_date)) : "no deadline"}</p>
+    </div>
+  </div>`;
+}
+
+function renderUpcoming() {
+  const today = todayISO();
+  const upcoming = state.projects
+    .filter((p) => p.status !== "done" && p.target_date && p.target_date >= today)
+    .sort((a, b) => String(a.target_date).localeCompare(String(b.target_date)))
+    .slice(0, 3);
+  $("#upcoming-body").innerHTML = upcoming.length
+    ? upcoming
+        .map(
+          (p) => `<div class="upcoming-item">
+            <span class="upcoming-title">${esc(p.title)}</span>
+            <span class="upcoming-date">${esc(formatDate(p.target_date))}</span>
+          </div>`
+        )
+        .join("")
+    : `<p class="focus-empty">Nothing scheduled.</p>`;
+}
+
+function renderTasks() {
+  const active = state.projects.filter((p) => p.status === "active");
+  const done = state.projects.filter((p) => p.status === "done").slice(0, 4);
+  const rows = [
+    ...active.map((p) => ({
+      id: p.id,
+      title: p.title,
+      done: false,
+      kind: "project",
+    })),
+    ...done.map((p) => ({ id: p.id, title: p.title, done: true, kind: "project" })),
   ];
-  $("#stat-strip").innerHTML = stats
-    .map((s) => `<div class="stat"><span class="stat-value">${s.value}</span><span class="stat-label">${s.label}</span></div>`)
+  if (!rows.length) {
+    $("#tasks-body").innerHTML = `<p class="task-empty">No tasks yet. Add a project to begin.</p>`;
+    return;
+  }
+  $("#tasks-body").innerHTML = rows
+    .map(
+      (t) => `<label class="task-row${t.done ? " done" : ""}">
+        <button class="checkbox${t.done ? " checked" : ""}" ${t.done ? "disabled aria-hidden='true'" : ""} data-action="${t.done ? "" : "done"}" data-type="${t.kind}" data-id="${t.id}" aria-label="${t.done ? "Completed" : "Mark done"}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        </button>
+        <span class="task-label">${esc(t.title)}</span>
+      </label>`
+    )
     .join("");
+}
 
-  renderReportsChart();
+function renderHabits() {
+  const goals = (state.dashboard && state.dashboard.goals) || [];
+  const activeGoals = goals.filter((g) => g.status === "active");
+  if (!activeGoals.length) {
+    $("#habits-body").innerHTML = `<p class="habit-empty">No habits tracked yet — add goals to begin.</p>`;
+    return;
+  }
+  const today = new Date();
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    days.push(isoFromDate(d));
+  }
+  const activity = countByDate(state.learnings.concat(state.journal));
+  const dayLabels = days.map((iso) => new Date(iso + "T00:00:00").toLocaleDateString(undefined, { weekday: "short" }));
+  $("#habits-body").innerHTML = activeGoals
+    .map((g) => {
+      const area = AREAS.includes(g.area) ? g.area : "other";
+      const color = AREA_COLORS[area];
+      const initial = (AREA_LABELS[area] || area).charAt(0).toUpperCase();
+      const dots = days
+        .map((iso, i) => `<span class="habit-dot${activity[iso] ? " on" : ""}" title="${dayLabels[i]}"></span>`)
+        .join("");
+      return `<div class="habit-row">
+        <span class="habit-badge" style="background:${color}">${esc(initial)}</span>
+        <div>
+          <p class="habit-name">${esc(g.title)}</p>
+          <div class="habit-dots">${dots}</div>
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
+function renderDaily() {
+  renderGreeting();
+  renderTodayRing();
+  renderDayTimeline();
+  renderFocus();
+  renderUpcoming();
+  renderTasks();
+  renderHabits();
+}
+
+function renderOverview(d) {
+  renderDaily();
+  renderOverviewCharts();
+  renderGoalsAreaChart();
+}
+
+function renderOverviewCharts() {
+  renderGrowthChart();
+  renderActivityHeatmap();
+  renderDonut(
+    $("#status-donut"),
+    ["active", "backlog", "done", "paused"].map((s) => ({
+      label: s.charAt(0).toUpperCase() + s.slice(1),
+      value: state.projects.filter((p) => p.status === s).length,
+      color: STATUS_COLORS[s],
+    })),
+    state.projects.length,
+    "projects"
+  );
+  renderDonut(
+    $("#journal-donut"),
+    ["milestone", "note", "reflection"].map((t) => ({
+      label: t.charAt(0).toUpperCase() + t.slice(1),
+      value: state.journal.filter((j) => j.type === t).length,
+      color: JTYPE_COLORS[t],
+    })),
+    state.journal.length,
+    "entries"
+  );
+  renderGoalsByArea($("#goal-progress"));
+  renderTagFreq($("#tag-freq"));
   renderWeeklyChart();
-  renderHexAreas();
   renderWeekdayChart();
-  renderProjectStatus();
+  renderHexAreas();
 }
 
 function colBlock(title, items) {
@@ -666,6 +1052,31 @@ function renderProjects() {
     cols.classList.add("single");
     cols.innerHTML = colBlock(labels[f] || f, all.filter((p) => p.status === f));
   }
+}
+
+function renderGoalsAreaChart() {
+  renderGoalsByArea($("#goals-area-chart"));
+}
+
+function renderKnowledgeCharts() {
+  renderTagFreq($("#knowledge-tags"));
+  const dates = lastNDates(60);
+  const counts = countByDate(state.learnings);
+  const vals = dates.map((d) => counts[d] || 0);
+  const labels = dates.map((d) => formatDate(d).split(",")[0]);
+  const container = $("#knowledge-trend");
+  container.innerHTML = "";
+  container.appendChild(
+    lineChart({
+      series: [{ values: vals, color: "#7A6FB0" }],
+      xLabels: labels,
+      labelEvery: 9,
+    })
+  );
+}
+
+function renderTimelineMonthly() {
+  renderMonthlyBars($("#timeline-monthly"));
 }
 
 function renderGoals() {
@@ -715,6 +1126,7 @@ async function loadDashboard() {
     state.dashboard = await fetchJSON("/api/dashboard");
     renderOverview(state.dashboard);
     renderGoals();
+    renderGoalsAreaChart();
   } catch (err) {
     toast("Failed to load dashboard: " + err.message, "error");
   }
@@ -724,6 +1136,7 @@ async function loadProjects() {
   try {
     state.projects = await fetchJSON("/api/projects");
     renderProjects();
+    renderProjectsCharts();
   } catch (err) {
     toast("Failed to load projects: " + err.message, "error");
   }
@@ -733,6 +1146,7 @@ async function loadLearnings() {
   try {
     state.learnings = await fetchJSON("/api/learnings");
     renderLearnings();
+    renderKnowledgeCharts();
   } catch (err) {
     toast("Failed to load learnings: " + err.message, "error");
   }
@@ -750,6 +1164,7 @@ async function loadTimeline() {
   try {
     state.timeline = await fetchJSON("/api/timeline");
     renderTimeline();
+    renderTimelineMonthly();
   } catch (err) {
     toast("Failed to load timeline: " + err.message, "error");
   }
@@ -757,6 +1172,9 @@ async function loadTimeline() {
 
 async function refreshAll() {
   await Promise.all([loadDashboard(), loadProjects(), loadLearnings(), loadJournal()]);
+  renderDaily();
+  renderOverviewCharts();
+  renderGoalsAreaChart();
   if (state.timelineLoaded) await loadTimeline();
 }
 
@@ -800,7 +1218,14 @@ function switchTab(tab) {
       loadTimeline();
     } else {
       renderTimeline();
+      renderTimelineMonthly();
     }
+  }
+  if (tab === "knowledge" && !$("#knowledge-tags").hasChildNodes()) {
+    renderKnowledgeCharts();
+  }
+  if (tab === "goals" && state.dashboard && !$("#goals-area-chart").hasChildNodes()) {
+    renderGoalsAreaChart();
   }
 }
 
@@ -927,9 +1352,9 @@ function bindEvents() {
     renderLearnings();
   });
 
-  $("#reports-range").addEventListener("click", () => {
-    state.reportsDays = state.reportsDays === 7 ? 30 : 7;
-    renderReportsChart();
+  $("#growth-range").addEventListener("click", () => {
+    state.growthDays = state.growthDays === 30 ? 90 : 30;
+    renderGrowthChart();
   });
 
   $$(".side-btn").forEach((btn) =>
