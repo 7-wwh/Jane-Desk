@@ -42,6 +42,8 @@ Two audiences use it:
 
 This repo is two products in one: the **dashboard app** (backend + frontend) and the **agent skill package** (instructions that make agents productive with it).
 
+The interface is **CHECK BOX**, an industrial dark theme: near-black backgrounds, a lime accent, and *semantic green/orange only* (no blue/purple/pink). Layout is an icon sidebar + topbar tabs + subheader, with a two-column Overview. The full design spec (palette, type scale, card system, layout diagram) lives in `DESIGN.md`.
+
 ---
 
 ## 2. High-level architecture
@@ -90,14 +92,17 @@ life-at-a-glance/
 ├── README.md                       ← you are here; the learning guide
 ├── AGENTS.md                       ← instructions for AI agents on how to write data
 ├── SKILL.md                        ← entry point to the agent skill package
+├── DESIGN.md                       ← the CHECK BOX design specification (palette, layout, cards)
+├── QUESTION.md                     ← open design questions + confirmed decisions
 ├── skills/                         ← agent skills (loaded by agents to work with the dashboard)
 │   ├── status/SKILL.md             ←   how to set dashboard statuses & read health rules
 │   ├── task-planning/SKILL.md      ←   how to plan and sequence tasks
+│   ├── task-tracker/SKILL.md       ←   the project-wide MASTER skill (storage, API, layout, task logic)
 │   ├── backend/SKILL.md            ←   how to add backend features
 │   ├── frontend/SKILL.md           ←   how to work on the UI
 │   └── health/SKILL.md             ←   (future) health/nutrition data rules
 ├── requirements.txt                ← Python dependencies (declared, installable)
-├── .gitignore                      ← what NOT to commit (database, cache files)
+├── .gitignore                      ← what NOT to commit (database, cache files, screenshots)
 │
 ├── app/                            ← BACKEND (Python package)
 │   ├── __init__.py                 ← marks app/ as an importable package
@@ -118,6 +123,8 @@ life-at-a-glance/
 │
 ├── deploy/                         ← DEPLOYMENT artifacts
 │   └── life-dashboard.service      ← systemd unit file (copied to ~/.config/systemd/user/)
+│
+├── .screenshots/                   ← local-only verification captures (gitignored — contains private life data)
 │
 └── data/                           ← RUNTIME DATA (created automatically, gitignored)
     └── life.db                     ← SQLite database (never commit this)
@@ -322,9 +329,9 @@ browser opens /
             ├─ init(): updateClock() + bindEvents() + refreshAll()
             │
             └─ refreshAll():
-                 ├─ GET /api/dashboard  → renderOverview() + renderGoals()
-                 ├─ GET /api/projects   → renderProjects()
-                 ├─ GET /api/learnings  → renderLearnings()
+                 ├─ GET /api/dashboard  → renderOverview() + renderGoals() + renderGoalsAreaChart()
+                 ├─ GET /api/projects   → renderProjects() + renderProjectsCharts()
+                 ├─ GET /api/learnings  → renderLearnings() + renderKnowledgeCharts()
                  └─ GET /api/journal    → (feeds charts)
 ```
 
@@ -335,7 +342,7 @@ browser opens /
 ```js
 const state = {
   dashboard, projects, learnings, journal, timeline,
-  projectFilter, timelineLoaded, reportsDays
+  projectFilter, timelineLoaded, growthDays
 };
 ```
 
@@ -375,6 +382,49 @@ All aggregation (counting learnings per day, this-week vs last-week, weekday tot
 ### 8.5 Safety: escaping
 
 All user/agent-provided text is passed through `esc()` before being written into HTML, preventing XSS from anything an agent posts. This is a non-negotiable practice whenever a page renders third-party input.
+
+### 8.6 The panels, in detail
+
+The dashboard has five tabs (Overview / Projects / Goals / Knowledge / Timeline) reachable from
+both the sidebar icons and the topbar pills. The design system (tokens, radii, the Gantt
+signature) is fully specified in `DESIGN.md`; here is what each panel actually draws.
+
+**Overview** (two columns — left ~57% cards, right ~43% sticky scroll):
+
+| Card | Renderer | What it shows |
+| :--- | :--- | :--- |
+| Greeting + Today Ring | `renderGreeting()` / `renderTodayRing()` | time-of-day greeting, date, a 220px ring showing % through the day |
+| PROJECTS metric | `renderMetricProjects()` | active project count, ▲/▼ delta vs last month, 14-day creation sparkline |
+| KNOWLEDGE metric | `renderMetricKnowledge()` | learnings this week, delta vs last week, total, 14-day sparkline |
+| **Daily Brief** | `renderDailyBrief()` | the skill's task logic, live: overdue tasks, due this week, top 5 priorities, a focus suggestion, and recent learnings (last 7 days) as "atoms" |
+| Tasks / Intentions | `renderTasks()` | all open tasks across active projects (then done, capped), each with a checkbox, status chip, priority chip, and due-date/overdue hint |
+| Habit Streaks | `renderHabits()` | active goals as habits with a 7-day dot row per goal |
+| Projects Timeline Gantt | `renderGantt()` | one stadium-pill bar per non-done project spanning its task window over the trailing 30 days; orange when an open task is overdue |
+| Focus | `renderFocus()` | the single highest-priority non-done task (falls back to top project, then an active goal) |
+| Today | `renderDayTimeline()` | today's journal + learning entries on a compact spine |
+| Upcoming | `renderUpcoming()` | next three dated projects |
+| Insights | charts below | activity heatmap, project-status donut, cumulative growth, journal-type donut, goals-by-area bars, top tags, weekly summary, weekday bars, life-area hexagons |
+
+**Projects** — a **Project Tree** panel at the top (`renderProjectTree()`): one row per project
+with a status dot, name + status/priority meta, a task progress bar (done/total), and an orange
+flag when an open task is overdue. Below it, By-Status and By-Priority charts, then project cards
+(grouped Active / Backlog) each with its task checklist, progress bar, and an inline add-task box.
+
+**Goals** — a progress-by-area chart plus goal cards grouped by life area (career/health/family/
+learning/finance/other), each with a 0–100 progress bar.
+
+**Knowledge** — Top Tags and Learnings-over-Time charts, then the **atom ledger**
+(`renderLearnings()`): every learning rendered as an atom row (date, title, content, tags) grouped
+by `related_project` under a count header, with tag/date filters. This mirrors the skill's
+knowledge-atom concept — completing a task should prompt logging what you learned.
+
+**Timeline** — a monthly-activity bar chart plus the merged chronological feed
+(`renderTimeline()`): learnings, projects, and journal normalized into one list.
+
+**Task interaction model:** every task checkbox calls `PATCH /api/tasks/{id}/status` with the next
+state. The `+` button in the topbar opens the Quick Add modal (project/learning/goal/journal), and
+every card has delete actions. After any mutation, `refreshAll()` re-fetches and re-renders
+everything — the DOM is always a reflection of `state`.
 
 ---
 
@@ -429,6 +479,42 @@ Beyond the API, the repo ships **agent skills** — Markdown instructions agents
 - **`skills/health/SKILL.md`** — placeholder for future health/nutrition data rules.
 
 The split mirrors how agents actually think: a general "how do I work on this repo" instruction plus focused playbooks for specific tasks. Health status rules are intentionally *external to the UI* — the dashboard shows what's happening; the rules for judging it live in the skills.
+
+### 9.1 How the task-tracker skill was optimized for this project
+
+`skills/task-tracker/SKILL.md` is the project-wide **master skill**. It started life as an
+external, self-contained task-tracking skill (`task-tracker-v4`) that managed tasks in **JSON
+files inside an Obsidian vault** with a cron-installed daily brief. When the user pointed out it
+was "the skill for part of the project", it was brought into this repo and then **re-optimized to
+speak the project's actual language**. That optimization had three moves:
+
+1. **Storage: JSON vault → SQLite via the API.**
+   The original read/wrote three JSON files (`tasks.json`, `active-tasks.json`, `knowledge.json`)
+   under `/home/ubuntu/Documents/ObsidianVault/...` with a daily-brief log. The rewritten skill
+   documents the real source of truth — one SQLite database (`data/life.db`) written exclusively
+   through the FastAPI REST API, plus `bin/post.sh` for agents. No file editing, ever.
+
+2. **Schema: the skill's model → the dashboard's model.**
+   The external skill spoke `pending/active/blocked/done/cancelled` statuses,
+   `critical/high/medium/low` priorities, nested subtasks, and "atoms" attached to tasks. The
+   dashboard has its own model (`wanted → planned → in_progress → done`, `high/medium/low`), and
+   *the dashboard's model is primary*. The skill was rewritten to describe the dashboard's real
+   tables (`projects`, `tasks`, `goals`, `learnings`, `journal`), its statuses and priorities, and
+   to map the old concepts onto them — task "atoms" became `learnings`; the task hierarchy became
+   the `project_id` foreign key.
+
+3. **Removed the unnecessaries; kept the logic.**
+   Deleted the JSON-vault scripts (`write_tasks.py`, `write_knowledge.py`, `write_vault_index.py`,
+   `daily_brief.py`, `install_cron.sh`) and the JSON `references/` — they only operated on the
+   Obsidian vault and the cron brief. What the skill *did* (task lifecycle, a daily brief, a
+   project tree, knowledge atoms) was kept, but re-expressed as operations on the dashboard:
+   "Daily Brief" → the Overview's Daily Brief card; "Project Tree" → the Projects tab panel;
+   "atoms" → the Knowledge tab's atom ledger. So an agent following the skill now drives the real
+   webapp rather than a parallel JSON world.
+
+The result: one skill that a fresh agent can read top-to-bottom and know *exactly* where data
+lives, how to write to it, what the UI shows, and how the task logic works — with the other
+skills (`task-planning`, `backend`, `frontend`, `status`) providing depth per area.
 
 ---
 
@@ -518,6 +604,11 @@ Try these to solidify the mental model:
 | **Linger** | Keep a user's systemd services running after logout / at boot. |
 | **Tailnet** | The private network created by Tailscale across your devices. |
 | **XSS** | Cross-Site Scripting — why all input is escaped before rendering. |
+| **Daily Brief** | The Overview card that answers "what should I do today?" — overdue, due-this-week, top priorities, focus, recent learnings. |
+| **Project Tree** | The Projects-tab panel: per-project progress bars with status/priority dots and overdue flags. |
+| **Atom ledger** | The Knowledge-tab grouping of learnings by `related_project` — the dashboard's version of the skill's knowledge atoms. |
+| **Gantt** | The signature Projects Timeline: one stadium-pill bar per project across a 30-day window. |
+| **Master skill** | `skills/task-tracker/SKILL.md` — the project-wide skill describing storage, API, layout, and task logic. |
 
 ---
 
