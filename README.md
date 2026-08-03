@@ -428,6 +428,7 @@ Beyond the API, the repo ships **agent skills** — Markdown instructions agents
 - **`SKILL.md`** (root) — the entry point. Tells an agent the package exists and where each part lives.
 - **`skills/status/SKILL.md`** — how to read and set the dashboard's status fields (project/task/goal statuses, plus the *health rules* the user provides separately).
 - **`skills/task-planning/SKILL.md`** — how to plan work as tasks: one next step at a time, the `wanted → planned → in_progress → done` progression, and keeping in-flight tasks to a minimum.
+- **`skills/task-tracker/SKILL.md`** — the **external** JSON/Obsidian task-tracker (daily brief, project tree, knowledge atoms, cron scripts). Secondary to the dashboard's own task feature; see the "Relationship to the dashboard" note inside.
 - **`skills/backend/SKILL.md`** / **`skills/frontend/SKILL.md`** — how to extend the backend (routes/schemas/models) or the UI (rendering, styles) consistently.
 - **`skills/health/SKILL.md`** — placeholder for future health/nutrition data rules.
 

@@ -67,6 +67,7 @@ ones and start with the entry point below.
 |---|---|
 | Health/status rules ("is everything doing okay?") | `skills/status/SKILL.md` |
 | The task planning feature (model, API, UI) | `skills/task-planning/SKILL.md` |
+| The external Obsidian/JSON task-tracker (daily brief, vault, atoms) | `skills/task-tracker/SKILL.md` |
 | The data model, API, or adding a new entity | `skills/backend/SKILL.md` |
 | The frontend layout, components, or rendering | `skills/frontend/SKILL.md` |
 | Nutrition / health API integration (future) | `skills/health/SKILL.md` |
