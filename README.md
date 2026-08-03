@@ -345,23 +345,19 @@ Every fetch **writes into `state`**, then a matching `render*()` function **read
 
 | DOM container (`index.html`) | Render function (`app.js`) | What it draws |
 | :--- | :--- | :--- |
-| `#stat-strip` | `renderOverview()` | 5 quick stat tiles |
 | `#metric-projects` | `renderMetricProjects()` | PROJECTS metric tile: active count + delta + sparkline |
 | `#metric-knowledge` | `renderMetricKnowledge()` | KNOWLEDGE metric tile: learnings this week + delta + sparkline |
 | `#gantt-chart` | `renderGantt()` | Projects Timeline Gantt (30-day task spans) |
-| `#reports-chart` | `renderReportsChart()` | SVG line chart, learnings vs journal (7/30 days) |
-| `#proj-status-body` | `renderProjectStatus()` | segmented bar + legend of project statuses |
+| `#brief-body` | `renderDailyBrief()` | **Daily Brief**: overdue / due this week / top priorities / focus / recent learnings |
+| `#project-tree` | `renderProjectTree()` | **Project Tree**: per-project progress bars + status/priority + overdue flags |
 | `#weekly-chart` | `renderWeeklyChart()` | SVG line chart, this week vs last week |
 | `#hex-cluster` + `#hex-list` | `renderHexAreas()` | hexagon cluster colored by goal area |
 | `#weekday-chart` | `renderWeekdayChart()` | weekday activity bars, today highlighted |
-| `#overview-projects` | `renderOverview()` | active project cards (each now shows its task checklist + completion bar) |
-| `#overview-journal` | `renderOverview()` | today's journal cards |
-| `#tasks-body` | `renderTasks()` | **today's tasks**: open first, then done, from active projects |
+| `#tasks-body` | `renderTasks()` | **today's tasks**: open first, then done, from active projects (status/priority/due chips) |
 | `#focus-body` | `renderFocus()` | **next-up task**: highest-priority non-done task of the top active project |
 | `#projects-cols` | `renderProjects()` | project list grouped by status |
 | `#goals-list` | `renderGoals()` | goals grouped by life area |
-| `#learn-list` | `renderLearnings()` | filtered learning cards |
-| `#timeline-list` | `renderTimeline()` | merged timeline feed |
+| `#learn-list` | `renderLearnings()` | **atom ledger**: learnings grouped by related project, date + tags |
 
 ### 8.4 Charts are hand-rolled SVG
 
@@ -428,7 +424,7 @@ Beyond the API, the repo ships **agent skills** — Markdown instructions agents
 - **`SKILL.md`** (root) — the entry point. Tells an agent the package exists and where each part lives.
 - **`skills/status/SKILL.md`** — how to read and set the dashboard's status fields (project/task/goal statuses, plus the *health rules* the user provides separately).
 - **`skills/task-planning/SKILL.md`** — how to plan work as tasks: one next step at a time, the `wanted → planned → in_progress → done` progression, and keeping in-flight tasks to a minimum.
-- **`skills/task-tracker/SKILL.md`** — the **external** JSON/Obsidian task-tracker (daily brief, project tree, knowledge atoms, cron scripts). Secondary to the dashboard's own task feature; see the "Relationship to the dashboard" note inside.
+- **`skills/task-tracker/SKILL.md`** — the project's **master skill**: where data lives (SQLite via the API), the webapp layout (Daily Brief, Project Tree, atom ledger), and the task-planning logic end to end.
 - **`skills/backend/SKILL.md`** / **`skills/frontend/SKILL.md`** — how to extend the backend (routes/schemas/models) or the UI (rendering, styles) consistently.
 - **`skills/health/SKILL.md`** — placeholder for future health/nutrition data rules.
 

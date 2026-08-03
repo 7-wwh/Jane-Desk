@@ -18,21 +18,26 @@ Served by FastAPI's static mount at `/`.
 | `static/styles.css` | Design tokens, layout, components. One rewrite landed the warm DESIGN.md theme |
 | `static/app.js` | State, fetch helpers, chart helpers, renderers, event binding |
 
-## Design tokens (warm theme)
+## Design tokens (CHECK BOX dark theme)
 
 Defined in `styles.css` `:root`:
 
-- Background `--paper: #FAFAF7`, surface `--linen: #F0EBE3`, sage `--sage: #E8F4E8`, lavender `--lavender: #D6CCF0`
-- Accent amber `--amber: #F5A623`; text `--ink: #1C1917`, `--ink-dim`, `--ink-mute`
-- Divider `--parchment: #E5DDD5`; radius `--radius-card: 20px`
-- Fonts: Fraunces (display), Inter (body), DM Mono (mono) via Google Fonts
+- Background `--color-bg: #111111` (void), surface `--color-surface: #1C1C1C`, elevated `--color-surface-hi: #242424`
+- Border `--color-border: #2E2E2E`; accent lime `--color-lime: #AAEB47`; up/ok green `--color-green: #6DC533`; warn/orange `--color-orange: #F5A623`
+- Text `--color-text-primary: #E8E8E8`, muted `--color-text-muted: #9B9B9B`, dim `--color-text-dim: #5C5C5C`
+- Radius `--radius-card: 16px`, pill `--radius-pill: 999px`; font: Inter only (Google Fonts)
+- Semantic green/orange only — no blue/purple/pink accents.
 
 ## Layout
 
-- **Daily companion first** on Overview: 38/62 two-column (`daily-left` / `daily-right`),
-  stacking to one column under 900px.
-- Cards: Greeting + Today Ring, Focus, Upcoming, Day Timeline, Tasks/Intentions, Habit Streaks.
-- **Insights** chart section below (heatmap, donuts, growth, tags, weekly, weekday, hex).
+- **Overview:** two columns — left ~57% (Greeting + Today Ring strip, PROJECTS/KNOWLEDGE metric
+  cards, Tasks/Intentions, Habit Streaks, Insights grid), right ~43% (Daily Brief, Projects
+  Timeline Gantt, Focus, Today, Upcoming). Sticky, scrollable right column.
+- **Projects:** Project Tree panel (progress bars + status/priority dots + overdue flags),
+  By-Status/By-Priority charts, then project cards with task checklists.
+- **Knowledge:** Top Tags + Learnings-over-Time charts, then the atom ledger (learnings grouped
+  by `related_project`).
+- **Goals / Timeline:** progress-by-area + goal cards; monthly activity + merged feed.
 - Tabs: Overview / Projects / Goals / Knowledge / Timeline.
 
 ## Conventions
@@ -44,7 +49,7 @@ Defined in `styles.css` `:root`:
 - Event delegation: one document-level click handler dispatches `[data-action]`,
   `[data-close]`, etc.
 - After any data mutation, call `refreshAll()` to re-fetch and re-render everything.
-- Touch targets ≥ 48px; focus rings amber `outline: 2px solid var(--amber)`.
+- Touch targets ≥ 48px; focus rings lime `outline: 2px solid var(--color-lime)`.
 - `prefers-reduced-motion` disables animations.
 
 ## Status layer (as implemented)

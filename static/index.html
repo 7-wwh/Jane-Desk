@@ -194,6 +194,14 @@
 
             <div class="overview-side">
 
+              <div class="card brief-card">
+                <div class="card-head">
+                  <h3 class="card-label">Daily Brief</h3>
+                  <span class="overflow" aria-hidden="true">&#8943;</span>
+                </div>
+                <div id="brief-body"></div>
+              </div>
+
               <div class="card gantt-card">
                 <div class="card-head">
                   <h3 class="card-label">Projects Timeline</h3>
@@ -233,6 +241,10 @@
         </section>
 
         <section id="panel-projects" class="tab-panel" role="tabpanel" aria-labelledby="tab-projects">
+          <div class="panel span-12 project-tree-panel">
+            <div class="panel-head-row"><h3>Project Tree</h3></div>
+            <div class="tree-list" id="project-tree"></div>
+          </div>
           <div class="dash-grid">
             <div class="panel span-6">
               <div class="panel-head-row"><h3>By Status</h3></div>

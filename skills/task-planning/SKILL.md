@@ -56,8 +56,9 @@ See `app/models.py` → `Task`:
 
 - Each project card renders its task checklist (title + status + checkbox + add task).
 - Toggling a checkbox updates the task status (`PATCH .../status`).
-- "Focus today" and "Tasks/Intentions" on the Overview read from tasks (backed by project data).
-- All interactions keep the warm design language in `DESIGN.md`; touch targets ≥ 48px.
+- "Focus today", the Daily Brief, and "Tasks/Intentions" on the Overview read from tasks (backed by project data).
+- Task rows render status chips, priority color, and due-date/overdue hints.
+- All interactions keep the dark CHECK BOX design language in `DESIGN.md`; touch targets ≥ 48px.
 
 ## Implementation notes
 

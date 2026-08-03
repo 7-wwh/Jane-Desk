@@ -74,18 +74,23 @@ Anti-patterns to avoid: glassmorphism, gradients, blue/purple/pink accents, mixe
 │  │  OVERVIEW                                  [Last 30 days ▾]   │  ← Subheader (56px)
 │  ├────────────────────────────────────────────┬──────────────────┤
 │🤍│  Left column (~57%)                       │  Right (~43%)     │
-│🗓│  GREETING + TODAY RING (strip)             │  PROJECTS TIMELINE│
-│💎│  [PROJECTS metric] [KNOWLEDGE metric]      │  (Gantt)          │
-│⚙│  TASKS / INTENTIONS                        │  FOCUS            │
-│  │  HABIT STREAKS                            │  TODAY            │
-│  │  INSIGHTS grid (heatmap, donuts, bars)    │  UPCOMING         │
+│🗓│  GREETING + TODAY RING (strip)             │  DAILY BRIEF      │
+│💎│  [PROJECTS metric] [KNOWLEDGE metric]      │  PROJECTS TIMELINE│
+│⚙│  TASKS / INTENTIONS                        │  (Gantt)          │
+│  │  HABIT STREAKS                            │  FOCUS            │
+│  │  INSIGHTS grid (heatmap, donuts, bars)    │  TODAY            │
+│  │                                           │  UPCOMING         │
 │  └────────────────────────────────────────────┴──────────────────┘
 ```
 
 - **Sidebar:** 64px icon-only, left-anchored, vertically centered icon stack. Active icon = lime background. Hidden on mobile (< 860px).
 - **Topbar:** 64px. Brand mark (lime box + check) + wordmark, pill nav tabs, clock, `+` add button.
 - **Subheader:** 56px. Uppercase page title on the left; contextual filters on the right (growth range on Overview, status pills on Projects).
-- **Main:** two columns — left ~57% cards grid, right ~43% Projects Timeline Gantt (sticky, scrollable within the viewport).
+- **Main:** two columns — left ~57% cards grid, right ~43% Daily Brief + Projects Timeline Gantt (sticky, scrollable within the viewport).
+
+### Projects tab
+
+The Project Tree panel sits at the top: one row per project with a status dot, name + status/priority meta, a task progress bar (lime, or orange when an open task is overdue), and a done/total counter. Below it, By-Status/By-Priority charts, then the project cards.
 
 ### Mobile (< 860px)
 
@@ -125,7 +130,7 @@ A small 64px day-ring showing progress through the day (lime arc on a `#2E2E2E` 
 Each metric has: colored triangle indicator, large bold number, small muted label, sparkline beneath (thin colored line on dark bg, no axes).
 
 **3. Tasks / Intentions Card** (Left, middle)
-Full-width rows with ≥ 44px tap targets. Checkbox left (lime when checked), title center, project label under the title (10px, uppercase). Checked items get a strikethrough and dim.
+Full-width rows with ≥ 44px tap targets. Checkbox left (lime when checked), title center, project label under the title (10px, uppercase), and a meta cluster on the right: priority chip (tinted to its color), status chip, and due-date (orange when overdue, lime when due today). Checked items get a strikethrough and dim.
 
 **4. Habit Streaks Card** (Left, middle)
 Goal-derived habit rows: colored initial badge, goal name, 7-day dot row (green dot = activity that day, `#242424` = missed).
@@ -133,13 +138,20 @@ Goal-derived habit rows: colored initial badge, goal name, 7-day dot row (green 
 **5. Insights** (Left, lower)
 A single card wrapping the analytics grid: activity heatmap, project status donut, cumulative growth line, journal types donut, goals-by-area bars, top tags, weekly summary, daily activity bars, and life-area hexagons. All dark-themed SVG, no chart library.
 
-**6. Projects Timeline Gantt** (Right, top) — see signature element above.
+**6. Daily Brief** (Right, top)
+The skill's task-logic surfaced live. Sections separated by hairline rules: **Overdue** (open tasks past `due_date`, orange), **Due this week** (0–7 days), **Top priorities** (top 5 open tasks by priority then due date, numbered), **Focus today** (lime callout of the single most urgent item), **Recent learnings** (last 7 days, treated as knowledge atoms). Priority dots tinted to their color.
 
-**7. Focus Card** (Right) — the single highest-priority non-done task, with its checkbox.
+**7. Projects Timeline Gantt** (Right, below Daily Brief) — see signature element above.
 
-**8. Today Card** (Right) — today's journal + learning entries on a compact spine.
+**8. Focus Card** (Right) — the single highest-priority non-done task, with its checkbox.
 
-**9. Upcoming Card** (Right) — next three dated projects.
+**9. Today Card** (Right) — today's journal + learning entries on a compact spine.
+
+**10. Upcoming Card** (Right) — next three dated projects.
+
+**11. Project Tree** (Projects tab, top) — one row per project: status dot + name + status/priority meta, a task progress bar (`done/total`), orange when an open task is overdue, and a done/total counter.
+
+**12. Atom Ledger** (Knowledge tab) — learnings grouped by `related_project` into an atom ledger: each row shows date, title, content, and tags, with a per-group header + count. Mirrors the skill's knowledge-atom concept. Top Tags and Learnings-over-Time charts sit above it.
 
 ---
 

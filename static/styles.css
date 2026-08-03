@@ -503,6 +503,118 @@ svg { display: block; }
   font-size: 13px;
 }
 
+.task-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.task-chip {
+  font-size: 10px;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.task-chip.task-prio { color: var(--chip, var(--color-text-muted)); border-color: var(--chip, var(--color-border)); }
+
+.task-due { font-size: 10px; color: var(--color-text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.task-due.overdue { color: var(--color-orange); font-weight: var(--fw-medium); }
+.task-due.today { color: var(--color-lime); font-weight: var(--fw-medium); }
+
+/* ---------- Daily Brief ---------- */
+
+.brief-card .card-head { margin-bottom: 4px; }
+
+.brief-section { border-top: 1px solid var(--color-border); padding: 10px 0 4px; }
+.brief-section:first-of-type { border-top: none; }
+
+.brief-h {
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 0 0 6px;
+}
+
+.brief-row { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; }
+.brief-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.brief-title { font-size: 12px; color: var(--color-text-primary); overflow-wrap: anywhere; line-height: 1.35; }
+.brief-project { font-size: 10px; color: var(--color-text-dim); letter-spacing: 0.04em; text-transform: uppercase; }
+.brief-meta { font-size: 10px; color: var(--color-text-dim); font-variant-numeric: tabular-nums; }
+.brief-meta.overdue { color: var(--color-orange); }
+.brief-meta.today { color: var(--color-lime); }
+
+.brief-prio { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.brief-rank { font-size: 11px; font-weight: var(--fw-semibold); color: var(--color-text-dim); flex-shrink: 0; width: 16px; text-align: center; line-height: 1.6; }
+
+.brief-focus { font-size: 13px; color: var(--color-lime); font-weight: var(--fw-medium); line-height: 1.4; }
+.brief-none { font-size: 11px; color: var(--color-text-dim); padding: 2px 0 6px; }
+
+.brief-atom-dot { width: 8px; height: 8px; border-radius: 2px; background: var(--color-lime); flex-shrink: 0; margin-top: 4px; }
+
+/* ---------- Project Tree ---------- */
+
+.tree-list { display: flex; flex-direction: column; }
+
+.tree-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 260px) 1fr 110px;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.tree-row:first-child { border-top: none; }
+
+.tree-label { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tree-status { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.tree-name { font-size: 13px; font-weight: var(--fw-medium); color: var(--color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tree-meta { font-size: 10px; color: var(--color-text-dim); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+
+.tree-bar-track { height: 8px; border-radius: var(--radius-pill); background: var(--color-surface-hi); overflow: hidden; }
+.tree-bar-fill { height: 100%; border-radius: var(--radius-pill); background: var(--color-lime); transition: width 0.2s ease; }
+.tree-bar-fill.warn { background: var(--color-orange); }
+
+.tree-count { font-size: 11px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.tree-count.overdue { color: var(--color-orange); font-weight: var(--fw-medium); }
+
+/* ---------- Knowledge atom ledger ---------- */
+
+.atom-group { margin-bottom: 22px; }
+
+.atom-group-title {
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.atom-list { display: flex; flex-direction: column; }
+
+.atom-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.atom-row:first-child { border-top: none; }
+
+.atom-date { font-size: 11px; color: var(--color-text-dim); font-variant-numeric: tabular-nums; flex-shrink: 0; padding-top: 2px; width: 84px; }
+.atom-body { flex: 1; min-width: 0; }
+.atom-title { font-size: 13px; font-weight: var(--fw-medium); color: var(--color-text-primary); overflow-wrap: anywhere; }
+.atom-text { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; margin-top: 2px; overflow-wrap: anywhere; }
+.atom-row .btn-danger { flex-shrink: 0; margin-top: 2px; }
+
 /* ---------- Project cards & checklist ---------- */
 
 .projects-cols { display: flex; flex-direction: column; gap: 24px; margin-top: 24px; }

@@ -41,9 +41,13 @@ The package is **two things**:
 
 ## The webpage at a glance
 
-- **Overview (daily companion first)** — Today Ring greeting, Focus today, Upcoming,
-  Day Timeline, Tasks/Intentions, Habit Streaks, then an Insights chart section below.
-- **Projects / Goals / Knowledge / Timeline** tabs — full lists and charts.
+- **Overview (daily companion first)** — Today Ring greeting, PROJECTS/KNOWLEDGE metric cards,
+  **Daily Brief** (overdue / due this week / top priorities / focus / recent learnings), Tasks/
+  Intentions, Habit Streaks, Projects Timeline Gantt, then an Insights chart section below.
+- **Projects** — **Project Tree** (progress bars + status/priority + overdue flags), charts, and
+  project cards with task checklists.
+- **Goals / Knowledge / Timeline** tabs — progress by area + goal cards; the **atom ledger**
+  (learnings grouped by project) + charts; the merged chronological feed.
 - A status layer sits on top of the daily companion: per-area health, per-project progress,
   per-task planning state, all click-through to an edit/detail panel.
 
@@ -60,14 +64,15 @@ curl -s http://127.0.0.1:8000/api/health
 
 ## Which skill should I read?
 
-**Read the sub-skill that matches your task.** If the task spans parts, read the relevant
-ones and start with the entry point below.
+**Read the sub-skill that matches your task.** For a full picture of how the whole project
+fits together (storage, API, layout, task logic), start with `skills/task-tracker/SKILL.md`
+first. If the task spans parts, read the relevant ones and start with the entry point below.
 
 | If you are working on… | Read this skill |
 |---|---|
 | Health/status rules ("is everything doing okay?") | `skills/status/SKILL.md` |
 | The task planning feature (model, API, UI) | `skills/task-planning/SKILL.md` |
-| The external Obsidian/JSON task-tracker (daily brief, vault, atoms) | `skills/task-tracker/SKILL.md` |
+| The whole project (storage, API, layout, task logic) | `skills/task-tracker/SKILL.md` |
 | The data model, API, or adding a new entity | `skills/backend/SKILL.md` |
 | The frontend layout, components, or rendering | `skills/frontend/SKILL.md` |
 | Nutrition / health API integration (future) | `skills/health/SKILL.md` |

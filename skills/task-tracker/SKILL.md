@@ -1,227 +1,125 @@
 ---
 name: task-tracker
-version: "4.0"
+version: "5.0"
 description: >
-  External JSON/Obsidian task tracker (secondary system) with knowledge atom capture and
-  vault visualization. This is the SKILL for the standalone task-tracker running out of
-  /home/ubuntu/Documents/ObsidianVault/task-tracking-visualize/ — daily brief, project
-  tree, atoms, cron. The dashboard's own SQLite task feature is the PRIMARY task system
-  (see skills/task-planning/SKILL.md); use this skill when working on the external tracker,
-  its vault files, or its scripts.
+  Master skill for the Life-at-a-Glance project. Describes how the whole system works —
+  where data is stored (SQLite via a FastAPI REST API), how the webapp lays it out, and the
+  task-planning logic (daily brief, project tree, knowledge atoms) the dashboard implements.
+  Read this first whenever working on this project, then the matching sub-skill.
 ---
 
-# Task Tracker Skill — v4.0
-
-## Relationship to the dashboard
-
-This skill manages the **external** task-tracker: JSON data files plus auto-generated
-Obsidian markdown, all under the vault path below, with a cron daily brief. It is
-**secondary** to the dashboard's own task feature. The dashboard's tasks live in SQLite
-(`wanted/planned/in_progress/done`) and are written via the API — see
-`skills/task-planning/SKILL.md`. Keep the two systems separate; do not point one at the
-other's data. Scripts here read/write the vault at its absolute path and are safe to run
-from anywhere on this machine.
+# Task Tracker Skill — v5.0 (master)
 
 ## Overview
 
-Manages Heng's personal task system across three JSON files, plus three auto-generated
-Obsidian markdown files for visualization. Everything lives at:
+This skill is the **project-wide master document** for Life-at-a-Glance. The project is a
+self-hosted personal life-status dashboard: a vanilla HTML/CSS/JS frontend backed by a
+FastAPI + SQLAlchemy + SQLite service. It does task/project planning, goal tracking,
+knowledge capture, and journaling in one place, rendered in a dark "CHECK BOX" theme.
 
-```
-/home/ubuntu/Documents/ObsidianVault/task-tracking-visualize/
-  tasks.json              ← Master tree (all projects, all statuses, atoms)
-  active-tasks.json       ← Derived snapshot: pending/active/blocked tasks only
-  knowledge.json          ← Knowledge atom ledger
-  PROJECT-TREE.md         ← 🗂 Visual project tree (auto-generated)
-  KNOWLEDGE-INDEX.md      ← 📚 Atom ledger in readable form (auto-generated)
-  README.md               ← 🏠 Vault landing page with stats (auto-generated)
-  daily-brief.log         ← Morning brief history
-  scripts/
-    daily_brief.py        ← Terminal brief (cron + manual)
-    write_tasks.py        ← Atomic task writer
-    write_knowledge.py    ← Knowledge atom writer
-    write_vault_index.py  ← Generates PROJECT-TREE.md / KNOWLEDGE-INDEX.md / README.md
-    install_cron.sh       ← Install cron jobs
-```
+Everything is stored in one SQLite database (`data/life.db`) and is **only ever written via
+the REST API** — never by editing the `.db` file directly. The webapp re-fetches the API
+after every change, so a write through the API instantly updates the dashboard.
 
-**Always read current files before writing. Never overwrite from memory alone.**
+## Where data is stored (SQLite, via the API)
 
-After every task or knowledge write, run `write_vault_index.py` to keep the .md files current.
+| Table | Purpose | Key fields | Statuses |
+|---|---|---|---|
+| `projects` | Workstreams | `title`, `description`, `status`, `priority`, `target_date`, `tags` | active / backlog / done / paused |
+| `tasks` | Actionable next steps under a project | `title`, `status`, `priority`, `due_date`, `project_id` | wanted / planned / in_progress / done |
+| `goals` | Long-term aspirations per life area | `area`, `title`, `progress` (0–100), `target_date`, `status` | active / completed / paused |
+| `learnings` | Knowledge logged over time ("atoms") | `title`, `content`, `date`, `tags`, `related_project` | — |
+| `journal` | Notable moments | `date`, `type`, `content`, `related_entity` | — |
 
----
+Areas (for goals): `career / health / family / learning / finance / other`.
+Priorities: `high / medium / low`.
 
-## 1. Data Schemas
+The schema lives in `app/models.py` (ORM) and `app/schemas.py` (Pydantic allowed values).
+New tables are additive — `Base.metadata.create_all` creates them on boot. See
+`skills/backend/SKILL.md` for the entity pattern and the full API reference.
 
-See `references/schemas.md` for full field definitions. Quick summary:
+## How agents write data
 
-### tasks.json
-```json
-{
-  "projects": {
-    "<project_slug>": {
-      "name": "Human-readable name",
-      "description": "What this project is about",
-      "tasks": {
-        "<task_id>": {
-          "title": "...",
-          "description": "...",
-          "plan": "How Heng plans to approach it",
-          "priority": "critical | high | medium | low",
-          "status": "pending | active | blocked | done | cancelled",
-          "deadline": "YYYY-MM-DD or null",
-          "duration_estimate": "e.g. '3 days'",
-          "created_at": "ISO timestamp",
-          "updated_at": "ISO timestamp",
-          "done_at": "ISO timestamp or null",
-          "tags": ["..."],
-          "notes": "Running notes",
-          "atoms": [{"id":"atom_xxx","title":"...","description":"...","transferred":false}],
-          "subtasks": { /* same Task shape, nested */ }
-        }
-      }
-    }
-  },
-  "meta": {"last_updated": "ISO", "version": "1.0"}
-}
+Always go through the API, never the `.db` file. Use `bin/post.sh` for one-off entries or
+curl directly. See `AGENTS.md` for the quick start.
+
+```bash
+# Log a learning (an "atom")
+bin/post.sh learning '{"title":"SQLAlchemy 2.0 uses Mapped[] syntax","content":"...","tags":"python,sqlalchemy"}'
+
+# Add a project
+bin/post.sh project '{"title":"Launch personal site","status":"backlog","priority":"high","target_date":"2026-09-01"}'
+
+# Add a task under project id=1
+bin/post.sh task 1 '{"title":"Wire up task API","status":"planned","priority":"high"}'
 ```
 
-### active-tasks.json
-Derived from tasks.json. Contains only `pending | active | blocked` tasks.
-Regenerated fully on every write — never edit independently.
+Server is reachable locally (`http://127.0.0.1:8000`) and over Tailscale
+(`http://100.74.182.63:8000`).
 
-### knowledge.json
-```json
-{
-  "meta": {"last_updated": "ISO", "total_atoms": 0},
-  "atoms": [{
-    "id": "atom_xxx",
-    "title": "...",
-    "description": "What specifically was learned",
-    "source_task": "<task_id>",
-    "source_project": "<project_slug>",
-    "learned_at": "ISO timestamp",
-    "tags": ["..."],
-    "notes": ""
-  }]
-}
-```
+## The webapp layout (what the skill drives)
 
----
+- **Overview** — greeting + today ring, PROJECTS and KNOWLEDGE metric cards, a **Daily
+  Brief** panel (overdue / due this week / top priorities / focus / recent learnings),
+  Tasks/Intentions, Habit Streaks, a Projects Timeline Gantt, and an Insights chart section.
+- **Projects** — a **Project Tree** (per-project progress bars, status/priority dots,
+  overdue flags), By-Status/By-Priority charts, and the project cards with task checklists.
+- **Goals** — progress by area chart plus goal cards.
+- **Knowledge** — an **atom ledger**: learnings grouped by `related_project` with date and
+  tags, plus Top Tags and Learnings-over-Time charts.
+- **Timeline** — a merged chronological feed (learnings + projects + journal).
 
-## 2. Operations
+## Operations (agent workflows)
 
-### ADD TASK
-Trigger: "add a task", "new task", "I need to do X", "track this"
-
-1. If project is new, create it. If ambiguous, ask.
-2. Generate `task_id`: `<project_slug>_<short_descriptor>_<YYYYMMDD>`.
-3. Pre-populate `atoms` with 2–4 plausible learning atoms (`transferred: false`).
-4. Run `scripts/write_tasks.py` → writes `tasks.json` + regenerates `active-tasks.json`.
-5. Run `scripts/write_vault_index.py` → refreshes all three .md files.
-6. Confirm back to Heng with a clean summary table.
+### ADD A PROJECT / TASK
+Trigger: "add a task", "new project", "track this"
+1. `GET /api/projects` to find the project (`project_id`).
+2. `POST /api/projects/{id}/tasks` with `title`, `status`, `priority`, optional `due_date`.
+3. Confirm back to the user with a clean summary.
 
 ### UPDATE TASK STATUS
-Trigger: "mark X as active/blocked/done", "I finished X", "X is done"
-
-If marking **done**:
-1. Set `status: done`, `done_at: now`.
-2. Show the task's atoms. Ask: *"You completed [task]. Here are the pre-populated learning atoms — what did you actually learn? Edit, add, or confirm, and I'll transfer them to your ledger."*
-3. Suggest any atoms Heng might have missed based on task description + plan.
-4. On confirmation → transfer: copy to `knowledge.json` with `learned_at: now`, mark `transferred: true`.
-5. Regenerate `active-tasks.json` and run `write_vault_index.py`.
-
-If marking **blocked** or updating fields: update in place, regenerate snapshots.
-
-### EDIT KNOWLEDGE ATOM
-Trigger: "I learned X", "update my knowledge", "add to my skills", "I also learned"
-
-1. Read `knowledge.json`.
-2. Append new atom(s) or update existing ones by title/id match.
-3. Run `write_vault_index.py` to refresh `KNOWLEDGE-INDEX.md`.
+Trigger: "mark X done", "I finished X"
+- Advance status via `PATCH /api/tasks/{id}/status?status=...` using one of
+  `wanted → planned → in_progress → done`.
+- When a task is **done**, encourage the user to log what they learned as a `learning`
+  entry — that is how task atoms become knowledge.
 
 ### DAILY BRIEF
-Trigger: cron at 08:00 Mon–Fri, or "daily brief", "what should I work on", "what's due"
+Trigger: "daily brief", "what should I work on", "what's due"
+- The Overview page's **Daily Brief** card answers this live: overdue tasks, tasks due this
+  week, the top 5 priorities (sorted by priority then due date), a focus suggestion, and
+  recent learnings (last 7 days). No script needed — it computes from the API data.
 
-Run `scripts/daily_brief.py`. Output shows:
-- 🔥 Overdue tasks
-- ⚠️ Due this week
-- 🎯 Top 5 priorities (sorted by urgency + deadline)
-- 📊 Project snapshot with progress bars
-- 💡 Focus suggestion (1–2 lines, actionable)
-- 📚 Recent knowledge atoms (last 7 days)
+### PROJECT TREE
+Trigger: "show project tree", "project overview"
+- The Projects tab's **Project Tree** panel shows each project's status dot, priority,
+  done/total task progress bar, and an orange overdue flag when an open task is past due.
 
-### VAULT SYNC
-Trigger: "sync vault", "refresh Obsidian", "update project tree", "write vault index"
-
-Run `scripts/write_vault_index.py`. Regenerates:
-- `PROJECT-TREE.md` — Visual tree with progress bars, status icons, deadline flags
-- `KNOWLEDGE-INDEX.md` — All atoms grouped by project
-- `README.md` — Vault home with stats and active task list
+### KNOWLEDGE / ATOMS
+Trigger: "I learned X", "show my knowledge"
+- Learnings are the dashboard's knowledge atoms. Log them via `bin/post.sh learning` or the
+  Knowledge tab's "+ New" flow. The Knowledge tab groups them into an atom ledger by
+  `related_project`.
 
 ### QUERY / STATUS
-Trigger: "show my tasks", "what's in [project]", "task status", "show knowledge"
+Trigger: "show my tasks", "what's in [project]"
+- Use the aggregate endpoints: `GET /api/dashboard` (everything the home screen needs) and
+  `GET /api/timeline`. Render as clean markdown — never dump raw JSON.
 
-Read the relevant JSON and render a clean markdown table or bulleted list.
-Never dump raw JSON.
+## Writing rules
 
----
+- **Never edit `data/life.db` directly** — always via the API.
+- Prefer updating an existing entry (`PUT`) over creating duplicates.
+- Keep descriptions under ~200 characters.
+- Timestamps are UTC (`datetime.utcnow`); dates are `YYYY-MM-DD`.
+- If an entry already exists, update it rather than adding a second copy.
 
-## 3. Writing Rules
+## Where to look next
 
-- **Always read before write.** Load current file, modify in Python, write back.
-- **Regenerate `active-tasks.json` on every task write.** Always derived.
-- **Run `write_vault_index.py` after every task or knowledge write.**
-- **All timestamps**: ISO 8601 (`datetime.utcnow().isoformat() + "Z"`).
-- **Vault path constant**: `/home/ubuntu/Documents/ObsidianVault/task-tracking-visualize`
-
----
-
-## 4. Cron Setup
-
-Two jobs installed by `scripts/install_cron.sh`:
-
-```
-08:00 Mon–Fri  → python3 scripts/daily_brief.py --log
-08:01 Mon–Fri  → python3 scripts/write_vault_index.py
-```
-
-To install:
-```bash
-bash /home/ubuntu/Documents/ObsidianVault/task-tracking-visualize/scripts/install_cron.sh
-```
-
-To run manually:
-```bash
-python3 /home/ubuntu/.../scripts/daily_brief.py
-python3 /home/ubuntu/.../scripts/write_vault_index.py
-```
-
----
-
-## 5. Interaction Style
-
-- Never dump raw JSON. Always render as clean markdown tables or lists.
-- Confirm the full task card before writing when adding tasks.
-- Always prompt for atom review when marking done — don't silently transfer.
-- Be concise in confirmations.
-- After any write, mention that the Obsidian vault files have been refreshed.
-- If vault files don't exist yet, initialise them with empty structures first.
-
----
-
-## 6. File Locations
-
-```
-VAULT = /home/ubuntu/Documents/ObsidianVault/task-tracking-visualize
-
-scripts/
-  daily_brief.py        ← Morning brief (terminal output)
-  write_tasks.py        ← Task writer
-  write_knowledge.py    ← Knowledge writer
-  write_vault_index.py  ← Obsidian .md generator ← NEW in v4
-  install_cron.sh       ← Cron installer (now installs 2 jobs)
-
-references/
-  schemas.md            ← Full JSON field specs
-  examples.md           ← Sample populated JSONs
-```
+| Working on… | Read |
+|---|---|
+| Task planning model, API, or UI | `skills/task-planning/SKILL.md` |
+| Data model / API / new entity | `skills/backend/SKILL.md` |
+| Frontend layout / rendering / tokens | `skills/frontend/SKILL.md` |
+| Status & health rules | `skills/status/SKILL.md` |
+| Future nutrition/health work | `skills/health/SKILL.md` |

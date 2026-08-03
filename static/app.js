@@ -790,21 +790,6 @@ function goalCard(g) {
   </article>`;
 }
 
-function learningCard(l) {
-  return `<article class="card learning-card">
-    <div class="card-head">
-      <h3 class="card-title">${esc(l.title)}</h3>
-      <span class="meta">${esc(formatDate(l.date))}</span>
-    </div>
-    ${l.content ? `<p class="card-text">${esc(l.content)}</p>` : ""}
-    <div class="chips">${tagChips(l.tags)}</div>
-    ${l.related_project ? `<div class="card-meta"><span class="meta">Project: ${esc(l.related_project)}</span></div>` : ""}
-    <div class="card-actions">
-      <button class="btn btn-sm btn-danger" data-action="delete" data-type="learning" data-id="${l.id}">Delete</button>
-    </div>
-  </article>`;
-}
-
 function timelineItem(t) {
   return `<article class="card timeline-item ${"kind-" + esc(t.kind)}">
     <div class="timeline-head">
@@ -1001,11 +986,21 @@ function renderTasks() {
     $("#tasks-body").innerHTML = `<p class="task-empty">No tasks yet. Add tasks under a project to begin.</p>`;
     return;
   }
+  const taskMeta = (t) => {
+    const pc = PRIO_COLORS[t.priority] || "#9B9B9B";
+    const dl = daysLabel(t.due_date, todayISO());
+    const parts = [];
+    parts.push(`<span class="task-chip task-prio" style="--chip:${pc}">${esc(t.priority)}</span>`);
+    parts.push(`<span class="task-chip task-state">${esc(t.status)}</span>`);
+    if (t.due_date) parts.push(`<span class="task-due ${dl.cls}">${esc(dl.text)}</span>`);
+    return parts.join("");
+  };
   const rowHTML = (r, isDone) => `<label class="task-row${isDone ? " done" : ""}">
     <button class="checkbox${isDone ? " checked" : ""}" ${isDone ? "disabled aria-hidden='true'" : ""} data-action="task-toggle" data-id="${r.task.id}" data-project="${r.task.project_id}" aria-label="${isDone ? "Completed" : "Mark done"}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
     </button>
     <span class="task-label">${esc(r.task.title)} <span class="task-project">${esc(r.projectTitle)}</span></span>
+    <span class="task-meta">${taskMeta(r.task)}</span>
   </label>`;
   $("#tasks-body").innerHTML = [...open.map((r) => rowHTML(r, false)), ...done.map((r) => rowHTML(r, true))].join("");
 }
@@ -1203,7 +1198,139 @@ function renderGantt() {
   </div>`;
 }
 
+function daysLabel(iso, today) {
+  if (!iso) return { text: "no deadline", cls: "" };
+  const ms = new Date(iso + "T00:00:00") - new Date(today + "T00:00:00");
+  const d = Math.round(ms / 86400000);
+  if (d < 0) return { text: `${Math.abs(d)}d overdue`, cls: "overdue" };
+  if (d === 0) return { text: "due today", cls: "today" };
+  if (d === 1) return { text: "due tomorrow", cls: "" };
+  if (d <= 7) return { text: `due in ${d}d`, cls: "" };
+  return { text: `due in ${d}d`, cls: "" };
+}
+
+function allOpenTasks() {
+  const rows = [];
+  state.projects.forEach((p) => {
+    tasksFor(p.id).forEach((t) => {
+      if (t.status !== "done") rows.push({ task: t, projectTitle: p.title });
+    });
+  });
+  return rows;
+}
+
+function renderDailyBrief() {
+  const today = todayISO();
+  const open = allOpenTasks();
+  const overdue = open.filter((r) => r.task.due_date && r.task.due_date < today);
+  const dueWeek = open.filter((r) => {
+    if (!r.task.due_date) return false;
+    const ms = new Date(r.task.due_date + "T00:00:00") - new Date(today + "T00:00:00");
+    const d = Math.round(ms / 86400000);
+    return d >= 0 && d <= 7;
+  });
+  const top5 = open
+    .slice()
+    .sort(
+      (a, b) =>
+        (PRIORITY_ORDER[a.task.priority] ?? 1) - (PRIORITY_ORDER[b.task.priority] ?? 1) ||
+        String(a.task.due_date || "9999").localeCompare(String(b.task.due_date || "9999"))
+    )
+    .slice(0, 5);
+
+  const focus = overdue.length ? overdue[0] : top5.length ? top5[0] : null;
+
+  const recent = state.learnings
+    .filter((l) => {
+      const ms = new Date(today + "T00:00:00") - new Date(String(l.date || "").slice(0, 10) + "T00:00:00");
+      return ms >= 0 && ms <= 6 * 86400000;
+    })
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+    .slice(0, 5);
+
+  const briefRow = (r) => {
+    const t = r.task;
+    const dl = daysLabel(t.due_date, today);
+    const pc = PRIO_COLORS[t.priority] || "#9B9B9B";
+    return `<div class="brief-row">
+      <span class="brief-prio" style="background:${pc}"></span>
+      <div class="brief-row-body">
+        <p class="brief-title">${esc(t.title)} <span class="brief-project">${esc(r.projectTitle)}</span></p>
+        ${t.due_date ? `<span class="brief-meta ${dl.cls}">${esc(dl.text)}</span>` : `<span class="brief-meta">no deadline</span>`}
+      </div>
+    </div>`;
+  };
+
+  const atomRows = recent
+    .map(
+      (l) => `<div class="brief-row brief-atom">
+        <span class="brief-atom-dot"></span>
+        <div class="brief-row-body">
+          <p class="brief-title">${esc(l.title)}</p>
+          <span class="brief-meta">${esc(formatDate(l.date))}${l.related_project ? " · " + esc(l.related_project) : ""}</span>
+        </div>
+      </div>`
+    )
+    .join("");
+
+  $("#brief-body").innerHTML = `
+    <div class="brief-section">
+      <h4 class="brief-h">Overdue</h4>
+      ${overdue.length ? overdue.map(briefRow).join("") : `<p class="brief-none">Nothing overdue — great.</p>`}
+    </div>
+    <div class="brief-section">
+      <h4 class="brief-h">Due this week</h4>
+      ${dueWeek.length ? dueWeek.map(briefRow).join("") : `<p class="brief-none">Nothing due in the next 7 days.</p>`}
+    </div>
+    <div class="brief-section">
+      <h4 class="brief-h">Top priorities</h4>
+      ${top5.length ? top5.map((r, i) => `<div class="brief-row">
+        <span class="brief-rank">${i + 1}</span>
+        <div class="brief-row-body">
+          <p class="brief-title">${esc(r.task.title)} <span class="brief-project">${esc(r.projectTitle)}</span></p>
+          <span class="brief-meta">${esc(r.task.status)} · ${esc(daysLabel(r.task.due_date, today).text)}</span>
+        </div>
+      </div>`).join("") : `<p class="brief-none">No open tasks to prioritise.</p>`}
+    </div>
+    <div class="brief-section">
+      <h4 class="brief-h">Focus today</h4>
+      ${focus ? `<p class="brief-focus">${esc(focus.task.title)} <span class="brief-project">(${esc(focus.projectTitle)})</span></p>` : `<p class="brief-none">Nothing demanding attention.</p>`}
+    </div>
+    <div class="brief-section">
+      <h4 class="brief-h">Recent learnings</h4>
+      ${recent.length ? atomRows : `<p class="brief-none">No learnings in the last 7 days.</p>`}
+    </div>`;
+}
+
+function renderProjectTree() {
+  const rows = state.projects
+    .map((p) => {
+      const tasks = tasksFor(p.id);
+      const total = tasks.length;
+      const done = tasks.filter((t) => t.status === "done").length;
+      const open = total - done;
+      const overdue = tasks.some((t) => t.status !== "done" && t.due_date && t.due_date < todayISO());
+      const pct = total ? Math.round((done / total) * 100) : 0;
+      const sc = STATUS_COLORS[p.status] || "#9B9B9B";
+      const pc = PRIO_COLORS[p.priority] || "#9B9B9B";
+      return `<div class="tree-row">
+        <div class="tree-label">
+          <span class="tree-status" style="background:${sc}"></span>
+          <span class="tree-name" title="${esc(p.title)}">${esc(p.title)}</span>
+          <span class="tree-meta">${esc(p.status)} · ${esc(p.priority)}</span>
+        </div>
+        <div class="tree-bar-track">
+          <div class="tree-bar-fill ${overdue ? "warn" : ""}" style="width:${pct}%"></div>
+        </div>
+        <div class="tree-count ${overdue ? "overdue" : ""}">${done}/${total} done${overdue ? " · overdue" : ""}</div>
+      </div>`;
+    })
+    .join("");
+  $("#project-tree").innerHTML = rows || `<p class="empty">No projects yet. Add one to begin.</p>`;
+}
+
 function renderDaily() {
+  renderDailyBrief();
   renderGreeting();
   renderTodayRing();
   renderDayTimeline();
@@ -1259,6 +1386,7 @@ function colBlock(title, items) {
 }
 
 function renderProjects() {
+  renderProjectTree();
   const f = state.projectFilter;
   const all = state.projects;
   const labels = { active: "Active", backlog: "Backlog / Roadmap", done: "Done", paused: "Paused" };
@@ -1326,9 +1454,38 @@ function renderLearnings() {
       return true;
     })
     .sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  $("#learn-list").innerHTML = list.length
-    ? `<div class="card-grid">${list.map(learningCard).join("")}</div>`
-    : emptyState("No learnings match your filters.");
+  if (!list.length) {
+    $("#learn-list").innerHTML = emptyState("No learnings match your filters.");
+    return;
+  }
+  const groups = {};
+  list.forEach((l) => {
+    const key = l.related_project || "Unattributed";
+    (groups[key] = groups[key] || []).push(l);
+  });
+  const ledger = Object.keys(groups)
+    .sort((a, b) => String(a).localeCompare(String(b)))
+    .map((proj) => {
+      const atoms = groups[proj]
+        .map(
+          (l) => `<div class="atom-row">
+            <span class="atom-date">${esc(formatDate(l.date))}</span>
+            <div class="atom-body">
+              <p class="atom-title">${esc(l.title)}</p>
+              ${l.content ? `<p class="atom-text">${esc(l.content)}</p>` : ""}
+              <div class="chips">${tagChips(l.tags)}</div>
+            </div>
+            <button class="btn btn-sm btn-danger" data-action="delete" data-type="learning" data-id="${l.id}">Delete</button>
+          </div>`
+        )
+        .join("");
+      return `<section class="atom-group">
+        <h3 class="atom-group-title">${esc(proj)} <span class="count">${groups[proj].length}</span></h3>
+        <div class="atom-list">${atoms}</div>
+      </section>`;
+    })
+    .join("");
+  $("#learn-list").innerHTML = ledger;
 }
 
 function renderTimeline() {
