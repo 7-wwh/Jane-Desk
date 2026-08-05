@@ -767,6 +767,53 @@ function workTaskMeta(t, today) {
   return `${dl.cls ? `<span class="work-due ${dl.cls}">${esc(dl.text)}</span>` : ""}`;
 }
 
+function fmtDur(sec) {
+  sec = Math.max(0, Math.round(Number(sec) || 0));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h) return `${h}h ${m}m`;
+  if (m) return `${m}m`;
+  return `${s}s`;
+}
+
+function liveText(startedAtIso) {
+  const start = new Date(startedAtIso).getTime();
+  if (isNaN(start)) return "0:00";
+  const sec = Math.max(0, Math.floor((Date.now() - start) / 1000));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return h
+    ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+    : `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function fmtTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+function isRunningTask(t) {
+  return state.activeSession && state.activeSession.task_id === t.id;
+}
+
+function timeLabel(t) {
+  const running = isRunningTask(t);
+  const dur = running ? liveText(state.activeSession.started_at) : fmtDur(t.total_seconds);
+  return `<span class="work-time${running ? " live" : ""}"${running ? ` data-live="${t.id}" data-count="${t.session_count || 0}"` : ""} data-action="session-open" data-id="${t.id}" role="button" tabindex="0" title="Session history">&#9202; ${t.session_count || 0} &middot; ${dur}</span>`;
+}
+
+function playButton(t) {
+  const running = isRunningTask(t);
+  if (running) {
+    return `<button class="btn-icon btn-play active" data-action="session-stop" data-id="${state.activeSession.session_id}" title="Stop timer" aria-label="Stop timer"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg></button>`;
+  }
+  return `<button class="btn-icon btn-play" data-action="session-start" data-id="${t.id}" title="Start timer" aria-label="Start timer"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>`;
+}
+
 function workRow(t, today) {
   const pc = PRIO_COLORS[t.priority] || "#9B9B9B";
   return `<div class="work-row">
@@ -774,8 +821,10 @@ function workRow(t, today) {
     <div class="work-row-body">
       <p class="work-title">${esc(t.title)} <span class="work-project">${esc(t.project_title)}</span></p>
       ${workTaskMeta(t, today)}
+      ${timeLabel(t)}
     </div>
     <button class="btn btn-sm" data-action="task-start" data-id="${t.id}">Start</button>
+    ${playButton(t)}
     ${workCheckbox(t)}
   </div>`;
 }
@@ -797,8 +846,10 @@ function renderCurrent() {
         <span class="task-chip task-prio" style="--chip:${pc}">${esc(c.priority)}</span>
       </div>
       <p class="hero-meta">${esc(c.project_title)}${c.due_date ? ` · ${workTaskMeta(c, w.today)}` : ""}</p>
+      <div class="hero-meta">${timeLabel(c)}</div>
       <div class="hero-actions">
         ${w.needs_start ? `<button class="btn btn-primary" data-action="task-start" data-id="${c.id}">Start</button>` : ""}
+        ${playButton(c)}
         <button class="btn" data-action="task-finish" data-id="${c.id}">Done</button>
       </div>
     </div>`;
@@ -832,8 +883,9 @@ function renderProjectsWork() {
           return `<div class="wp-task">
             <span class="brief-prio" style="background:${pc}"></span>
             <span class="wp-task-title">${esc(t.title)}</span>
-            ${workTaskMeta(t, w.today)}
+            <div class="wp-task-meta">${workTaskMeta(t, w.today)}${timeLabel(t)}</div>
             <button class="btn btn-sm" data-action="task-start" data-id="${t.id}">Start</button>
+            ${playButton(t)}
             ${workCheckbox(t)}
           </div>`;
         })
@@ -957,7 +1009,7 @@ async function loadTimeline() {
 }
 
 async function refreshAll() {
-  await Promise.all([loadWork(), loadDashboard(), loadProjects(), loadLearnings(), loadJournal()]);
+  await Promise.all([loadWork(), loadDashboard(), loadProjects(), loadLearnings(), loadJournal(), loadActiveSession()]);
   if (state.timelineLoaded) await loadTimeline();
 }
 
@@ -988,6 +1040,95 @@ async function ideaStart(projectId) {
     await fetchJSON(`/api/projects/${projectId}/start`, { method: "POST" });
     toast("Idea started");
     await refreshAll();
+  } catch (err) {
+    toast("Failed: " + err.message, "error");
+  }
+}
+
+async function loadActiveSession() {
+  try {
+    const s = await fetchJSON("/api/sessions/active");
+    state.activeSession = s
+      ? { task_id: s.session.task_id, session_id: s.session.id, started_at: s.session.started_at }
+      : null;
+  } catch (err) {
+    state.activeSession = null;
+  }
+}
+
+let tickTimer = null;
+function startTicker() {
+  if (tickTimer) return;
+  tickTimer = setInterval(() => {
+    if (!state.activeSession) return;
+    $$("[data-live]").forEach((el) => {
+      if (Number(el.dataset.live) === state.activeSession.task_id) {
+        el.textContent = "⏱ " + (el.dataset.count || 0) + " · " + liveText(state.activeSession.started_at);
+      }
+    });
+  }, 1000);
+}
+
+async function startSession(taskId) {
+  try {
+    await fetchJSON(`/api/tasks/${taskId}/sessions/start`, { method: "POST" });
+    toast("Timer started");
+    await loadActiveSession();
+    startTicker();
+    await refreshAll();
+  } catch (err) {
+    toast("Failed: " + err.message, "error");
+  }
+}
+
+async function stopSession(sessionId) {
+  try {
+    await fetchJSON(`/api/sessions/${sessionId}/stop`, { method: "POST" });
+    toast("Timer stopped");
+    await loadActiveSession();
+    await refreshAll();
+  } catch (err) {
+    toast("Failed: " + err.message, "error");
+  }
+}
+
+async function openSessions(taskId) {
+  try {
+    const d = await fetchJSON(`/api/tasks/${taskId}/sessions`);
+    const rows = d.sessions.length
+      ? d.sessions
+          .map(
+            (s) => `<div class="session-row">
+            <span class="session-date">${esc(formatDate(s.started_at))}</span>
+            <span class="session-time">${esc(fmtTime(s.started_at))} &rarr; ${s.ended_at ? esc(fmtTime(s.ended_at)) : "now"}</span>
+            <span class="session-dur">${esc(fmtDur(s.duration_seconds))}</span>
+            <button class="btn btn-sm btn-danger" data-action="session-delete" data-id="${s.id}" data-task="${taskId}">Delete</button>
+          </div>`
+          )
+          .join("")
+      : `<p class="work-empty">No sessions yet.</p>`;
+    $("#sessions-title").textContent = "Sessions";
+    $("#sessions-body").innerHTML = `<p class="session-summary">${esc(fmtDur(d.total_seconds))} total &middot; ${d.session_count} session${d.session_count === 1 ? "" : "s"}</p>
+      <div class="session-list">${rows}</div>`;
+    $("#sessions-backdrop").hidden = false;
+    document.body.classList.add("modal-open");
+  } catch (err) {
+    toast("Failed to load sessions: " + err.message, "error");
+  }
+}
+
+function closeSessions() {
+  $("#sessions-backdrop").hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+async function deleteSession(sessionId, taskId) {
+  try {
+    await fetchJSON(`/api/sessions/${sessionId}`, { method: "DELETE" });
+    toast("Session deleted");
+    await loadActiveSession();
+    await refreshAll();
+    if (taskId) openSessions(taskId);
   } catch (err) {
     toast("Failed: " + err.message, "error");
   }
@@ -1260,7 +1401,8 @@ function bindEvents() {
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      closeModal();
+      if (!$("#sessions-backdrop").hidden) closeSessions();
+      else closeModal();
       hideMenu();
     }
   });
@@ -1268,6 +1410,7 @@ function bindEvents() {
   document.addEventListener("click", (e) => {
     if (!document.querySelector(".new-wrap").contains(e.target)) hideMenu();
     if (e.target === $("#modal-backdrop")) closeModal();
+    if (e.target === $("#sessions-backdrop")) closeSessions();
     const closeBtn = e.target.closest("[data-close]");
     if (closeBtn) {
       closeModal();
@@ -1282,6 +1425,11 @@ function bindEvents() {
       else if (kind === "task-start") startTask(Number(id));
       else if (kind === "task-finish") finishTask(Number(id));
       else if (kind === "idea-start") ideaStart(Number(id));
+      else if (kind === "session-start") startSession(Number(id));
+      else if (kind === "session-stop") stopSession(Number(id));
+      else if (kind === "session-open") openSessions(Number(id));
+      else if (kind === "session-delete") deleteSession(Number(id), Number(action.dataset.task));
+      else if (kind === "session-close") closeSessions();
       else if (kind === "new-idea") openModal("project", { status: "backlog" });
       else if (kind === "task-add") {
         const card = action.closest(".project-card, .wp-project");
@@ -1295,6 +1443,7 @@ function init() {
   updateClock();
   setInterval(updateClock, 60000);
   bindEvents();
+  startTicker();
   refreshAll();
 }
 

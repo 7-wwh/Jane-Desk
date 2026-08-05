@@ -133,6 +133,40 @@ def touch_project(db: Session, project_id: int):
         db.commit()
 
 
+def stop_running_sessions(db: Session):
+    """Close any currently running session (server-wide, one timer at a time)."""
+    running = db.query(models.TaskSession).filter(models.TaskSession.ended_at.is_(None)).all()
+    now = datetime.utcnow()
+    for s in running:
+        s.ended_at = now
+        s.duration_seconds = (now - s.started_at).total_seconds()
+    if running:
+        db.commit()
+
+
+def task_time_summaries(db: Session) -> dict[int, schemas.TaskTimeSummary]:
+    """Per-task time aggregates: total logged seconds, session count, running session id."""
+    counts: dict[int, int] = {}
+    totals: dict[int, float] = {}
+    for task_id, dur in db.query(
+        models.TaskSession.task_id, models.TaskSession.duration_seconds
+    ).all():
+        counts[task_id] = counts.get(task_id, 0) + 1
+        if dur is not None:
+            totals[task_id] = totals.get(task_id, 0.0) + dur
+    running: dict[int, int] = {}
+    for s in db.query(models.TaskSession).filter(models.TaskSession.ended_at.is_(None)).all():
+        running[s.task_id] = s.id
+    return {
+        tid: schemas.TaskTimeSummary(
+            total_seconds=totals.get(tid, 0.0),
+            session_count=counts.get(tid, 0),
+            running_session_id=running.get(tid),
+        )
+        for tid in set(counts) | set(running)
+    }
+
+
 @app.get("/api/projects/{project_id}/tasks", response_model=list[schemas.TaskOut])
 def list_tasks(project_id: int, db: Session = Depends(get_db)):
     project = db.get(models.Project, project_id)
@@ -241,6 +275,85 @@ def start_project(project_id: int, db: Session = Depends(get_db)):
         "project": schemas.ProjectOut.model_validate(project),
         "task": schemas.TaskOut.model_validate(top) if top else None,
     }
+
+
+# ---------- Time sessions ----------
+
+@app.post("/api/tasks/{task_id}/sessions/start", response_model=schemas.TaskSessionOut, status_code=201)
+def start_session(task_id: int, db: Session = Depends(get_db)):
+    """Start a time session on a task. Stops any other running session (one timer globally),
+    and sets the task as the single in_progress one (play = start work)."""
+    task = db.get(models.Task, task_id)
+    if not task:
+        raise HTTPException(404, "task not found")
+    stop_running_sessions(db)
+    db.query(models.Task).filter(
+        models.Task.status == "in_progress", models.Task.id != task_id
+    ).update({"status": "planned"}, synchronize_session=False)
+    task.status = "in_progress"
+    session = models.TaskSession(task_id=task_id, started_at=datetime.utcnow())
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    touch_project(db, task.project_id)
+    return session
+
+
+@app.post("/api/sessions/{session_id}/stop", response_model=schemas.TaskSessionOut)
+def stop_session(session_id: int, db: Session = Depends(get_db)):
+    session = db.get(models.TaskSession, session_id)
+    if not session:
+        raise HTTPException(404, "session not found")
+    if session.ended_at is None:
+        session.ended_at = datetime.utcnow()
+        session.duration_seconds = (session.ended_at - session.started_at).total_seconds()
+        db.commit()
+        db.refresh(session)
+    return session
+
+
+@app.get("/api/tasks/{task_id}/sessions", response_model=schemas.TaskSessionsOut)
+def list_sessions(task_id: int, db: Session = Depends(get_db)):
+    if not db.get(models.Task, task_id):
+        raise HTTPException(404, "task not found")
+    sessions = (
+        db.query(models.TaskSession)
+        .filter(models.TaskSession.task_id == task_id)
+        .order_by(models.TaskSession.started_at.desc())
+        .all()
+    )
+    total = sum((s.duration_seconds or 0.0) for s in sessions)
+    return schemas.TaskSessionsOut(
+        sessions=[schemas.TaskSessionOut.model_validate(s) for s in sessions],
+        total_seconds=total,
+        session_count=len(sessions),
+    )
+
+
+@app.get("/api/sessions/active", response_model=schemas.ActiveSession | None)
+def active_session(db: Session = Depends(get_db)):
+    s = (
+        db.query(models.TaskSession)
+        .filter(models.TaskSession.ended_at.is_(None))
+        .order_by(models.TaskSession.started_at.desc())
+        .first()
+    )
+    if not s:
+        return None
+    task = db.get(models.Task, s.task_id)
+    return schemas.ActiveSession(
+        session=s,
+        task_title=task.title if task else "Unknown",
+    )
+
+
+@app.delete("/api/sessions/{session_id}", status_code=204)
+def delete_session(session_id: int, db: Session = Depends(get_db)):
+    session = db.get(models.TaskSession, session_id)
+    if not session:
+        raise HTTPException(404, "session not found")
+    db.delete(session)
+    db.commit()
 
 
 # ---------- Goals ----------
@@ -426,14 +539,20 @@ def get_work(db: Session = Depends(get_db)):
     by_project: dict[int, list] = {}
     for t in all_tasks:
         by_project.setdefault(t.project_id, []).append(t)
+    time_map = task_time_summaries(db)
 
     def project_out(p):
         return schemas.ProjectOut.model_validate(p)
 
+    def with_time(t) -> schemas.TaskTimeOut:
+        base = schemas.TaskOut.model_validate(t).model_dump()
+        ts = time_map.get(t.id, schemas.TaskTimeSummary())
+        return schemas.TaskTimeOut(**base, **ts.model_dump())
+
     def work_task(t) -> schemas.WorkTask | None:
         if t is None:
             return None
-        base = schemas.TaskOut.model_validate(t).model_dump()
+        base = with_time(t).model_dump()
         proj = projects.get(t.project_id)
         return schemas.WorkTask(**base, project_title=proj.title if proj else "Unknown")
 
@@ -486,7 +605,7 @@ def get_work(db: Session = Depends(get_db)):
                 project=project_out(p),
                 done=done,
                 total=len(tasks),
-                open_tasks=[schemas.TaskOut.model_validate(t) for t in open_tasks],
+                open_tasks=[with_time(t) for t in open_tasks],
                 overdue=overdue,
             )
         )

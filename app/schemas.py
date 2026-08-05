@@ -191,6 +191,39 @@ class TaskOut(TaskBase):
     updated_at: datetime
 
 
+class TaskTimeOut(TaskOut):
+    total_seconds: float = 0.0
+    session_count: int = 0
+    running_session_id: int | None = None
+
+
+class TaskSessionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    task_id: int
+    started_at: datetime
+    ended_at: datetime | None = None
+    duration_seconds: float | None = None
+
+
+class TaskSessionsOut(BaseModel):
+    sessions: list[TaskSessionOut] = []
+    total_seconds: float = 0.0
+    session_count: int = 0
+
+
+class ActiveSession(BaseModel):
+    session: TaskSessionOut
+    task_title: str
+
+
+class TaskTimeSummary(BaseModel):
+    total_seconds: float = 0.0
+    session_count: int = 0
+    running_session_id: int | None = None
+
+
 class TimelineItem(BaseModel):
     kind: str
     date: dt.date
@@ -200,7 +233,7 @@ class TimelineItem(BaseModel):
     entity_id: int
 
 
-class WorkTask(TaskOut):
+class WorkTask(TaskTimeOut):
     project_title: str
 
 
@@ -208,7 +241,7 @@ class ActiveProject(BaseModel):
     project: ProjectOut
     done: int = 0
     total: int = 0
-    open_tasks: list[TaskOut] = []
+    open_tasks: list[TaskTimeOut] = []
     overdue: bool = False
 
 

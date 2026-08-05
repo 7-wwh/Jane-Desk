@@ -1324,6 +1324,60 @@ body.modal-open { overflow: hidden; }
   white-space: nowrap;
 }
 
+.work-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+  margin-top: 6px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.work-time:hover { border-color: var(--color-lime); color: var(--color-text-primary); }
+.work-time.live { color: var(--color-lime); border-color: var(--color-lime); }
+.work-time.live::before { content: "\25CF"; animation: pulse 1.2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+.wp-task-meta { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.wp-task-meta .work-time { margin-top: 2px; }
+
+.btn-play {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.btn-play:hover { color: var(--color-lime); border-color: var(--color-lime); }
+.btn-play.active { color: var(--color-orange); border-color: var(--color-orange); }
+.btn-play svg { width: 14px; height: 14px; }
+
+.session-summary { font-size: 13px; color: var(--color-text-muted); margin-bottom: 12px; }
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+}
+.session-row:last-child { border-bottom: none; }
+.session-date { color: var(--color-text-muted); min-width: 100px; }
+.session-time { color: var(--color-text-dim); font-variant-numeric: tabular-nums; flex: 1; }
+.session-dur { color: var(--color-lime); font-variant-numeric: tabular-nums; }
+
 @media (max-width: 720px) {
   .work-cols { grid-template-columns: 1fr; }
   .hero-title { font-size: 22px; }

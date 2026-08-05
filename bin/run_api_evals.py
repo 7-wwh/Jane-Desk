@@ -94,10 +94,77 @@ def main():
 
     for tid in created:
         request("DELETE", f"/api/tasks/{tid}")
+
+    # --- time-tracking session guards ---
+    code, body = request("POST", f"/api/projects/{pid}/tasks", {"title": "Session Guard"})
+    if code != 201:
+        print(f"FAIL  could not create session-guard task (got {code})")
+        return 1
+    sid_task = json.loads(body)["id"]
+
+    code, _ = request("POST", "/api/tasks/999999/sessions/start")
+    ok = code == 404
+    print(f"{'PASS' if ok else 'FAIL'}  start session on missing task -> {code} (expected 404)")
+    failures += 0 if ok else 1
+
+    code, _ = request("POST", "/api/sessions/999999/stop")
+    ok = code == 404
+    print(f"{'PASS' if ok else 'FAIL'}  stop non-existent session -> {code} (expected 404)")
+    failures += 0 if ok else 1
+
+    code, body = request("POST", f"/api/tasks/{sid_task}/sessions/start")
+    ok = code == 201
+    print(f"{'PASS' if ok else 'FAIL'}  start session on real task -> {code} (expected 201)")
+    failures += 0 if ok else 1
+
+    code, body = request("GET", "/api/sessions/active")
+    active_ok = code == 200
+    if active_ok:
+        active = json.loads(body)
+        active_ok = active.get("session") and active["session"]["task_id"] == sid_task
+    print(f"{'PASS' if active_ok else 'FAIL'}  active session points at started task")
+    failures += 0 if active_ok else 1
+
+    session_id = json.loads(body)["session"]["id"]
+    code, body = request("POST", f"/api/sessions/{session_id}/stop")
+    stop_ok = code == 200 and json.loads(body).get("duration_seconds") is not None
+    print(f"{'PASS' if stop_ok else 'FAIL'}  stop running session returns duration -> {code}")
+    failures += 0 if stop_ok else 1
+
+    code, body = request("GET", f"/api/tasks/{sid_task}/sessions")
+    list_ok = code == 200
+    if list_ok:
+        data = json.loads(body)
+        list_ok = data["session_count"] == 1 and len(data["sessions"]) == 1
+    print(f"{'PASS' if list_ok else 'FAIL'}  session list reflects stopped session")
+    failures += 0 if list_ok else 1
+
+    code, _ = request("POST", f"/api/tasks/{sid_task}/sessions/start")
+    second = code == 201
+    code, body = request("GET", "/api/sessions/active")
+    second = second and code == 200
+    if second:
+        second = json.loads(body)["session"]["task_id"] == sid_task
+    print(f"{'PASS' if second else 'FAIL'}  second start after stop is clean")
+    failures += 0 if second else 1
+
+    code, body = request("GET", "/api/sessions/active")
+    second_id = json.loads(body)["session"]["id"]
+    code, _ = request("DELETE", f"/api/sessions/{second_id}")
+    del_ok = code == 204
+    print(f"{'PASS' if del_ok else 'FAIL'}  delete session -> {code} (expected 204)")
+    failures += 0 if del_ok else 1
+
+    code, body = request("GET", f"/api/tasks/{sid_task}/sessions")
+    final = code == 200 and json.loads(body)["session_count"] == 1
+    print(f"{'PASS' if final else 'FAIL'}  sessions persist after per-session delete")
+    failures += 0 if final else 1
+
+    request("DELETE", f"/api/tasks/{sid_task}")
     if temp_project:
         request("DELETE", f"/api/projects/{temp_project}")
 
-    print(f"\n{len(cases) + 2} checks, {failures} failure(s)")
+    print(f"\n{len(cases) + 2 + 9} checks, {failures} failure(s)")
     return 1 if failures else 0
 
 

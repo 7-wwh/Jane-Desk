@@ -41,6 +41,17 @@ class Task(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=NOW, onupdate=NOW)
 
 
+class TaskSession(Base):
+    __tablename__ = "task_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=NOW)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=NOW)
+
+
 class Goal(Base):
     __tablename__ = "goals"
 

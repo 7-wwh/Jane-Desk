@@ -26,7 +26,7 @@
 **Life-at-a-Glance** is a self-hosted web dashboard that aggregates everything about the user's life:
 
 - **Projects** — what they are working on now (`active`), planning (`backlog`), finished (`done`), or paused.
-- **Tasks** — concrete next steps nested under projects (`wanted` → `planned` → `in_progress` → `done`).
+- **Tasks** — concrete next steps nested under projects (`wanted` → `planned` → `in_progress` → `done`), each with a **work timer** (play/stop per task, live elapsed label, session history modal).
 - **Goals** — long-term aspirations, grouped by life area (career / health / family / learning / finance).
 - **Learnings** — a knowledge log of things learned, one entry per insight.
 - **Journal** — a timeline of notable moments (milestones, notes, reflections).
@@ -62,9 +62,9 @@ The interface is **CHECK BOX**, an industrial dark theme: near-black backgrounds
                                              │ SQLAlchemy (ORM)
                                              ▼
                                    ┌─────────────────────┐
-                                    │  SQLite             │
-                                    │  data/life.db       │
-                                    │  (5 tables)         │
+            │  SQLite             │
+            │  data/life.db       │
+            │  (6 tables)         │
                                     └─────────────────────┘
 
    BROWSER (phone/laptop via Tailscale)
@@ -103,7 +103,7 @@ life-at-a-glance/
 ├── app/                            ← BACKEND (Python package)
 │   ├── __init__.py                 ← marks app/ as an importable package
 │   ├── database.py                 ← SQLite engine, session factory, DB dependency
-│   ├── models.py                   ← ORM models: the 5 database tables
+│   ├── models.py                   ← ORM models: the 6 database tables
 │   ├── schemas.py                  ← Pydantic schemas: validation + API shapes
 │   ├── main.py                     ← FastAPI app: every route + static mount
 │   └── seed.py                     ← one-time seed script (sample data)
@@ -226,7 +226,9 @@ This project is at the "clean, well-organized small service" stage — which is 
 
 ## 6. The data model
 
-Five tables. Projects and tasks form a **parent–child hierarchy**; the rest are flat, each mapping 1:1 to a dashboard view. All use SQLAlchemy 2.0 `Mapped[type]` annotations (modern style replacing the old `Column()` API).
+Six tables. Projects and tasks form a **parent–child hierarchy**; `task_sessions` hangs off tasks
+with a cascade delete; the rest are flat, each mapping 1:1 to a dashboard view. All use
+SQLAlchemy 2.0 `Mapped[type]` annotations (modern style replacing the old `Column()` API).
 
 ### `projects`
 | Field | Type | Notes |
@@ -264,6 +266,20 @@ one day render as a nested **Project Tree** in the UI. Agents assign these via t
 
 The **status progression** `wanted → planned → in_progress → done` mirrors a real workflow: *"would like" → "committed" → "working now" → "finished"*. The dashboard uses it to answer *what should I do next?* — picking the highest-priority non-done task across active projects.
 
+### `task_sessions`
+| Field | Type | Notes |
+| :--- | :--- | :--- |
+| `id` | int PK | auto-increment |
+| `task_id` | int FK → `tasks.id` | **`ondelete=CASCADE`** — deleting a task removes its sessions |
+| `started_at` | datetime | server-authoritative timer start |
+| `ended_at` | datetime·null | `null` while running |
+| `duration_seconds` | float·null | set on stop |
+| `created_at` | datetime | auto-set |
+
+One session runs at a time globally; starting a new one auto-stops the previous. Sessions power the
+**work-timer** on the Work screen — a play/stop button beside each task, a live ticking label, and
+a per-task session history (count, date, start/stop, duration).
+
 ### `goals`
 `area` (career/health/family/learning/finance/other), `title`, `description`, `progress` (float 0–100), `target_date`, `status` (`active`/`completed`/`paused`).
 
@@ -298,6 +314,11 @@ validate (schemas/validators) → query (SQLAlchemy) → serialize (schemas.*Out
 | `GET` / `POST` | `/api/projects/{id}/tasks` | — | list / create task under project |
 | `GET` / `PUT` / `DELETE` | `/api/tasks/{id}` | — | one / updated / 204 |
 | `PATCH` | `/api/tasks/{id}/status` | `?status=` | advance status (`wanted`/`planned`/`in_progress`/`done`) |
+| `POST` | `/api/tasks/{id}/sessions/start` | — | start the timer for a task (201; auto-stops any running one) |
+| `POST` | `/api/sessions/{id}/stop` | — | stop and record duration (200) |
+| `GET` | `/api/tasks/{id}/sessions` | — | history `{sessions[], total_seconds, session_count}` |
+| `GET` | `/api/sessions/active` | — | currently running session or `null` |
+| `DELETE` | `/api/sessions/{id}` | — | remove a session (204) |
 | `GET` | `/api/goals` | `area`, `status` | list of goals |
 | `POST` | `/api/goals` | — | created goal (201) |
 | `GET` / `PUT` / `DELETE` | `/api/goals/{id}` | — | one / updated / 204 |

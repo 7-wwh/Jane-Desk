@@ -87,6 +87,17 @@ Base: `http://127.0.0.1:8000` — all routes under `/api`.
   (YYYY-MM-DD or null), `begin_date` (YYYY-MM-DD or null), `duration` (float, hours),
   `branch_path` (full destination path, e.g. `work/2026/Q3 report`)
 
+### Task time tracking (sessions)
+One active timer globally; starting a new session auto-stops the running one and
+marks the task `in_progress`. Sessions are server-authoritative (survive refresh)
+and cascade-delete with their task.
+- `POST   /api/tasks/{task_id}/sessions/start` — start (or resume) the timer for a task (201)
+- `POST   /api/sessions/{session_id}/stop` — stop and record duration (200)
+- `GET    /api/tasks/{task_id}/sessions` — history `{sessions[], total_seconds, session_count}`
+- `GET    /api/sessions/active` — currently running session or `null`
+- `DELETE /api/sessions/{session_id}` — remove a session (204)
+`GET /api/work` tasks also carry `total_seconds`, `session_count`, `running_session_id`.
+
 ### Journal
 - `GET    /api/journal?date=&type=`
 - `POST   /api/journal` / `GET|PUT|DELETE /api/journal/{id}`
