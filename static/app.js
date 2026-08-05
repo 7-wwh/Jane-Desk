@@ -70,8 +70,8 @@ function tagChips(tags) {
 
 function formatDate(iso) {
   if (!iso) return "";
-  const d = new Date(iso.length === 10 ? iso + "T00:00:00" : iso);
-  if (isNaN(d)) return String(iso);
+  const d = parseISO(iso);
+  if (!d) return String(iso);
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
@@ -94,6 +94,31 @@ function isoFromDate(d) {
     "-" +
     String(d.getDate()).padStart(2, "0")
   );
+}
+
+function parseISO(iso) {
+  if (!iso) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return new Date(iso + "T00:00:00");
+  const hasTZ = /(Z|[+-]\d{2}:?\d{2})$/.test(iso);
+  const d = new Date(hasTZ ? iso : iso + "Z");
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function tzOffsetLabel() {
+  const off = new Date().getTimezoneOffset();
+  const sign = off <= 0 ? "+" : "-";
+  const abs = Math.abs(off);
+  const h = String(Math.floor(abs / 60)).padStart(2, "0");
+  const m = String(abs % 60).padStart(2, "0");
+  return `UTC${sign}${h}${m === "00" ? "" : ":" + m}`;
+}
+
+function tzName() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch (_) {
+    return "";
+  }
 }
 
 function emptyState(msg) {
@@ -778,9 +803,9 @@ function fmtDur(sec) {
 }
 
 function liveText(startedAtIso) {
-  const start = new Date(startedAtIso).getTime();
-  if (isNaN(start)) return "0:00";
-  const sec = Math.max(0, Math.floor((Date.now() - start) / 1000));
+  const start = parseISO(startedAtIso);
+  if (!start) return "0:00";
+  const sec = Math.max(0, Math.floor((Date.now() - start.getTime()) / 1000));
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
   const s = sec % 60;
@@ -791,8 +816,8 @@ function liveText(startedAtIso) {
 
 function fmtTime(iso) {
   if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d)) return "";
+  const d = parseISO(iso);
+  if (!d) return "";
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
@@ -1066,6 +1091,9 @@ function startTicker() {
         el.textContent = "⏱ " + (el.dataset.count || 0) + " · " + liveText(state.activeSession.started_at);
       }
     });
+    $$("[data-session-live]").forEach((el) => {
+      el.textContent = liveText(state.activeSession.started_at);
+    });
   }, 1000);
 }
 
@@ -1095,20 +1123,25 @@ async function stopSession(sessionId) {
 async function openSessions(taskId) {
   try {
     const d = await fetchJSON(`/api/tasks/${taskId}/sessions`);
+    const running = state.activeSession && state.activeSession.task_id === taskId ? state.activeSession.session_id : null;
     const rows = d.sessions.length
       ? d.sessions
           .map(
-            (s) => `<div class="session-row">
+            (s) => `<div class="session-row${s.id === running ? " running" : ""}">
             <span class="session-date">${esc(formatDate(s.started_at))}</span>
-            <span class="session-time">${esc(fmtTime(s.started_at))} &rarr; ${s.ended_at ? esc(fmtTime(s.ended_at)) : "now"}</span>
-            <span class="session-dur">${esc(fmtDur(s.duration_seconds))}</span>
+            <span class="session-time">${esc(fmtTime(s.started_at))} &rarr; ${s.ended_at ? esc(fmtTime(s.ended_at)) : `<span class="session-now">now</span>`}</span>
+            <span class="session-dur">${s.ended_at ? esc(fmtDur(s.duration_seconds)) : `<span class="session-live" data-session-live>${esc(liveText(s.started_at))}</span>`}</span>
             <button class="btn btn-sm btn-danger" data-action="session-delete" data-id="${s.id}" data-task="${taskId}">Delete</button>
           </div>`
           )
           .join("")
       : `<p class="work-empty">No sessions yet.</p>`;
+    const tzHint = [tzName(), tzOffsetLabel()].filter(Boolean).join(" · ");
     $("#sessions-title").textContent = "Sessions";
-    $("#sessions-body").innerHTML = `<p class="session-summary">${esc(fmtDur(d.total_seconds))} total &middot; ${d.session_count} session${d.session_count === 1 ? "" : "s"}</p>
+    $("#sessions-body").innerHTML = `
+      <p class="session-tz" title="Backend stores UTC; these are converted to your local time.">Times in your timezone &middot; ${esc(tzHint)}</p>
+      <p class="session-summary">${esc(fmtDur(d.total_seconds))} total &middot; ${d.session_count} session${d.session_count === 1 ? "" : "s"}</p>
+      <div class="session-head"><span>Date</span><span>Start &rarr; End</span><span>Duration</span><span></span></div>
       <div class="session-list">${rows}</div>`;
     $("#sessions-backdrop").hidden = false;
     document.body.classList.add("modal-open");

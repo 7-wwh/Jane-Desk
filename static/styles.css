@@ -1365,6 +1365,34 @@ body.modal-open { overflow: hidden; }
 .btn-play svg { width: 14px; height: 14px; }
 
 .session-summary { font-size: 13px; color: var(--color-text-muted); margin-bottom: 12px; }
+.session-tz {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.session-tz::before {
+  content: "\1F550";
+  font-size: 12px;
+}
+.session-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0 6px;
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-text-dim);
+  border-bottom: 1px solid var(--color-border);
+}
+.session-head span { flex-shrink: 0; }
+.session-head span:first-child { min-width: 100px; }
+.session-head span:nth-child(2) { flex: 1; }
+.session-head span:last-child { width: 66px; }
 .session-row {
   display: flex;
   align-items: center;
@@ -1374,9 +1402,13 @@ body.modal-open { overflow: hidden; }
   font-size: 13px;
 }
 .session-row:last-child { border-bottom: none; }
+.session-row.running { background: var(--color-surface-hi); margin: 0 -8px; padding: 8px; border-radius: 8px; }
 .session-date { color: var(--color-text-muted); min-width: 100px; }
 .session-time { color: var(--color-text-dim); font-variant-numeric: tabular-nums; flex: 1; }
-.session-dur { color: var(--color-lime); font-variant-numeric: tabular-nums; }
+.session-dur { color: var(--color-lime); font-variant-numeric: tabular-nums; min-width: 56px; }
+.session-now { color: var(--color-orange); font-weight: var(--fw-bold); }
+.session-live { color: var(--color-lime); }
+.session-row.running .session-live::before { content: "\25CF"; margin-right: 4px; animation: pulse 1.2s infinite; }
 
 @media (max-width: 720px) {
   .work-cols { grid-template-columns: 1fr; }
