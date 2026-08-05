@@ -954,7 +954,6 @@ function updateClock() {
 async function loadWork() {
   try {
     state.work = await fetchJSON("/api/work");
-    renderWork();
   } catch (err) {
     toast("Failed to load work: " + err.message, "error");
   }
@@ -1010,6 +1009,7 @@ async function loadTimeline() {
 
 async function refreshAll() {
   await Promise.all([loadWork(), loadDashboard(), loadProjects(), loadLearnings(), loadJournal(), loadActiveSession()]);
+  renderWork();
   if (state.timelineLoaded) await loadTimeline();
 }
 
