@@ -26,6 +26,7 @@ projects = [
         description="Personal life dashboard: projects, goals, learnings, and timeline in one view.",
         status="active",
         priority="high",
+        branch_path="personal",
         tags="dashboard,personal,fastapi",
     ),
     models.Project(
@@ -33,6 +34,7 @@ projects = [
         description="Understand how the dashboard is reachable from phone and laptop anywhere.",
         status="active",
         priority="medium",
+        branch_path="personal",
         tags="networking,tailscale",
     ),
     models.Project(
@@ -41,6 +43,7 @@ projects = [
         status="backlog",
         priority="high",
         target_date=today + timedelta(days=90),
+        branch_path="personal",
         tags="web,blog",
     ),
     models.Project(
@@ -48,6 +51,7 @@ projects = [
         description="Read 20 minutes every morning before work.",
         status="paused",
         priority="low",
+        branch_path="personal",
         tags="habit,reading",
     ),
 ]

@@ -16,7 +16,7 @@
   <div class="app">
 
     <nav class="sidebar" aria-label="Primary">
-      <button class="side-icon active" data-tab="overview" aria-label="Overview" title="Overview">
+      <button class="side-icon active" data-tab="work" aria-label="Work" title="Work">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
       </button>
       <button class="side-icon" data-tab="projects" aria-label="Projects" title="Projects">
@@ -44,7 +44,7 @@
         </div>
 
         <nav class="topnav" role="tablist" aria-label="Sections">
-          <button class="tab-btn active" id="tab-overview" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+          <button class="tab-btn active" id="tab-work" role="tab" aria-selected="true" data-tab="work">Work</button>
           <button class="tab-btn" id="tab-projects" role="tab" aria-selected="false" data-tab="projects">Projects</button>
           <button class="tab-btn" id="tab-goals" role="tab" aria-selected="false" data-tab="goals">Goals</button>
           <button class="tab-btn" id="tab-knowledge" role="tab" aria-selected="false" data-tab="knowledge">Knowledge</button>
@@ -57,6 +57,7 @@
             <button class="new-btn" id="new-btn" aria-haspopup="true" aria-expanded="false" aria-controls="new-menu" title="Add something" aria-label="Add something">+</button>
             <div class="new-menu" id="new-menu" role="menu" aria-label="Create a new entry" hidden>
               <button class="new-item" role="menuitem" data-qatype="project">+ Project</button>
+              <button class="new-item" role="menuitem" data-qatype="task">+ Task</button>
               <button class="new-item" role="menuitem" data-qatype="learning">+ Learning</button>
               <button class="new-item" role="menuitem" data-qatype="goal">+ Goal</button>
               <button class="new-item" role="menuitem" data-qatype="journal">+ Journal</button>
@@ -66,14 +67,8 @@
       </header>
 
       <div class="subheader">
-        <h1 class="page-title" id="page-title">Overview</h1>
+        <h1 class="page-title" id="page-title">Work</h1>
         <div class="sub-filters">
-          <div class="filter-group" id="sub-overview-filters">
-            <button class="pill-btn" id="growth-range">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M16 6l-4-4-4 4M12 2v13"/></svg>
-              Last 30 days
-            </button>
-          </div>
           <div class="filter-group" id="sub-project-filters" hidden>
             <button class="filter-pill active" data-filter="all">All</button>
             <button class="filter-pill" data-filter="active">Active</button>
@@ -86,154 +81,42 @@
 
       <main id="main" class="main">
 
-        <section id="panel-overview" class="tab-panel active" role="tabpanel" aria-labelledby="tab-overview">
+        <section id="panel-work" class="tab-panel active" role="tabpanel" aria-labelledby="tab-work">
 
-          <div class="overview-layout">
+          <div class="work-layout">
 
-            <div class="overview-main">
-
-              <div class="card greet-strip">
-                <div class="ring-wrap">
-                  <svg class="ring" viewBox="0 0 220 220" role="img" aria-label="Progress through today">
-                    <circle class="ring-track" cx="110" cy="110" r="96"/>
-                    <circle class="ring-progress" id="ring-progress" cx="110" cy="110" r="96"/>
-                  </svg>
-                  <div class="ring-center">
-                    <p class="greet-line" id="greet-line">Good morning</p>
-                    <p class="greet-date" id="greet-date"></p>
-                  </div>
-                </div>
-                <p class="affirmation" id="affirmation"></p>
+            <section class="card work-hero-card">
+              <div class="card-head">
+                <h3 class="card-label">Current Task</h3>
+                <span class="overflow" aria-hidden="true">&#8943;</span>
               </div>
+              <div id="work-current"></div>
+            </section>
 
-              <div class="metric-grid">
-                <div class="card metric-card">
-                  <div class="card-head">
-                    <h3 class="card-label">Projects</h3>
-                    <span class="overflow" aria-hidden="true">&#8943;</span>
-                  </div>
-                  <div id="metric-projects"></div>
-                </div>
-                <div class="card metric-card">
-                  <div class="card-head">
-                    <h3 class="card-label">Knowledge</h3>
-                    <span class="overflow" aria-hidden="true">&#8943;</span>
-                  </div>
-                  <div id="metric-knowledge"></div>
-                </div>
+            <section class="card work-card">
+              <div class="card-head">
+                <h3 class="card-label">Upcoming</h3>
+                <span class="overflow" aria-hidden="true">&#8943;</span>
               </div>
+              <div id="work-upcoming"></div>
+            </section>
 
-              <div class="card tasks-card">
+            <div class="work-cols">
+              <section class="card work-card">
                 <div class="card-head">
-                  <h3 class="card-label">Tasks / Intentions</h3>
+                  <h3 class="card-label">Projects <span class="mono-mute" id="work-projects-count"></span></h3>
                   <span class="overflow" aria-hidden="true">&#8943;</span>
                 </div>
-                <div class="task-list" id="tasks-body"></div>
-              </div>
+                <div id="work-projects"></div>
+              </section>
 
-              <div class="card habits-card">
+              <section class="card work-card">
                 <div class="card-head">
-                  <h3 class="card-label">Habit Streaks</h3>
-                  <span class="overflow" aria-hidden="true">&#8943;</span>
+                  <h3 class="card-label">Ideas</h3>
+                  <button class="btn btn-sm" id="work-new-idea" data-action="new-idea">+ New</button>
                 </div>
-                <div class="habit-list" id="habits-body"></div>
-              </div>
-
-              <div class="card insights-card">
-                <div class="card-head">
-                  <h3 class="card-label">Insights</h3>
-                  <span class="overflow" aria-hidden="true">&#8943;</span>
-                </div>
-                <div class="dash-grid">
-                  <div class="panel span-8">
-                    <div class="panel-head-row">
-                      <h3>Activity</h3>
-                      <span class="panel-sub" id="heatmap-sub"></span>
-                    </div>
-                    <div class="heatmap-wrap" id="heatmap-chart"></div>
-                  </div>
-                  <div class="panel span-4">
-                    <div class="panel-head-row"><h3>Project Status</h3></div>
-                    <div id="status-donut"></div>
-                  </div>
-                  <div class="panel span-7">
-                    <div class="panel-head-row"><h3>Cumulative Growth</h3></div>
-                    <div class="chart-box" id="growth-chart"></div>
-                  </div>
-                  <div class="panel span-5">
-                    <div class="panel-head-row"><h3>Journal Types</h3></div>
-                    <div id="journal-donut"></div>
-                  </div>
-                  <div class="panel span-6">
-                    <div class="panel-head-row"><h3>Goals by Area</h3></div>
-                    <div id="goal-progress"></div>
-                  </div>
-                  <div class="panel span-6">
-                    <div class="panel-head-row"><h3>Top Tags</h3></div>
-                    <div id="tag-freq"></div>
-                  </div>
-                  <div class="panel span-4">
-                    <div class="panel-head-row"><h3>Weekly Summary</h3></div>
-                    <div class="widget-metric" id="weekly-total">0</div>
-                    <div class="widget-sub">Learnings this week</div>
-                    <div class="chart-box" id="weekly-chart"></div>
-                  </div>
-                  <div class="panel span-4">
-                    <div class="panel-head-row"><h3>Daily Activity</h3></div>
-                    <div class="weekday-chart" id="weekday-chart"></div>
-                  </div>
-                  <div class="panel span-4">
-                    <div class="panel-head-row"><h3>Life Areas</h3></div>
-                    <div class="hex-wrap" id="hex-cluster"></div>
-                    <div class="hex-list" id="hex-list"></div>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            <div class="overview-side">
-
-              <div class="card brief-card">
-                <div class="card-head">
-                  <h3 class="card-label">Daily Brief</h3>
-                  <span class="overflow" aria-hidden="true">&#8943;</span>
-                </div>
-                <div id="brief-body"></div>
-              </div>
-
-              <div class="card gantt-card">
-                <div class="card-head">
-                  <h3 class="card-label">Projects Timeline</h3>
-                  <span class="overflow" aria-hidden="true">&#8943;</span>
-                </div>
-                <div class="gantt-wrap" id="gantt-chart"></div>
-              </div>
-
-              <div class="card focus-card">
-                <div class="card-head">
-                  <h3 class="card-label">Focus</h3>
-                  <span class="overflow" aria-hidden="true">&#8943;</span>
-                </div>
-                <div id="focus-body"></div>
-              </div>
-
-              <div class="card timeline-card">
-                <div class="card-head">
-                  <h3 class="card-label">Today <span class="mono-mute" id="day-timeline-sub"></span></h3>
-                  <span class="overflow" aria-hidden="true">&#8943;</span>
-                </div>
-                <div class="time-spine" id="day-timeline"></div>
-              </div>
-
-              <div class="card upcoming-card">
-                <div class="card-head">
-                  <h3 class="card-label">Upcoming</h3>
-                  <span class="overflow" aria-hidden="true">&#8943;</span>
-                </div>
-                <div id="upcoming-body"></div>
-              </div>
-
+                <div id="work-ideas"></div>
+              </section>
             </div>
 
           </div>
@@ -323,6 +206,7 @@
           <label for="qa-type">Type</label>
           <select class="input" id="qa-type" name="type">
             <option value="project">Project</option>
+            <option value="task">Task</option>
             <option value="learning">Learning</option>
             <option value="goal">Goal</option>
             <option value="journal">Journal</option>

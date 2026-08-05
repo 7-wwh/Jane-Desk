@@ -54,7 +54,7 @@ The package is **two things**:
 ## How agents keep it current
 
 Use `bin/post.sh` (one command per entry) or the REST API directly. See `AGENTS.md` for the
-quick start and `skills/backend/SKILL.md` for the full API reference. Never edit the SQLite
+quick start and `AGENTS.md` for the full API reference. Never edit the SQLite
 file directly.
 
 ```bash
@@ -64,18 +64,15 @@ curl -s http://127.0.0.1:8000/api/health
 
 ## Which skill should I read?
 
-**Read the sub-skill that matches your task.** For a full picture of how the whole project
-fits together (storage, API, layout, task logic), start with `skills/task-tracker/SKILL.md`
-first. If the task spans parts, read the relevant ones and start with the entry point below.
+**Start with `skills/main-skill.md`** — the dispatcher. It classifies the incoming message and
+routes to the right sub-skill. Today's skills are:
 
 | If you are working on… | Read this skill |
 |---|---|
-| Health/status rules ("is everything doing okay?") | `skills/status/SKILL.md` |
-| The task planning feature (model, API, UI) | `skills/task-planning/SKILL.md` |
-| The whole project (storage, API, layout, task logic) | `skills/task-tracker/SKILL.md` |
-| The data model, API, or adding a new entity | `skills/backend/SKILL.md` |
-| The frontend layout, components, or rendering | `skills/frontend/SKILL.md` |
-| Nutrition / health API integration (future) | `skills/health/SKILL.md` |
+| Parsing a task message, resolving its branch destination, pushing to the API | `skills/task-master.md` (its "Appendix: Eval suite" runs on every execution) |
+| Verifying the task-master extraction layer (run the evals) | `skills/task-master.md` → Appendix: Eval suite |
+| Routing/entry point for any agent message | `skills/main-skill.md` |
 
-If none of the above match, read `skills/backend/SKILL.md` and `skills/frontend/SKILL.md`
-for the core conventions before writing code.
+If the task spans the backend or frontend, read `app/models.py`, `app/schemas.py`,
+`app/main.py` (backend) or `static/app.js` + `static/index.html` (frontend) for the core
+conventions before writing code.

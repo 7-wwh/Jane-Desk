@@ -61,7 +61,9 @@ Base: `http://127.0.0.1:8000` — all routes under `/api`.
 - `PUT    /api/projects/{id}` — update (partial; any subset of fields)
 - `DELETE /api/projects/{id}`
 - Fields: `title` (req), `description`, `status` (active/backlog/done/paused),
-  `priority` (high/medium/low), `target_date` (YYYY-MM-DD or null), `tags` (comma string)
+  `priority` (high/medium/low), `target_date` (YYYY-MM-DD or null),
+  `begin_date` (YYYY-MM-DD or null), `duration` (float, hours),
+  `branch_path` (root branch segment, e.g. `work`), `tags` (comma string)
 
 ### Goals
 - `GET    /api/goals?area=&status=`
@@ -82,7 +84,8 @@ Base: `http://127.0.0.1:8000` — all routes under `/api`.
 - `PATCH  /api/tasks/{id}/status?status=` — advance status
   (`wanted`/`planned`/`in_progress`/`done`)
 - Fields: `title` (req), `status`, `priority` (high/medium/low), `due_date`
-  (YYYY-MM-DD or null)
+  (YYYY-MM-DD or null), `begin_date` (YYYY-MM-DD or null), `duration` (float, hours),
+  `branch_path` (full destination path, e.g. `work/2026/Q3 report`)
 
 ### Journal
 - `GET    /api/journal?date=&type=`

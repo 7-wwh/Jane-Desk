@@ -17,6 +17,9 @@ class Project(Base):
     status: Mapped[str] = mapped_column(String(20), default="active")  # active/backlog/done/paused
     priority: Mapped[str] = mapped_column(String(10), default="medium")  # high/medium/low
     target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    begin_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    duration: Mapped[float | None] = mapped_column(Float, nullable=True)  # hours
+    branch_path: Mapped[str] = mapped_column(String(300), default="")  # root segment, e.g. "work"
     tags: Mapped[str] = mapped_column(String(200), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=NOW)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=NOW, onupdate=NOW)
@@ -31,6 +34,9 @@ class Task(Base):
     status: Mapped[str] = mapped_column(String(20), default="wanted")  # wanted/planned/in_progress/done
     priority: Mapped[str] = mapped_column(String(10), default="medium")  # high/medium/low
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    begin_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    duration: Mapped[float | None] = mapped_column(Float, nullable=True)  # hours
+    branch_path: Mapped[str] = mapped_column(String(300), default="")  # full path, e.g. "work/2026/Q3 report"
     created_at: Mapped[datetime] = mapped_column(DateTime, default=NOW)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=NOW, onupdate=NOW)
 

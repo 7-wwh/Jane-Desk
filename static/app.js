@@ -27,6 +27,7 @@ const ENDPOINTS = {
 const STATUS_COLORS = { active: "#AAEB47", backlog: "#9B9B9B", done: "#6DC533", paused: "#F5A623" };
 const PRIO_COLORS = { high: "#F5A623", medium: "#AAEB47", low: "#6DC533" };
 const JTYPE_COLORS = { milestone: "#6DC533", note: "#E8E8E8", reflection: "#F5A623" };
+const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
 const CHART_GRID = "rgba(46,46,46,0.8)";
 const CHART_LABEL = "#5C5C5C";
 const CHART_TRACK = "#2E2E2E";
@@ -34,6 +35,7 @@ const DAYS7 = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 const state = {
+  work: null,
   dashboard: null,
   projects: [],
   learnings: [],
@@ -41,7 +43,6 @@ const state = {
   timeline: [],
   projectFilter: "all",
   timelineLoaded: false,
-  growthDays: 30,
 };
 
 function esc(value) {
@@ -133,6 +134,13 @@ function dateInput(id, defaultValue) {
   return `<input class="input" id="${id}" type="date"${defaultValue ? ` value="${defaultValue}"` : ""}>`;
 }
 
+function projectOptions(selected) {
+  if (!state.projects.length) return '<option value="">No projects yet</option>';
+  return state.projects
+    .map((p) => `<option value="${p.id}"${Number(selected) === p.id ? " selected" : ""}>${esc(p.title)}</option>`)
+    .join("");
+}
+
 const FIELD_SETS = {
   project: [
     fld("Title", '<input class="input" id="qa-title" type="text" maxlength="200" autocomplete="off">', true),
@@ -151,6 +159,20 @@ const FIELD_SETS = {
       '<textarea class="input" id="qa-tags" rows="2" placeholder="design, api, follow-up"></textarea>'
     ),
   ].join(""),
+  task: () =>
+    [
+      fld("Project", `<select class="input" id="qa-project_id">${projectOptions()}</select>`, true),
+      fld("Title", '<input class="input" id="qa-title" type="text" maxlength="200" autocomplete="off">', true),
+      fld(
+        "Status",
+        '<select class="input" id="qa-status"><option value="wanted">Maybe</option><option value="planned">Next</option><option value="in_progress">Doing</option></select>'
+      ),
+      fld(
+        "Priority",
+        '<select class="input" id="qa-priority"><option value="medium">Medium</option><option value="high">High</option><option value="low">Low</option></select>'
+      ),
+      fld("Due date", dateInput("qa-due_date")),
+    ].join(""),
   learning: [
     fld("Title", '<input class="input" id="qa-title" type="text" maxlength="200" autocomplete="off">', true),
     fld("Content", '<textarea class="input" id="qa-content" rows="4"></textarea>'),
@@ -188,6 +210,11 @@ const FIELD_SETS = {
   ].join(""),
 };
 
+function fieldsFor(type) {
+  const f = FIELD_SETS[type];
+  return typeof f === "function" ? f() : f;
+}
+
 /* ---------- Chart helpers ---------- */
 
 function lastNDates(n) {
@@ -209,6 +236,10 @@ function countByDate(items) {
     if (key) counts[key] = (counts[key] || 0) + 1;
   });
   return counts;
+}
+
+function monthKey(iso) {
+  return String(iso || "").slice(0, 7);
 }
 
 function svgEl(tag, attrs) {
@@ -299,46 +330,6 @@ function lineChart({
   return svg;
 }
 
-function renderGrowthChart() {
-  const days = state.growthDays;
-  const dates = lastNDates(days);
-  const learn = countByDate(state.learnings);
-  const jour = countByDate(state.journal);
-  $("#growth-range").textContent = days === 30 ? "Last 30 days" : "Last 90 days";
-
-  const all = state.learnings.concat(state.journal);
-  const byDate = {};
-  all.forEach((i) => {
-    const k = String(i.date || "").slice(0, 10);
-    if (k) byDate[k] = (byDate[k] || 0) + 1;
-  });
-
-  const series = { learn: [], jour: [], total: [] };
-  let cumL = 0, cumJ = 0;
-  dates.forEach((d) => {
-    cumL += learn[d] || 0;
-    cumJ += jour[d] || 0;
-    series.learn.push(cumL);
-    series.jour.push(cumJ);
-    series.total.push(cumL + cumJ);
-  });
-
-  const labels = dates.map((d) => formatDate(d).split(",")[0]);
-  const container = $("#growth-chart");
-  container.innerHTML = "";
-  container.appendChild(
-    lineChart({
-      series: [
-        { values: series.total, color: "#AAEB47", gradient: true },
-        { values: series.learn, color: "#E8E8E8" },
-        { values: series.jour, color: "#6DC533", dashed: true },
-      ],
-      xLabels: labels,
-      labelEvery: days === 30 ? 4 : 9,
-    })
-  );
-}
-
 function donutSVG(parts, centerValue, centerLabel) {
   const total = Math.max(1, parts.reduce((s, p) => s + p.value, 0));
   const r = 50, c = 2 * Math.PI * r;
@@ -406,90 +397,56 @@ function renderHBar(el, items) {
     `</div>`;
 }
 
-function renderActivityHeatmap() {
-  const counts = {};
-  state.learnings.concat(state.journal).forEach((i) => {
-    const k = String(i.date || "").slice(0, 10);
-    if (k) counts[k] = (counts[k] || 0) + 1;
-  });
+/* ---------- Shared tab renderers ---------- */
 
-  const weeks = 16;
-  const cell = 11, gap = 3;
-  const today = new Date();
-  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const startDayOffset = ((end.getDay() + 1) % 7);
-  const totalDays = weeks * 7 + startDayOffset;
-  const start = new Date(end);
-  start.setDate(end.getDate() - totalDays + 1);
-
-  const dayLabel = svgEl("text", { x: 0, y: 8, fill: CHART_LABEL, "font-size": 9 });
-  dayLabel.textContent = "Mon";
-  const w = weeks * (cell + gap) + 14;
-  const h = 7 * (cell + gap);
-  const svg = svgEl("svg", { viewBox: `0 0 ${w} ${h}`, role: "img" });
-
-  const max = Math.max(1, ...Object.values(counts));
-  for (let i = 0; i < totalDays; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    const col = Math.floor(i / 7);
-    const row = i % 7;
-    const iso = isoFromDate(d);
-    const v = counts[iso] || 0;
-    const inRange = d <= end && d >= start;
-    const alpha = !inRange ? 0 : v === 0 ? 0.15 : 0.3 + (v / max) * 0.7;
-    svg.appendChild(
-      svgEl("rect", {
-        x: col * (cell + gap) + 14,
-        y: row * (cell + gap),
-        width: cell,
-        height: cell,
-        rx: 2.5,
-        fill: v > 0 ? "#6DC533" : CHART_TRACK,
-        "fill-opacity": String(alpha),
-      })
-    );
-    if (v > 0) {
-      const title = svgEl("title", {});
-      title.textContent = `${formatDate(iso)} — ${v} entry${v > 1 ? "s" : ""}`;
-      svg.lastChild.appendChild(title);
-    }
-  }
-  svg.prepend(dayLabel);
-  $("#heatmap-chart").innerHTML = "";
-  $("#heatmap-chart").appendChild(svg);
-  const withActivity = Object.values(counts).filter((v) => v > 0).length;
-  $("#heatmap-sub").textContent = `${withActivity} active days in the last ${weeks * 7} days`;
+function tasksFor(projectId) {
+  const map = (state.dashboard && state.dashboard.tasks_by_project) || {};
+  return map[String(projectId)] || [];
 }
 
-function monthKey(iso) {
-  return String(iso || "").slice(0, 7);
+function taskCheckbox(task, opts = {}) {
+  const done = task.status === "done";
+  return `<button class="checkbox${done ? " checked" : ""}" data-action="task-toggle" data-id="${task.id}" data-project="${task.project_id}" aria-label="${done ? "Completed" : "Mark done"}" title="Toggle done">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+  </button>`;
 }
 
-function renderMonthlyBars(el) {
-  const counts = {};
-  state.learnings.concat(state.journal).forEach((i) => {
-    const k = monthKey(i.date);
-    if (k) counts[k] = (counts[k] || 0) + 1;
+function daysLabel(iso, today) {
+  if (!iso) return { text: "no deadline", cls: "" };
+  const ms = new Date(iso + "T00:00:00") - new Date(today + "T00:00:00");
+  const d = Math.round(ms / 86400000);
+  if (d < 0) return { text: `${Math.abs(d)}d overdue`, cls: "overdue" };
+  if (d === 0) return { text: "due today", cls: "today" };
+  if (d === 1) return { text: "due tomorrow", cls: "" };
+  return { text: `due in ${d}d`, cls: "" };
+}
+
+function renderProjectsCharts() {
+  const statusCounts = { active: 0, backlog: 0, done: 0, paused: 0 };
+  const prioCounts = { high: 0, medium: 0, low: 0 };
+  state.projects.forEach((p) => {
+    if (statusCounts[p.status] !== undefined) statusCounts[p.status]++;
+    if (prioCounts[p.priority] !== undefined) prioCounts[p.priority]++;
   });
-  const months = Object.keys(counts).sort().slice(-8);
-  if (!months.length) {
-    el.innerHTML = emptyState("No entries yet.");
-    return;
-  }
-  const max = Math.max(1, ...months.map((m) => counts[m]));
-  el.innerHTML = `<div class="hbar">` +
-    months
-      .map((m) => {
-        const label = new Date(m + "-01").toLocaleDateString(undefined, { month: "short", year: "2-digit" });
-        return `<div class="hbar-row">
-          <span class="hbar-label">${label}</span>
-          <div class="hbar-track"><div class="hbar-fill" style="background:#6DC533;width:${Math.round((counts[m] / max) * 100)}%"></div></div>
-          <span class="hbar-val">${counts[m]}</span>
-        </div>`;
-      })
-      .join("") +
-    `</div>`;
+
+  renderDonut(
+    $("#projects-status"),
+    ["active", "backlog", "done", "paused"].map((s) => ({
+      label: s.charAt(0).toUpperCase() + s.slice(1),
+      value: statusCounts[s],
+      color: STATUS_COLORS[s],
+    })),
+    state.projects.length,
+    "projects"
+  );
+  renderHBar(
+    $("#projects-priority"),
+    ["high", "medium", "low"].map((s) => ({
+      label: s.charAt(0).toUpperCase() + s.slice(1),
+      value: prioCounts[s],
+      color: PRIO_COLORS[s],
+    }))
+  );
 }
 
 function renderTagFreq(el) {
@@ -527,185 +484,33 @@ function renderGoalsByArea(el) {
   renderHBar(el, items);
 }
 
-function renderWeeklyChart() {
-  const counts = countByDate(state.learnings);
-  const today = new Date();
-  const days = [];
-
-  for (let i = 0; i < 7; i++) {
-    const d = new Date();
-    d.setDate(today.getDate() - ((today.getDay() + 7) % 7) + i);
-    const iso =
-      d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-    days.push(iso);
+function renderMonthlyBars(el) {
+  const counts = {};
+  state.learnings.concat(state.journal).forEach((i) => {
+    const k = monthKey(i.date);
+    if (k) counts[k] = (counts[k] || 0) + 1;
+  });
+  const months = Object.keys(counts).sort().slice(-8);
+  if (!months.length) {
+    el.innerHTML = emptyState("No entries yet.");
+    return;
   }
-  const thisWeek = days.map((d) => counts[d] || 0);
-  const lastWeek = days.map((d) => {
-    const dt = new Date(d + "T00:00:00");
-    dt.setDate(dt.getDate() - 7);
-    const iso =
-      dt.getFullYear() + "-" + String(dt.getMonth() + 1).padStart(2, "0") + "-" + String(dt.getDate()).padStart(2, "0");
-    return counts[iso] || 0;
-  });
-
-  $("#weekly-total").textContent = thisWeek.reduce((a, b) => a + b, 0);
-
-  const container = $("#weekly-chart");
-  container.innerHTML = "";
-  const svg = lineChart({
-    series: [
-      { values: thisWeek, color: "#AAEB47" },
-      { values: lastWeek, color: "#5C5C5C", dashed: true },
-    ],
-    xLabels: DAYS7,
-    width: 320,
-    height: 150,
-    pad: { top: 12, right: 10, bottom: 24, left: 10 },
-  });
-  container.appendChild(svg);
-}
-
-function hexLayout(total) {
-  const dirs = [
-    [1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1],
-  ];
-  const coords = [[0, 0]];
-  let ring = 1;
-  while (coords.length < total) {
-    let q = ring, r = 0;
-    for (const [dq, dr] of dirs) {
-      for (let i = 0; i < ring; i++) {
-        coords.push([q, r]);
-        q += dq;
-        r += dr;
-      }
-    }
-    ring++;
-  }
-  return coords.slice(0, total);
-}
-
-function renderHexAreas() {
-  const goals = (state.dashboard && state.dashboard.goals) || [];
-  const byArea = {};
-  goals.forEach((g) => {
-    const a = AREAS.includes(g.area) ? g.area : "other";
-    byArea[a] = (byArea[a] || 0) + 1;
-  });
-  const present = AREAS.filter((a) => byArea[a]);
-
-  const total = Math.max(1, present.length * 3);
-  const coords = hexLayout(total);
-  const size = 8;
-  const hw = Math.sqrt(3) * size;
-  const hh = 2 * size;
-  const vert = hh * 0.75;
-  const horiz = hw;
-
-  const xs = coords.map(([q, r]) => q * horiz + (r % 2 === 1 ? horiz / 2 : 0));
-  const ys = coords.map(([, r]) => r * vert);
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const minY = Math.min(...ys), maxY = Math.max(...ys);
-
-  const w = maxX - minX + horiz + 12;
-  const h = maxY - minY + hh + 12;
-
-  const svg = svgEl("svg", { viewBox: `0 0 ${w} ${h}`, width: "100%" });
-  const g = svgEl("g", { transform: `translate(${6 - minX}, ${6 - minY})` });
-
-  const sorted = present.slice().sort((a, b) => (byArea[b] || 0) - (byArea[a] || 0));
-  coords.forEach(([q, r], i) => {
-    const x = q * horiz + (r % 2 === 1 ? horiz / 2 : 0);
-    const y = r * vert;
-    const area = sorted[i % sorted.length];
-    const intensity = byArea[area] >= 3 ? 1 : byArea[area] === 2 ? 0.72 : 0.5;
-    const color = AREA_COLORS[area] || AREA_COLORS.other;
-    const pts =
-      `${x},${y - size} ${x + hw / 2},${y - size / 2} ${x + hw / 2},${y + size / 2} ` +
-      `${x},${y + size} ${x - hw / 2},${y + size / 2} ${x - hw / 2},${y - size / 2}`;
-    g.appendChild(
-      svgEl("polygon", {
-        points: pts,
-        fill: color,
-        "fill-opacity": intensity,
-        stroke: CHART_TRACK,
-        "stroke-width": 1.4,
+  const max = Math.max(1, ...months.map((m) => counts[m]));
+  el.innerHTML = `<div class="hbar">` +
+    months
+      .map((m) => {
+        const label = new Date(m + "-01").toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+        return `<div class="hbar-row">
+          <span class="hbar-label">${label}</span>
+          <div class="hbar-track"><div class="hbar-fill" style="background:#6DC533;width:${Math.round((counts[m] / max) * 100)}%"></div></div>
+          <span class="hbar-val">${counts[m]}</span>
+        </div>`;
       })
-    );
-  });
-
-  svg.appendChild(g);
-  const wrap = $("#hex-cluster");
-  wrap.innerHTML = "";
-  wrap.appendChild(svg);
-
-  $("#hex-list").innerHTML = present.length
-    ? present
-        .map(
-          (a) =>
-            `<div class="hex-item"><span><span class="ldot" style="background:${AREA_COLORS[a]}"></span>${AREA_LABELS[a]}</span><b>${byArea[a]}</b></div>`
-        )
-        .join("")
-    : `<div class="hex-item"><span style="color:var(--color-text-dim)">No goals yet</span></div>`;
+      .join("") +
+    `</div>`;
 }
 
-function renderWeekdayChart() {
-  const learn = countByDate(state.learnings);
-  const jour = countByDate(state.journal);
-  const today = new Date();
-  const values = [];
-
-  for (let i = 0; i < 7; i++) {
-    const d = new Date();
-    d.setDate(today.getDate() - ((today.getDay() - i + 7) % 7));
-    const iso =
-      d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-    values.push((learn[iso] || 0) + (jour[iso] || 0));
-  }
-  const max = Math.max(1, ...values);
-  const wrap = $("#weekday-chart");
-  wrap.innerHTML = values
-    .map((v, i) => {
-      const hot = i === today.getDay();
-      const pct = Math.max(6, Math.round((v / max) * 100));
-      return `<div class="wd-col${hot ? " hot" : ""}">
-        <div class="wd-bar-wrap"><div class="wd-bar" style="height:${pct}%"></div></div>
-        <span class="wd-value">${v}</span>
-        <span class="wd-label">${DAYS7[i]}</span>
-      </div>`;
-    })
-    .join("");
-}
-
-function renderProjectsCharts() {
-  const statusCounts = { active: 0, backlog: 0, done: 0, paused: 0 };
-  const prioCounts = { high: 0, medium: 0, low: 0 };
-  state.projects.forEach((p) => {
-    if (statusCounts[p.status] !== undefined) statusCounts[p.status]++;
-    if (prioCounts[p.priority] !== undefined) prioCounts[p.priority]++;
-  });
-
-  renderDonut(
-    $("#projects-status"),
-    ["active", "backlog", "done", "paused"].map((s) => ({
-      label: s.charAt(0).toUpperCase() + s.slice(1),
-      value: statusCounts[s],
-      color: STATUS_COLORS[s],
-    })),
-    state.projects.length,
-    "projects"
-  );
-  renderHBar(
-    $("#projects-priority"),
-    ["high", "medium", "low"].map((s) => ({
-      label: s.charAt(0).toUpperCase() + s.slice(1),
-      value: prioCounts[s],
-      color: PRIO_COLORS[s],
-    }))
-  );
-}
-
-/* ---------- Card renderers ---------- */
+/* ---------- Projects tab ---------- */
 
 function projectTaskList(p) {
   const tasks = tasksFor(p.id);
@@ -758,548 +563,11 @@ function projectCard(p) {
   </article>`;
 }
 
-function journalCard(j) {
-  return `<article class="card journal-card">
-    <div class="card-head">
-      <span class="badge badge-jtype jt-${esc(j.type)}">${esc(j.type)}</span>
-      <span class="meta">${esc(formatDate(j.date))}</span>
-    </div>
-    <p class="card-text">${esc(j.content)}</p>
-    ${j.related_entity ? `<div class="card-meta"><span class="meta">${esc(j.related_entity)}</span></div>` : ""}
-    <div class="card-actions">
-      <button class="btn btn-sm btn-danger" data-action="delete" data-type="journal" data-id="${j.id}">Delete</button>
-    </div>
-  </article>`;
-}
-
-function goalCard(g) {
-  const p = Math.max(0, Math.min(100, Math.round(Number(g.progress) || 0)));
-  return `<article class="card goal-card">
-    <div class="card-head">
-      <h3 class="card-title">${esc(g.title)}</h3>
-      <span class="badge badge-goal-status gs-${esc(g.status)}">${esc(g.status)}</span>
-    </div>
-    ${g.description ? `<p class="card-text">${esc(g.description)}</p>` : ""}
-    <div class="progress-wrap">
-      <div class="progress" role="progressbar" aria-valuenow="${p}" aria-valuemin="0" aria-valuemax="100">
-        <div class="progress-fill" style="width:${p}%"></div>
-      </div>
-      <span class="progress-pct">${p}%</span>
-    </div>
-    ${g.target_date ? `<div class="card-meta"><span class="meta">Target: ${esc(formatDate(g.target_date))}</span></div>` : ""}
-  </article>`;
-}
-
-function timelineItem(t) {
-  return `<article class="card timeline-item ${"kind-" + esc(t.kind)}">
-    <div class="timeline-head">
-      <span class="badge badge-kind ${"kind-" + esc(t.kind)}">${esc(t.kind)}</span>
-      <span class="meta">${esc(formatDate(t.date))}</span>
-    </div>
-    <h3 class="card-title">${esc(t.title)}</h3>
-    ${t.body ? `<p class="card-text timeline-body">${esc(t.body)}</p>` : ""}
-    ${parseTags(t.tags).length ? `<div class="chips">${tagChips(t.tags)}</div>` : ""}
-  </article>`;
-}
-
-/* ---------- Renderers ---------- */
-
-function updateClock() {
-  const now = new Date();
-  const options = {
-    weekday: "long",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  };
-  $("#today").textContent = now.toLocaleDateString("en-US", options).replace(",", " -");
-}
-
-const AFFIRMATIONS = [
-  "Three things are on your list today.",
-  "Clear evening ahead.",
-  "One step at a time.",
-  "Today has a little room for the unexpected.",
-  "Small progress is still progress.",
-  "You are exactly where you need to be.",
-];
-
-function greetingForHour(h) {
-  if (h >= 5 && h < 12) return "Good morning";
-  if (h >= 12 && h < 17) return "Good afternoon";
-  if (h >= 17 && h < 21) return "Good evening";
-  return "Good night";
-}
-
-function renderGreeting() {
-  const now = new Date();
-  $("#greet-line").textContent = greetingForHour(now.getHours());
-  $("#greet-date").textContent =
-    now.toLocaleDateString(undefined, { weekday: "long" }) +
-    " · " +
-    now.toLocaleDateString(undefined, { day: "numeric", month: "short" });
-  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
-  $("#affirmation").textContent = AFFIRMATIONS[dayOfYear % AFFIRMATIONS.length];
-}
-
-function renderTodayRing() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const elapsed = now - start;
-  const total = 86400000;
-  const frac = Math.min(1, Math.max(0, elapsed / total));
-  const r = 96;
-  const circ = 2 * Math.PI * r;
-  const ring = $("#ring-progress");
-  const target = circ * (1 - frac);
-  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    ring.style.transition = "none";
-  }
-  ring.style.strokeDasharray = circ.toFixed(2);
-  requestAnimationFrame(() => {
-    ring.style.strokeDashoffset = target.toFixed(2);
-  });
-}
-
-function renderDayTimeline() {
-  const today = todayISO();
-  const items = [];
-  state.journal
-    .filter((j) => j.date === today)
-    .forEach((j) => items.push({ kind: "journal", title: j.content, meta: j.type }));
-  state.learnings
-    .filter((l) => l.date === today)
-    .forEach((l) => items.push({ kind: "learning", title: l.title, meta: "learning" }));
-  $("#day-timeline-sub").textContent = items.length ? `${items.length} item${items.length > 1 ? "s" : ""}` : "";
-  $("#day-timeline").innerHTML = items.length
-    ? items
-        .map(
-          (it) => `<div class="spine-item ${"kind-" + esc(it.kind)}">
-            <div class="spine-body">
-              <p class="spine-title">${esc(it.title)}</p>
-              <span class="spine-meta">${esc(it.meta)}</span>
-            </div>
-          </div>`
-        )
-        .join("")
-    : `<p class="spine-empty">Nothing on the timeline yet — a clear day.</p>`;
-}
-
-const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
-const TASK_STATE_ORDER = { in_progress: 0, planned: 1, wanted: 2, done: 3 };
-
-function tasksFor(projectId) {
-  const map = (state.dashboard && state.dashboard.tasks_by_project) || {};
-  return map[String(projectId)] || [];
-}
-
-function taskCheckbox(task, opts = {}) {
-  const done = task.status === "done";
-  return `<button class="checkbox${done ? " checked" : ""}" data-action="task-toggle" data-id="${task.id}" data-project="${task.project_id}" aria-label="${done ? "Completed" : "Mark done"}" title="Toggle done">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-  </button>`;
-}
-
-function renderFocus() {
-  const goals = (state.dashboard && state.dashboard.goals) || [];
-  const active = state.projects.filter((p) => p.status === "active");
-  const sorted = active.slice().sort((a, b) => {
-    const pa = PRIORITY_ORDER[a.priority] ?? 1;
-    const pb = PRIORITY_ORDER[b.priority] ?? 1;
-    return pa - pb || String(a.target_date || "9999").localeCompare(String(b.target_date || "9999"));
-  });
-  const focus = sorted[0];
-
-  if (focus) {
-    const tasks = tasksFor(focus.id);
-    const nextUp = tasks
-      .filter((t) => t.status !== "done")
-      .sort((a, b) => (TASK_STATE_ORDER[a.status] ?? 9) - (TASK_STATE_ORDER[b.status] ?? 9))
-      .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 1) - (PRIORITY_ORDER[b.priority] ?? 1))[0];
-    if (nextUp) {
-      $("#focus-body").innerHTML = `<div class="focus-row">
-        ${taskCheckbox(nextUp)}
-        <div class="focus-body">
-          <p class="focus-title">${esc(nextUp.title)}</p>
-          <p class="focus-meta">${esc(focus.title)} · ${esc(nextUp.status)}</p>
-        </div>
-      </div>`;
-      return;
-    }
-    $("#focus-body").innerHTML = `<div class="focus-row">
-      <button class="checkbox" data-action="done" data-type="project" data-id="${focus.id}" aria-label="Mark done" title="Mark done">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-      </button>
-      <div class="focus-body">
-        <p class="focus-title">${esc(focus.title)}</p>
-        <p class="focus-meta">${esc(focus.priority)} priority · ${focus.target_date ? "due " + esc(formatDate(focus.target_date)) : "no deadline"}</p>
-      </div>
-    </div>`;
-    return;
-  }
-
-  const goal = goals.find((g) => g.status === "active");
-  if (goal) {
-    $("#focus-body").innerHTML = `<div class="focus-row">
-      <div class="focus-body"><p class="focus-title">${esc(goal.title)}</p>
-      <p class="focus-meta">${esc(AREA_LABELS[goal.area] || goal.area)} goal</p></div>
-    </div>`;
-  } else {
-    $("#focus-body").innerHTML = `<p class="focus-empty">Nothing demanding attention today.</p>`;
-  }
-}
-
-function renderUpcoming() {
-  const today = todayISO();
-  const upcoming = state.projects
-    .filter((p) => p.status !== "done" && p.target_date && p.target_date >= today)
-    .sort((a, b) => String(a.target_date).localeCompare(String(b.target_date)))
-    .slice(0, 3);
-  $("#upcoming-body").innerHTML = upcoming.length
-    ? upcoming
-        .map(
-          (p) => `<div class="upcoming-item">
-            <span class="upcoming-title">${esc(p.title)}</span>
-            <span class="upcoming-date">${esc(formatDate(p.target_date))}</span>
-          </div>`
-        )
-        .join("")
-    : `<p class="focus-empty">Nothing scheduled.</p>`;
-}
-
-function renderTasks() {
-  const active = state.projects.filter((p) => p.status === "active");
-  const rows = [];
-  active.forEach((p) => {
-    tasksFor(p.id).forEach((t) => {
-      rows.push({ task: t, projectTitle: p.title });
-    });
-  });
-  rows.sort((a, b) => (TASK_STATE_ORDER[a.task.status] ?? 9) - (TASK_STATE_ORDER[b.task.status] ?? 9));
-  const open = rows.filter((r) => r.task.status !== "done");
-  const done = rows.filter((r) => r.task.status === "done").slice(0, 4);
-
-  if (!open.length && !done.length) {
-    $("#tasks-body").innerHTML = `<p class="task-empty">No tasks yet. Add tasks under a project to begin.</p>`;
-    return;
-  }
-  const taskMeta = (t) => {
-    const pc = PRIO_COLORS[t.priority] || "#9B9B9B";
-    const dl = daysLabel(t.due_date, todayISO());
-    const parts = [];
-    parts.push(`<span class="task-chip task-prio" style="--chip:${pc}">${esc(t.priority)}</span>`);
-    parts.push(`<span class="task-chip task-state">${esc(t.status)}</span>`);
-    if (t.due_date) parts.push(`<span class="task-due ${dl.cls}">${esc(dl.text)}</span>`);
-    return parts.join("");
-  };
-  const rowHTML = (r, isDone) => `<label class="task-row${isDone ? " done" : ""}">
-    <button class="checkbox${isDone ? " checked" : ""}" ${isDone ? "disabled aria-hidden='true'" : ""} data-action="task-toggle" data-id="${r.task.id}" data-project="${r.task.project_id}" aria-label="${isDone ? "Completed" : "Mark done"}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-    </button>
-    <span class="task-label">${esc(r.task.title)} <span class="task-project">${esc(r.projectTitle)}</span></span>
-    <span class="task-meta">${taskMeta(r.task)}</span>
-  </label>`;
-  $("#tasks-body").innerHTML = [...open.map((r) => rowHTML(r, false)), ...done.map((r) => rowHTML(r, true))].join("");
-}
-
-function renderHabits() {
-  const goals = (state.dashboard && state.dashboard.goals) || [];
-  const activeGoals = goals.filter((g) => g.status === "active");
-  if (!activeGoals.length) {
-    $("#habits-body").innerHTML = `<p class="habit-empty">No habits tracked yet — add goals to begin.</p>`;
-    return;
-  }
-  const today = new Date();
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    days.push(isoFromDate(d));
-  }
-  const activity = countByDate(state.learnings.concat(state.journal));
-  const dayLabels = days.map((iso) => new Date(iso + "T00:00:00").toLocaleDateString(undefined, { weekday: "short" }));
-  $("#habits-body").innerHTML = activeGoals
-    .map((g) => {
-      const area = AREAS.includes(g.area) ? g.area : "other";
-      const color = AREA_COLORS[area];
-      const initial = (AREA_LABELS[area] || area).charAt(0).toUpperCase();
-      const dots = days
-        .map((iso, i) => `<span class="habit-dot${activity[iso] ? " on" : ""}" title="${dayLabels[i]}"></span>`)
-        .join("");
-      return `<div class="habit-row">
-        <span class="habit-badge" style="background:${color}">${esc(initial)}</span>
-        <div>
-          <p class="habit-name">${esc(g.title)}</p>
-          <div class="habit-dots">${dots}</div>
-        </div>
-      </div>`;
-    })
-    .join("");
-}
-
-/* ---------- Metric cards ---------- */
-
-function sparkline(values, { color = "#6DC533", width = 320, height = 48 } = {}) {
-  const max = Math.max(1, ...values);
-  const n = values.length;
-  const iw = width - 4;
-  const ih = height - 8;
-  const getX = (i) => 2 + (n === 1 ? iw / 2 : (i / (n - 1)) * iw);
-  const getY = (v) => 4 + ih - (v / max) * ih;
-  const pts = values.map((v, i) => ({ x: getX(i), y: getY(v) }));
-
-  const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}`, preserveAspectRatio: "none", role: "img", "aria-label": "Sparkline" });
-  const grad = svgEl("linearGradient", { id: "sparkGrad", x1: "0%", y1: "0%", x2: "0%", y2: "100%" });
-  grad.appendChild(svgEl("stop", { offset: "0%", "stop-color": color, "stop-opacity": "0.35" }));
-  grad.appendChild(svgEl("stop", { offset: "100%", "stop-color": color, "stop-opacity": "0" }));
-  svg.appendChild(grad);
-
-  const area = `${makeLinePath(pts)} L ${getX(n - 1)} ${height} L ${getX(0)} ${height} Z`;
-  svg.appendChild(svgEl("path", { d: area, fill: "url(#sparkGrad)" }));
-  svg.appendChild(svgEl("path", { d: makeLinePath(pts), fill: "none", stroke: color, "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round" }));
-  return svg;
-}
-
-function metricDelta(current, previous) {
-  const diff = current - previous;
-  const pct = previous === 0 ? (diff === 0 ? 0 : 100) : Math.round((Math.abs(diff) / previous) * 100);
-  return { diff, pct, up: diff >= 0 };
-}
-
-function renderMetricProjects() {
-  const active = state.projects.filter((p) => p.status === "active").length;
-  const now = new Date();
-  const thisM = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
-  const prevD = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const prevM = prevD.getFullYear() + "-" + String(prevD.getMonth() + 1).padStart(2, "0");
-  const doneThis = state.projects.filter((p) => p.status === "done" && String(p.updated_at || "").slice(0, 7) === thisM).length;
-  const donePrev = state.projects.filter((p) => p.status === "done" && String(p.updated_at || "").slice(0, 7) === prevM).length;
-  const d = metricDelta(doneThis, donePrev);
-
-  const dates = lastNDates(14);
-  const created = dates.map((iso) => state.projects.filter((p) => String(p.created_at || "").slice(0, 10) === iso).length);
-  const color = d.up ? "#6DC533" : "#F5A623";
-
-  $("#metric-projects").innerHTML = `
-    <div class="metric-top">
-      <div><div class="metric-value">${active}</div><div class="metric-sublabel">active projects</div></div>
-      <span class="metric-badge ${d.up ? "up" : "down"}"><span>${d.up ? "▲" : "▼"}</span>${d.pct}%</span>
-    </div>
-    <div class="metric-note">${d.diff >= 0 ? "+" : ""}${d.diff} finished this month</div>
-    <div class="metric-spark">${sparkline(created, { color }).outerHTML}</div>`;
-}
-
-function renderMetricKnowledge() {
-  const counts = countByDate(state.learnings);
-  const thisWeek = lastNDates(7).reduce((s, d) => s + (counts[d] || 0), 0);
-  const prevDates = lastNDates(14).slice(0, 7);
-  const prevWeek = prevDates.reduce((s, d) => s + (counts[d] || 0), 0);
-  const d = metricDelta(thisWeek, prevWeek);
-
-  const daily = lastNDates(14).map((iso) => counts[iso] || 0);
-  const color = d.up ? "#6DC533" : "#F5A623";
-
-  $("#metric-knowledge").innerHTML = `
-    <div class="metric-top">
-      <div><div class="metric-value">${thisWeek}</div><div class="metric-sublabel">learnings this week</div></div>
-      <span class="metric-badge ${d.up ? "up" : "down"}"><span>${d.up ? "▲" : "▼"}</span>${d.pct}%</span>
-    </div>
-    <div class="metric-note">${d.diff >= 0 ? "+" : ""}${d.diff} vs last week · ${state.learnings.length} total</div>
-    <div class="metric-spark">${sparkline(daily, { color }).outerHTML}</div>`;
-}
-
-function renderMetrics() {
-  renderMetricProjects();
-  renderMetricKnowledge();
-}
-
-/* ---------- Projects Timeline Gantt ---------- */
-
-function dayIndex(iso, start) {
-  const t = new Date(String(iso || "").slice(0, 10) + "T00:00:00");
-  if (isNaN(t)) return 0;
-  return Math.max(0, Math.min(30, Math.round((t - start) / 86400000)));
-}
-
-function ganttShort(iso) {
-  if (!iso) return "";
-  const d = new Date(String(iso).slice(0, 10) + "T00:00:00");
-  if (isNaN(d)) return String(iso);
-  return String(d.getDate()).padStart(2, "0") + "." + String(d.getMonth() + 1).padStart(2, "0");
-}
-
-function projectInitial(title) {
-  return esc(String(title || "?").trim().charAt(0).toUpperCase() || "?");
-}
-
-function renderGantt() {
-  const projects = state.projects.filter((p) => p.status !== "done");
-  if (!projects.length) {
-    $("#gantt-chart").innerHTML = `<p class="empty">No active projects to chart.</p>`;
-    return;
-  }
-
-  const today = new Date();
-  const start = new Date(today);
-  start.setDate(start.getDate() - 29);
-  start.setHours(0, 0, 0, 0);
-
-  const rows = projects
-    .map((p) => {
-      const tasks = tasksFor(p.id);
-      let first = null;
-      let last = null;
-      tasks.forEach((t) => {
-        const created = String(t.created_at || "").slice(0, 10);
-        const due = t.due_date;
-        if (created && (!first || created < first)) first = created;
-        if (due && (!last || due > last)) last = due;
-        if (created && (!last || created > last)) last = created;
-      });
-      if (!first) first = String(p.created_at || "").slice(0, 10);
-      if (!last) last = first;
-      const open = tasks.filter((t) => t.status !== "done");
-      const overdue = open.some((t) => t.due_date && t.due_date < todayISO());
-      const left = dayIndex(first, start);
-      const right = Math.max(left + 1, dayIndex(last, start));
-      return { p, tasks, first, last, open, overdue, left, right };
-    })
-    .sort((a, b) => String(a.first).localeCompare(String(b.first)));
-
-  const bars = rows
-    .map((r) => {
-      const pct = (n) => `${Math.round((n / 30) * 100)}%`;
-      return `<div class="gantt-row">
-        <div class="gantt-label">
-          <span class="gantt-name" title="${esc(r.p.title)}">${esc(r.p.title)}</span>
-          <span class="gantt-date">${ganttShort(r.first)}</span>
-        </div>
-        <div class="gantt-track">
-          <div class="gantt-bar ${r.overdue ? "warn" : "ok"}" style="left:${pct(r.left)};width:${pct(r.right - r.left)}">
-            <span class="gantt-dot">${projectInitial(r.p.title)}</span>
-            <span class="gantt-count">${r.tasks.length}</span>
-          </div>
-        </div>
-      </div>`;
-    })
-    .join("");
-
-  const ticks = Array.from({ length: 31 }, (_, i) => (i % 5 === 0 ? i : "")).map((i) => `<span class="gantt-tick">${i === 0 ? "" : i}</span>`).join("");
-
-  $("#gantt-chart").innerHTML = `<div class="gantt">
-    ${bars}
-    <div class="gantt-axis">
-      <span></span>
-      <div class="gantt-ticks">${ticks}</div>
-    </div>
-  </div>`;
-}
-
-function daysLabel(iso, today) {
-  if (!iso) return { text: "no deadline", cls: "" };
-  const ms = new Date(iso + "T00:00:00") - new Date(today + "T00:00:00");
-  const d = Math.round(ms / 86400000);
-  if (d < 0) return { text: `${Math.abs(d)}d overdue`, cls: "overdue" };
-  if (d === 0) return { text: "due today", cls: "today" };
-  if (d === 1) return { text: "due tomorrow", cls: "" };
-  if (d <= 7) return { text: `due in ${d}d`, cls: "" };
-  return { text: `due in ${d}d`, cls: "" };
-}
-
-function allOpenTasks() {
-  const rows = [];
-  state.projects.forEach((p) => {
-    tasksFor(p.id).forEach((t) => {
-      if (t.status !== "done") rows.push({ task: t, projectTitle: p.title });
-    });
-  });
-  return rows;
-}
-
-function renderDailyBrief() {
-  const today = todayISO();
-  const open = allOpenTasks();
-  const overdue = open.filter((r) => r.task.due_date && r.task.due_date < today);
-  const dueWeek = open.filter((r) => {
-    if (!r.task.due_date) return false;
-    const ms = new Date(r.task.due_date + "T00:00:00") - new Date(today + "T00:00:00");
-    const d = Math.round(ms / 86400000);
-    return d >= 0 && d <= 7;
-  });
-  const top5 = open
-    .slice()
-    .sort(
-      (a, b) =>
-        (PRIORITY_ORDER[a.task.priority] ?? 1) - (PRIORITY_ORDER[b.task.priority] ?? 1) ||
-        String(a.task.due_date || "9999").localeCompare(String(b.task.due_date || "9999"))
-    )
-    .slice(0, 5);
-
-  const focus = overdue.length ? overdue[0] : top5.length ? top5[0] : null;
-
-  const recent = state.learnings
-    .filter((l) => {
-      const ms = new Date(today + "T00:00:00") - new Date(String(l.date || "").slice(0, 10) + "T00:00:00");
-      return ms >= 0 && ms <= 6 * 86400000;
-    })
-    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
-    .slice(0, 5);
-
-  const briefRow = (r) => {
-    const t = r.task;
-    const dl = daysLabel(t.due_date, today);
-    const pc = PRIO_COLORS[t.priority] || "#9B9B9B";
-    return `<div class="brief-row">
-      <span class="brief-prio" style="background:${pc}"></span>
-      <div class="brief-row-body">
-        <p class="brief-title">${esc(t.title)} <span class="brief-project">${esc(r.projectTitle)}</span></p>
-        ${t.due_date ? `<span class="brief-meta ${dl.cls}">${esc(dl.text)}</span>` : `<span class="brief-meta">no deadline</span>`}
-      </div>
-    </div>`;
-  };
-
-  const atomRows = recent
-    .map(
-      (l) => `<div class="brief-row brief-atom">
-        <span class="brief-atom-dot"></span>
-        <div class="brief-row-body">
-          <p class="brief-title">${esc(l.title)}</p>
-          <span class="brief-meta">${esc(formatDate(l.date))}${l.related_project ? " · " + esc(l.related_project) : ""}</span>
-        </div>
-      </div>`
-    )
-    .join("");
-
-  $("#brief-body").innerHTML = `
-    <div class="brief-section">
-      <h4 class="brief-h">Overdue</h4>
-      ${overdue.length ? overdue.map(briefRow).join("") : `<p class="brief-none">Nothing overdue — great.</p>`}
-    </div>
-    <div class="brief-section">
-      <h4 class="brief-h">Due this week</h4>
-      ${dueWeek.length ? dueWeek.map(briefRow).join("") : `<p class="brief-none">Nothing due in the next 7 days.</p>`}
-    </div>
-    <div class="brief-section">
-      <h4 class="brief-h">Top priorities</h4>
-      ${top5.length ? top5.map((r, i) => `<div class="brief-row">
-        <span class="brief-rank">${i + 1}</span>
-        <div class="brief-row-body">
-          <p class="brief-title">${esc(r.task.title)} <span class="brief-project">${esc(r.projectTitle)}</span></p>
-          <span class="brief-meta">${esc(r.task.status)} · ${esc(daysLabel(r.task.due_date, today).text)}</span>
-        </div>
-      </div>`).join("") : `<p class="brief-none">No open tasks to prioritise.</p>`}
-    </div>
-    <div class="brief-section">
-      <h4 class="brief-h">Focus today</h4>
-      ${focus ? `<p class="brief-focus">${esc(focus.task.title)} <span class="brief-project">(${esc(focus.projectTitle)})</span></p>` : `<p class="brief-none">Nothing demanding attention.</p>`}
-    </div>
-    <div class="brief-section">
-      <h4 class="brief-h">Recent learnings</h4>
-      ${recent.length ? atomRows : `<p class="brief-none">No learnings in the last 7 days.</p>`}
-    </div>`;
+function colBlock(title, items) {
+  return `<section class="project-col" aria-label="${esc(title)}">
+    <h3 class="col-title">${esc(title)} <span class="count">${items.length}</span></h3>
+    <div class="card-grid">${items.length ? items.map(projectCard).join("") : emptyState("Nothing here yet.")}</div>
+  </section>`;
 }
 
 function renderProjectTree() {
@@ -1329,62 +597,6 @@ function renderProjectTree() {
   $("#project-tree").innerHTML = rows || `<p class="empty">No projects yet. Add one to begin.</p>`;
 }
 
-function renderDaily() {
-  renderDailyBrief();
-  renderGreeting();
-  renderTodayRing();
-  renderDayTimeline();
-  renderFocus();
-  renderUpcoming();
-  renderTasks();
-  renderHabits();
-}
-
-function renderOverview(d) {
-  renderMetrics();
-  renderGantt();
-  renderDaily();
-  renderOverviewCharts();
-  renderGoalsAreaChart();
-}
-
-function renderOverviewCharts() {
-  renderGrowthChart();
-  renderActivityHeatmap();
-  renderDonut(
-    $("#status-donut"),
-    ["active", "backlog", "done", "paused"].map((s) => ({
-      label: s.charAt(0).toUpperCase() + s.slice(1),
-      value: state.projects.filter((p) => p.status === s).length,
-      color: STATUS_COLORS[s],
-    })),
-    state.projects.length,
-    "projects"
-  );
-  renderDonut(
-    $("#journal-donut"),
-    ["milestone", "note", "reflection"].map((t) => ({
-      label: t.charAt(0).toUpperCase() + t.slice(1),
-      value: state.journal.filter((j) => j.type === t).length,
-      color: JTYPE_COLORS[t],
-    })),
-    state.journal.length,
-    "entries"
-  );
-  renderGoalsByArea($("#goal-progress"));
-  renderTagFreq($("#tag-freq"));
-  renderWeeklyChart();
-  renderWeekdayChart();
-  renderHexAreas();
-}
-
-function colBlock(title, items) {
-  return `<section class="project-col" aria-label="${esc(title)}">
-    <h3 class="col-title">${esc(title)} <span class="count">${items.length}</span></h3>
-    <div class="card-grid">${items.length ? items.map(projectCard).join("") : emptyState("Nothing here yet.")}</div>
-  </section>`;
-}
-
 function renderProjects() {
   renderProjectTree();
   const f = state.projectFilter;
@@ -1400,6 +612,43 @@ function renderProjects() {
     cols.classList.add("single");
     cols.innerHTML = colBlock(labels[f] || f, all.filter((p) => p.status === f));
   }
+}
+
+/* ---------- Goals / Knowledge / Timeline tabs ---------- */
+
+function goalCard(g) {
+  const p = Math.max(0, Math.min(100, Math.round(Number(g.progress) || 0)));
+  return `<article class="card goal-card">
+    <div class="card-head">
+      <h3 class="card-title">${esc(g.title)}</h3>
+      <span class="badge badge-goal-status gs-${esc(g.status)}">${esc(g.status)}</span>
+    </div>
+    ${g.description ? `<p class="card-text">${esc(g.description)}</p>` : ""}
+    <div class="progress-wrap">
+      <div class="progress" role="progressbar" aria-valuenow="${p}" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-fill" style="width:${p}%"></div>
+      </div>
+      <span class="progress-pct">${p}%</span>
+    </div>
+    ${g.target_date ? `<div class="card-meta"><span class="meta">Target: ${esc(formatDate(g.target_date))}</span></div>` : ""}
+  </article>`;
+}
+
+function renderGoals() {
+  const goals = (state.dashboard && state.dashboard.goals) || [];
+  const groups = {};
+  AREAS.forEach((a) => (groups[a] = []));
+  goals.forEach((g) => (groups[g.area] || groups.other).push(g));
+  let html = "";
+  AREAS.forEach((a) => {
+    const list = groups[a];
+    if (!list.length) return;
+    html += `<section class="goal-area goal-area-${esc(a)}">
+      <h3 class="goal-area-title">${AREA_LABELS[a] || a} <span class="count">${list.length}</span></h3>
+      <div class="goal-grid">${list.map(goalCard).join("")}</div>
+    </section>`;
+  });
+  $("#goals-list").innerHTML = html || emptyState("No goals yet. Add one with the + New button.");
 }
 
 function renderGoalsAreaChart() {
@@ -1421,27 +670,6 @@ function renderKnowledgeCharts() {
       labelEvery: 9,
     })
   );
-}
-
-function renderTimelineMonthly() {
-  renderMonthlyBars($("#timeline-monthly"));
-}
-
-function renderGoals() {
-  const goals = (state.dashboard && state.dashboard.goals) || [];
-  const groups = {};
-  AREAS.forEach((a) => (groups[a] = []));
-  goals.forEach((g) => (groups[g.area] || groups.other).push(g));
-  let html = "";
-  AREAS.forEach((a) => {
-    const list = groups[a];
-    if (!list.length) return;
-    html += `<section class="goal-area goal-area-${esc(a)}">
-      <h3 class="goal-area-title">${AREA_LABELS[a] || a} <span class="count">${list.length}</span></h3>
-      <div class="goal-grid">${list.map(goalCard).join("")}</div>
-    </section>`;
-  });
-  $("#goals-list").innerHTML = html || emptyState("No goals yet. Add one with the + New button.");
 }
 
 function renderLearnings() {
@@ -1488,6 +716,32 @@ function renderLearnings() {
   $("#learn-list").innerHTML = ledger;
 }
 
+function journalCard(j) {
+  return `<article class="card journal-card">
+    <div class="card-head">
+      <span class="badge badge-jtype jt-${esc(j.type)}">${esc(j.type)}</span>
+      <span class="meta">${esc(formatDate(j.date))}</span>
+    </div>
+    <p class="card-text">${esc(j.content)}</p>
+    ${j.related_entity ? `<div class="card-meta"><span class="meta">${esc(j.related_entity)}</span></div>` : ""}
+    <div class="card-actions">
+      <button class="btn btn-sm btn-danger" data-action="delete" data-type="journal" data-id="${j.id}">Delete</button>
+    </div>
+  </article>`;
+}
+
+function timelineItem(t) {
+  return `<article class="card timeline-item ${"kind-" + esc(t.kind)}">
+    <div class="timeline-head">
+      <span class="badge badge-kind ${"kind-" + esc(t.kind)}">${esc(t.kind)}</span>
+      <span class="meta">${esc(formatDate(t.date))}</span>
+    </div>
+    <h3 class="card-title">${esc(t.title)}</h3>
+    ${t.body ? `<p class="card-text timeline-body">${esc(t.body)}</p>` : ""}
+    ${parseTags(t.tags).length ? `<div class="chips">${tagChips(t.tags)}</div>` : ""}
+  </article>`;
+}
+
 function renderTimeline() {
   const list = state.timeline;
   $("#timeline-count").textContent = list.length ? `${list.length} items` : "";
@@ -1496,12 +750,167 @@ function renderTimeline() {
     : emptyState("Timeline is empty.");
 }
 
+function renderTimelineMonthly() {
+  renderMonthlyBars($("#timeline-monthly"));
+}
+
+/* ---------- WORK SCREEN ---------- */
+
+function workCheckbox(task, label) {
+  return `<button class="checkbox" data-action="task-finish" data-id="${task.id}" aria-label="${label || "Mark done"}" title="Mark done">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+  </button>`;
+}
+
+function workTaskMeta(t, today) {
+  const dl = daysLabel(t.due_date, today);
+  return `${dl.cls ? `<span class="work-due ${dl.cls}">${esc(dl.text)}</span>` : ""}`;
+}
+
+function workRow(t, today) {
+  const pc = PRIO_COLORS[t.priority] || "#9B9B9B";
+  return `<div class="work-row">
+    <span class="brief-prio" style="background:${pc}"></span>
+    <div class="work-row-body">
+      <p class="work-title">${esc(t.title)} <span class="work-project">${esc(t.project_title)}</span></p>
+      ${workTaskMeta(t, today)}
+    </div>
+    <button class="btn btn-sm" data-action="task-start" data-id="${t.id}">Start</button>
+    ${workCheckbox(t)}
+  </div>`;
+}
+
+function renderCurrent() {
+  const w = state.work;
+  const el = $("#work-current");
+  const c = w && w.current;
+  if (!c) {
+    el.innerHTML = `<p class="work-empty">Nothing on your list. Start an idea below or add a task.</p>`;
+    return;
+  }
+  const pc = PRIO_COLORS[c.priority] || "#9B9B9B";
+  el.innerHTML = `
+    ${w.needs_start ? `<p class="hero-hint">Nothing in progress — start this next one:</p>` : ""}
+    <div class="hero-body">
+      <div class="hero-top">
+        <h2 class="hero-title">${esc(c.title)}</h2>
+        <span class="task-chip task-prio" style="--chip:${pc}">${esc(c.priority)}</span>
+      </div>
+      <p class="hero-meta">${esc(c.project_title)}${c.due_date ? ` · ${workTaskMeta(c, w.today)}` : ""}</p>
+      <div class="hero-actions">
+        ${w.needs_start ? `<button class="btn btn-primary" data-action="task-start" data-id="${c.id}">Start</button>` : ""}
+        <button class="btn" data-action="task-finish" data-id="${c.id}">Done</button>
+      </div>
+    </div>`;
+}
+
+function renderUpcomingWork() {
+  const w = state.work;
+  const el = $("#work-upcoming");
+  const list = (w && w.upcoming) || [];
+  el.innerHTML = list.length
+    ? list.map((t) => workRow(t, w.today)).join("")
+    : `<p class="work-empty">Nothing queued — all clear.</p>`;
+}
+
+function renderProjectsWork() {
+  const w = state.work;
+  const el = $("#work-projects");
+  const list = (w && w.active_projects) || [];
+  $("#work-projects-count").textContent = list.length ? `· ${list.length}` : "";
+  if (!list.length) {
+    el.innerHTML = `<p class="work-empty">No active projects. Start an idea below.</p>`;
+    return;
+  }
+  el.innerHTML = list
+    .map((ap) => {
+      const p = ap.project;
+      const pct = ap.total ? Math.round((ap.done / ap.total) * 100) : 0;
+      const tasks = (ap.open_tasks || [])
+        .map((t) => {
+          const pc = PRIO_COLORS[t.priority] || "#9B9B9B";
+          return `<div class="wp-task">
+            <span class="brief-prio" style="background:${pc}"></span>
+            <span class="wp-task-title">${esc(t.title)}</span>
+            ${workTaskMeta(t, w.today)}
+            <button class="btn btn-sm" data-action="task-start" data-id="${t.id}">Start</button>
+            ${workCheckbox(t)}
+          </div>`;
+        })
+        .join("");
+      return `<div class="wp-project ${ap.overdue ? "overdue" : ""}">
+        <div class="wp-head">
+          <span class="wp-title" title="${esc(p.title)}">${esc(p.title)}</span>
+          <span class="wp-count">${ap.done}/${ap.total} done</span>
+        </div>
+        <div class="proj-progress-track"><div class="proj-progress-fill ${ap.overdue ? "warn" : ""}" style="width:${pct}%"></div></div>
+        ${tasks ? `<div class="wp-tasks">${tasks}</div>` : `<p class="work-empty">No tasks yet.</p>`}
+        <div class="add-task">
+          <input class="input add-task-input" type="text" placeholder="Add a task..." aria-label="Add a task to ${esc(p.title)}" maxlength="200" autocomplete="off">
+          <button class="btn btn-sm add-task-btn" data-action="task-add" data-id="${p.id}">Add</button>
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
+function renderIdeas() {
+  const w = state.work;
+  const el = $("#work-ideas");
+  const list = (w && w.ideas) || [];
+  el.innerHTML = list.length
+    ? list
+        .map((idea) => {
+          const p = idea.project;
+          return `<div class="idea-row">
+            <div class="idea-body">
+              <p class="work-title">${esc(p.title)}</p>
+              ${idea.top_task ? `<p class="idea-task">${esc(idea.top_task.title)}</p>` : ""}
+            </div>
+            <button class="btn btn-sm" data-action="idea-start" data-id="${p.id}">Start</button>
+          </div>`;
+        })
+        .join("")
+    : `<p class="work-empty">No ideas yet. Capture one with + New.</p>`;
+}
+
+function renderWork() {
+  renderCurrent();
+  renderUpcomingWork();
+  renderProjectsWork();
+  renderIdeas();
+}
+
+/* ---------- Clock ---------- */
+
+function updateClock() {
+  const now = new Date();
+  const options = {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  };
+  $("#today").textContent = now.toLocaleDateString("en-US", options).replace(",", " -");
+}
+
 /* ---------- Data loading ---------- */
+
+async function loadWork() {
+  try {
+    state.work = await fetchJSON("/api/work");
+    renderWork();
+  } catch (err) {
+    toast("Failed to load work: " + err.message, "error");
+  }
+}
 
 async function loadDashboard() {
   try {
     state.dashboard = await fetchJSON("/api/dashboard");
-    renderOverview(state.dashboard);
     renderGoals();
     renderGoalsAreaChart();
   } catch (err) {
@@ -1548,15 +957,40 @@ async function loadTimeline() {
 }
 
 async function refreshAll() {
-  await Promise.all([loadDashboard(), loadProjects(), loadLearnings(), loadJournal()]);
-  renderMetrics();
-  renderGantt();
-  renderDaily();
-  renderOverviewCharts();
-  renderGoalsAreaChart();
-  renderProjects();
-  renderProjectsCharts();
+  await Promise.all([loadWork(), loadDashboard(), loadProjects(), loadLearnings(), loadJournal()]);
   if (state.timelineLoaded) await loadTimeline();
+}
+
+/* ---------- Actions ---------- */
+
+async function startTask(taskId) {
+  try {
+    await fetchJSON(`/api/tasks/${taskId}/start`, { method: "POST" });
+    toast("Now in progress");
+    await refreshAll();
+  } catch (err) {
+    toast("Failed: " + err.message, "error");
+  }
+}
+
+async function finishTask(taskId) {
+  try {
+    await fetchJSON(`/api/tasks/${taskId}/status?status=done`, { method: "PATCH" });
+    toast("Task done");
+    await refreshAll();
+  } catch (err) {
+    toast("Failed: " + err.message, "error");
+  }
+}
+
+async function ideaStart(projectId) {
+  try {
+    await fetchJSON(`/api/projects/${projectId}/start`, { method: "POST" });
+    toast("Idea started");
+    await refreshAll();
+  } catch (err) {
+    toast("Failed: " + err.message, "error");
+  }
 }
 
 async function toggleTask(taskId, projectId) {
@@ -1613,7 +1047,9 @@ async function deleteItem(type, id) {
   }
 }
 
-const PAGE_TITLES = { overview: "Overview", projects: "Projects", goals: "Goals", knowledge: "Knowledge", timeline: "Timeline" };
+/* ---------- Tabs, filters, modal ---------- */
+
+const PAGE_TITLES = { work: "Work", projects: "Projects", goals: "Goals", knowledge: "Knowledge", timeline: "Timeline" };
 
 function switchTab(tab) {
   state.tab = tab;
@@ -1625,7 +1061,6 @@ function switchTab(tab) {
   $$(".side-icon").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
   $$(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === "panel-" + tab));
   $("#page-title").textContent = PAGE_TITLES[tab] || tab;
-  $("#sub-overview-filters").hidden = tab !== "overview";
   $("#sub-project-filters").hidden = tab !== "projects";
   if (tab === "timeline") {
     if (!state.timelineLoaded) {
@@ -1650,15 +1085,21 @@ function setProjectFilter(f) {
   renderProjects();
 }
 
-function renderFields() {
+function renderFields(defaults) {
   const type = $("#qa-type").value;
-  $("#qa-fields").innerHTML = FIELD_SETS[type];
+  $("#qa-fields").innerHTML = fieldsFor(type);
+  if (defaults) {
+    Object.entries(defaults).forEach(([k, v]) => {
+      const el = $("#qa-" + k);
+      if (el) el.value = v;
+    });
+  }
   $("#modal-title").textContent = "Add " + type.charAt(0).toUpperCase() + type.slice(1);
 }
 
-function openModal(type) {
+function openModal(type, defaults) {
   $("#qa-type").value = type;
-  renderFields();
+  renderFields(defaults);
   $("#modal-backdrop").hidden = false;
   document.body.classList.add("modal-open");
   const first = $("#qa-fields input, #qa-fields select, #qa-fields textarea");
@@ -1697,6 +1138,20 @@ function buildPayload() {
         priority: raw("priority") || "medium",
         target_date: raw("target_date") || null,
         tags,
+      },
+    };
+  }
+  if (type === "task") {
+    const pid = val("project_id");
+    if (!val("title")) return { error: "Title is required" };
+    if (!pid) return { error: "Project is required" };
+    return {
+      endpoint: `/api/projects/${pid}/tasks`,
+      body: {
+        title: val("title"),
+        status: raw("status") || "wanted",
+        priority: raw("priority") || "medium",
+        due_date: raw("due_date") || null,
       },
     };
   }
@@ -1768,15 +1223,10 @@ function bindEvents() {
     renderLearnings();
   });
 
-  $("#growth-range").addEventListener("click", () => {
-    state.growthDays = state.growthDays === 30 ? 90 : 30;
-    renderGrowthChart();
-  });
-
   document.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && e.target.classList && e.target.classList.contains("add-task-input")) {
       e.preventDefault();
-      const card = e.target.closest(".project-card");
+      const card = e.target.closest(".project-card, .wp-project");
       const id = card ? Number(card.querySelector(".add-task-btn").dataset.id) : null;
       if (id) addTask(id, e.target);
     }
@@ -1829,8 +1279,12 @@ function bindEvents() {
       if (kind === "done") markDone(type, id);
       else if (kind === "delete") deleteItem(type, id);
       else if (kind === "task-toggle") toggleTask(Number(id), Number(action.dataset.project));
+      else if (kind === "task-start") startTask(Number(id));
+      else if (kind === "task-finish") finishTask(Number(id));
+      else if (kind === "idea-start") ideaStart(Number(id));
+      else if (kind === "new-idea") openModal("project", { status: "backlog" });
       else if (kind === "task-add") {
-        const card = action.closest(".project-card");
+        const card = action.closest(".project-card, .wp-project");
         addTask(Number(id), card ? card.querySelector(".add-task-input") : null);
       }
     }

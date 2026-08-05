@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Query
@@ -14,6 +14,17 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Life-at-a-Glance", version="0.1.0")
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+
+PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
+
+
+def task_sort_key(task, projects: dict[int, models.Project] | None = None):
+    """(priority, due_date, created_at) — smaller sorts first."""
+    project = projects.get(task.project_id) if projects else None
+    prio = PRIORITY_ORDER.get((project.priority if project else task.priority), 1)
+    due = task.due_date or date.max
+    created = task.created_at or datetime.min
+    return (prio, due, created)
 
 
 def validate_project(data: schemas.ProjectCreate | schemas.ProjectUpdate):
@@ -183,6 +194,53 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "task not found")
     db.delete(task)
     db.commit()
+
+
+@app.post("/api/tasks/{task_id}/start", response_model=schemas.TaskOut)
+def start_task(task_id: int, db: Session = Depends(get_db)):
+    """Rule 1: one current task globally. Demote any other in_progress task to planned,
+    then make this task the single in_progress one."""
+    task = db.get(models.Task, task_id)
+    if not task:
+        raise HTTPException(404, "task not found")
+    db.query(models.Task).filter(
+        models.Task.status == "in_progress", models.Task.id != task_id
+    ).update({"status": "planned"}, synchronize_session=False)
+    task.status = "in_progress"
+    db.commit()
+    db.refresh(task)
+    touch_project(db, task.project_id)
+    return task
+
+
+@app.post("/api/projects/{project_id}/start")
+def start_project(project_id: int, db: Session = Depends(get_db)):
+    """Rule 5: idea -> project. Promote a backlog project to active and start its top task."""
+    project = db.get(models.Project, project_id)
+    if not project:
+        raise HTTPException(404, "project not found")
+    project.status = "active"
+    tasks = (
+        db.query(models.Task)
+        .filter(models.Task.project_id == project_id, models.Task.status != "done")
+        .all()
+    )
+    tasks.sort(key=task_sort_key)
+    top = tasks[0] if tasks else None
+    if top:
+        db.query(models.Task).filter(
+            models.Task.status == "in_progress", models.Task.id != top.id
+        ).update({"status": "planned"}, synchronize_session=False)
+        top.status = "in_progress"
+    db.commit()
+    db.refresh(project)
+    if top:
+        db.refresh(top)
+    touch_project(db, project_id)
+    return {
+        "project": schemas.ProjectOut.model_validate(project),
+        "task": schemas.TaskOut.model_validate(top) if top else None,
+    }
 
 
 # ---------- Goals ----------
@@ -358,6 +416,104 @@ def delete_journal(journal_id: int, db: Session = Depends(get_db)):
 
 
 # ---------- Aggregates ----------
+
+@app.get("/api/work", response_model=schemas.WorkOut)
+def get_work(db: Session = Depends(get_db)):
+    """The work screen's single data contract (see WORK_LOGIC.md rules 1-5)."""
+    today = date.today()
+    projects: dict[int, models.Project] = {p.id: p for p in db.query(models.Project).all()}
+    all_tasks = db.query(models.Task).all()
+    by_project: dict[int, list] = {}
+    for t in all_tasks:
+        by_project.setdefault(t.project_id, []).append(t)
+
+    def project_out(p):
+        return schemas.ProjectOut.model_validate(p)
+
+    def work_task(t) -> schemas.WorkTask | None:
+        if t is None:
+            return None
+        base = schemas.TaskOut.model_validate(t).model_dump()
+        proj = projects.get(t.project_id)
+        return schemas.WorkTask(**base, project_title=proj.title if proj else "Unknown")
+
+    # Rule 2: current task = the in_progress task from the highest-priority active project.
+    current = None
+    needs_start = False
+    in_progress = [t for t in all_tasks if t.status == "in_progress"]
+    if in_progress:
+        current = min(
+            in_progress,
+            key=lambda t: (
+                task_sort_key(t, projects),
+                -((t.updated_at or datetime.min).timestamp()),
+            ),
+        )
+    else:
+        active_ids = {p.id for p in projects.values() if p.status == "active"}
+        candidates = [
+            t for t in all_tasks if t.status != "done" and t.project_id in active_ids
+        ]
+        if candidates:
+            current = min(candidates, key=lambda t: task_sort_key(t, projects))
+            needs_start = True
+    current_out = work_task(current)
+
+    # Rule 3: upcoming = non-done tasks in active projects, excluding current.
+    active_ids = {p.id for p in projects.values() if p.status == "active"}
+    upcoming_tasks = [
+        t
+        for t in all_tasks
+        if t.status != "done"
+        and t.project_id in active_ids
+        and t.id != (current.id if current else None)
+    ]
+    upcoming_tasks.sort(key=lambda t: task_sort_key(t, projects))
+    upcoming = [work_task(t) for t in upcoming_tasks[:5]]
+
+    # Active projects with progress + open tasks.
+    active_projects = []
+    for p in sorted(projects.values(), key=lambda p: PRIORITY_ORDER.get(p.priority, 1)):
+        if p.status != "active":
+            continue
+        tasks = by_project.get(p.id, [])
+        open_tasks = [t for t in tasks if t.status != "done"]
+        open_tasks.sort(key=lambda t: task_sort_key(t, projects))
+        done = len(tasks) - len(open_tasks)
+        overdue = any(t.due_date and t.due_date < today for t in open_tasks)
+        active_projects.append(
+            schemas.ActiveProject(
+                project=project_out(p),
+                done=done,
+                total=len(tasks),
+                open_tasks=[schemas.TaskOut.model_validate(t) for t in open_tasks],
+                overdue=overdue,
+            )
+        )
+
+    # Rule 5: ideas = backlog projects, each with its top non-done task.
+    ideas = []
+    for p in projects.values():
+        if p.status != "backlog":
+            continue
+        ts = [t for t in by_project.get(p.id, []) if t.status != "done"]
+        ts.sort(key=lambda t: task_sort_key(t, projects))
+        ideas.append(
+            schemas.Idea(
+                project=project_out(p),
+                top_task=schemas.TaskOut.model_validate(ts[0]) if ts else None,
+            )
+        )
+
+    return schemas.WorkOut(
+        today=today,
+        current=current_out,
+        needs_start=needs_start,
+        upcoming=upcoming,
+        active_projects=active_projects,
+        ideas=ideas,
+    )
+
 
 @app.get("/api/dashboard")
 def dashboard(db: Session = Depends(get_db)):

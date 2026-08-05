@@ -1,7 +1,7 @@
 import datetime as dt
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 PROJECT_STATUSES = {"active", "backlog", "done", "paused"}
 PRIORITIES = {"high", "medium", "low"}
@@ -10,6 +10,15 @@ GOAL_STATUSES = {"active", "completed", "paused"}
 JOURNAL_TYPES = {"milestone", "note", "reflection"}
 TASK_STATUSES = {"wanted", "planned", "in_progress", "done"}
 
+DURATION_MAX_HOURS = 8760.0  # 1 year ceiling
+
+
+def clean_title(v: str) -> str:
+    v = v.strip()
+    if not v:
+        raise ValueError("title must not be empty")
+    return v
+
 
 class ProjectBase(BaseModel):
     title: str
@@ -17,7 +26,15 @@ class ProjectBase(BaseModel):
     status: str = "active"
     priority: str = "medium"
     target_date: date | None = None
+    begin_date: date | None = None
+    duration: float | None = Field(default=None, ge=0.0, le=DURATION_MAX_HOURS)
+    branch_path: str = ""
     tags: str = ""
+
+    @field_validator("title")
+    @classmethod
+    def _title(cls, v: str) -> str:
+        return clean_title(v)
 
 
 class ProjectCreate(ProjectBase):
@@ -30,7 +47,15 @@ class ProjectUpdate(BaseModel):
     status: str | None = None
     priority: str | None = None
     target_date: date | None = None
+    begin_date: date | None = None
+    duration: float | None = Field(default=None, ge=0.0, le=DURATION_MAX_HOURS)
+    branch_path: str | None = None
     tags: str | None = None
+
+    @field_validator("title")
+    @classmethod
+    def _title(cls, v: str | None) -> str | None:
+        return clean_title(v) if v is not None else v
 
 
 class ProjectOut(ProjectBase):
@@ -128,6 +153,14 @@ class TaskBase(BaseModel):
     status: str = "wanted"
     priority: str = "medium"
     due_date: date | None = None
+    begin_date: date | None = None
+    duration: float | None = Field(default=None, ge=0.0, le=DURATION_MAX_HOURS)
+    branch_path: str = ""
+
+    @field_validator("title")
+    @classmethod
+    def _title(cls, v: str) -> str:
+        return clean_title(v)
 
 
 class TaskCreate(TaskBase):
@@ -139,6 +172,14 @@ class TaskUpdate(BaseModel):
     status: str | None = None
     priority: str | None = None
     due_date: date | None = None
+    begin_date: date | None = None
+    duration: float | None = Field(default=None, ge=0.0, le=DURATION_MAX_HOURS)
+    branch_path: str | None = None
+
+    @field_validator("title")
+    @classmethod
+    def _title(cls, v: str | None) -> str | None:
+        return clean_title(v) if v is not None else v
 
 
 class TaskOut(TaskBase):
@@ -157,3 +198,29 @@ class TimelineItem(BaseModel):
     body: str
     tags: str = ""
     entity_id: int
+
+
+class WorkTask(TaskOut):
+    project_title: str
+
+
+class ActiveProject(BaseModel):
+    project: ProjectOut
+    done: int = 0
+    total: int = 0
+    open_tasks: list[TaskOut] = []
+    overdue: bool = False
+
+
+class Idea(BaseModel):
+    project: ProjectOut
+    top_task: TaskOut | None = None
+
+
+class WorkOut(BaseModel):
+    today: date
+    current: WorkTask | None = None
+    needs_start: bool = False
+    upcoming: list[WorkTask] = []
+    active_projects: list[ActiveProject] = []
+    ideas: list[Idea] = []

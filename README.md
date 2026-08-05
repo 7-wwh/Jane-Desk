@@ -95,12 +95,8 @@ life-at-a-glance/
 ├── DESIGN.md                       ← the CHECK BOX design specification (palette, layout, cards)
 ├── QUESTION.md                     ← open design questions + confirmed decisions
 ├── skills/                         ← agent skills (loaded by agents to work with the dashboard)
-│   ├── status/SKILL.md             ←   how to set dashboard statuses & read health rules
-│   ├── task-planning/SKILL.md      ←   how to plan and sequence tasks
-│   ├── task-tracker/SKILL.md       ←   the project-wide MASTER skill (storage, API, layout, task logic)
-│   ├── backend/SKILL.md            ←   how to add backend features
-│   ├── frontend/SKILL.md           ←   how to work on the UI
-│   └── health/SKILL.md             ←   (future) health/nutrition data rules
+│   ├── main-skill.md               ←   dispatcher/router: classifies a message → routes to a sub-skill
+│   └── task-master.md              ←   extracts structured tasks from prose; resolves branch destination; pushes to the API; its "Appendix: Eval suite" verifies the extraction layer (run by a spawned subagent)
 ├── requirements.txt                ← Python dependencies (declared, installable)
 ├── .gitignore                      ← what NOT to commit (database, cache files, screenshots)
 │
@@ -119,6 +115,7 @@ life-at-a-glance/
 │
 ├── bin/                            ← OPERATIONS scripts (run manually / by agents)
 │   ├── post.sh                     ← one-command helper for agents to add entries
+│   ├── run_api_evals.py            ← deterministic API guard evals (asserts HTTP status codes)
 │   └── run.sh                      ← starts the dev server
 │
 ├── deploy/                         ← DEPLOYMENT artifacts
@@ -235,11 +232,14 @@ Five tables. Projects and tasks form a **parent–child hierarchy**; the rest ar
 | Field | Type | Notes |
 | :--- | :--- | :--- |
 | `id` | int PK | auto-increment |
-| `title` | str(200) | required |
+| `title` | str(200) | required, non-empty |
 | `description` | text | |
 | `status` | str | `active` / `backlog` / `done` / `paused` |
 | `priority` | str | `high` / `medium` / `low` |
 | `target_date` | date·null | optional deadline |
+| `begin_date` | date·null | optional start date |
+| `duration` | float·null | estimated hours, `0 … 8760` (1 yr cap) |
+| `branch_path` | str(300) | root branch segment, e.g. `work` |
 | `tags` | str | comma-separated |
 | `created_at` / `updated_at` | datetime | auto-set / auto-update |
 
@@ -248,11 +248,19 @@ Five tables. Projects and tasks form a **parent–child hierarchy**; the rest ar
 | :--- | :--- | :--- |
 | `id` | int PK | auto-increment |
 | `project_id` | int FK → `projects.id` | **`ondelete=CASCADE`** — deleting a project removes its tasks |
-| `title` | str(200) | required |
+| `title` | str(200) | required, non-empty |
 | `status` | str | `wanted` / `planned` / `in_progress` / `done` |
 | `priority` | str | `high` / `medium` / `low` |
 | `due_date` | date·null | optional due date |
+| `begin_date` | date·null | optional start date |
+| `duration` | float·null | estimated hours, `0 … 8760` (1 yr cap) |
+| `branch_path` | str(300) | full destination path, e.g. `work/2026/Q3 report` |
 | `created_at` / `updated_at` | datetime | auto-set / auto-update |
+
+**Branch paths** (`branch_path`) give tasks a tree position: the first `/`-segment matches a
+project (by `title` or the project's own `branch_path`); deeper segments are virtual and may
+one day render as a nested **Project Tree** in the UI. Agents assign these via the
+`task-master` skill, which reads existing branches before writing.
 
 The **status progression** `wanted → planned → in_progress → done` mirrors a real workflow: *"would like" → "committed" → "working now" → "finished"*. The dashboard uses it to answer *what should I do next?* — picking the highest-priority non-done task across active projects.
 
@@ -472,17 +480,15 @@ This is a *documented contract between humans and machines* — the same idea as
 Beyond the API, the repo ships **agent skills** — Markdown instructions agents can load to do dashboard work well:
 
 - **`SKILL.md`** (root) — the entry point. Tells an agent the package exists and where each part lives.
-- **`skills/status/SKILL.md`** — how to read and set the dashboard's status fields (project/task/goal statuses, plus the *health rules* the user provides separately).
-- **`skills/task-planning/SKILL.md`** — how to plan work as tasks: one next step at a time, the `wanted → planned → in_progress → done` progression, and keeping in-flight tasks to a minimum.
-- **`skills/task-tracker/SKILL.md`** — the project's **master skill**: where data lives (SQLite via the API), the webapp layout (Daily Brief, Project Tree, atom ledger), and the task-planning logic end to end.
-- **`skills/backend/SKILL.md`** / **`skills/frontend/SKILL.md`** — how to extend the backend (routes/schemas/models) or the UI (rendering, styles) consistently.
-- **`skills/health/SKILL.md`** — placeholder for future health/nutrition data rules.
+- **`skills/main-skill.md`** — the **dispatcher/router**. Agents that arrive with a message read this first, classify the intent, and are routed to the right sub-skill (today: `task-master.md`).
+- **`skills/task-master.md`** — turns a natural-language message into a **JSON array of structured tasks** (`taskName`, `taskDescription`, `importance`, `beginDate`, `deadline`, `duration`, `branch`, `confidence`, `flags`). It guards against weird input (a `noTask` marker instead of fabricating, low confidence + `flags` on contradictions, date/duration sanity), **resolves the branch destination** by reading existing projects from the API, and documents how to push each task via `bin/post.sh`. Duration always converts to **hours** (24h day / 168h week, 8760h cap). Its **"Appendix: Eval suite"** is the extraction eval registry — a main agent reads it and **spawns a subagent** to run the fixtures (normal + pathological inputs) and return a pass/fail table. Complements `bin/run_api_evals.py`, which deterministically checks the server-side guards.
 
 The split mirrors how agents actually think: a general "how do I work on this repo" instruction plus focused playbooks for specific tasks. Health status rules are intentionally *external to the UI* — the dashboard shows what's happening; the rules for judging it live in the skills.
 
 ### 9.1 How the task-tracker skill was optimized for this project
 
-`skills/task-tracker/SKILL.md` is the project-wide **master skill**. It started life as an
+The task-capture logic now lives in **`skills/task-master.md`** (the dispatcher is
+`skills/main-skill.md`). It started life as an
 external, self-contained task-tracking skill (`task-tracker-v4`) that managed tasks in **JSON
 files inside an Obsidian vault** with a cron-installed daily brief. When the user pointed out it
 was "the skill for part of the project", it was brought into this repo and then **re-optimized to
@@ -512,9 +518,24 @@ speak the project's actual language**. That optimization had three moves:
    "atoms" → the Knowledge tab's atom ledger. So an agent following the skill now drives the real
    webapp rather than a parallel JSON world.
 
-The result: one skill that a fresh agent can read top-to-bottom and know *exactly* where data
-lives, how to write to it, what the UI shows, and how the task logic works — with the other
-skills (`task-planning`, `backend`, `frontend`, `status`) providing depth per area.
+The result: a skill chain that a fresh agent can read top-to-bottom and know *exactly* where data
+lives, how to write to it, what the UI shows, and how the task logic works — with the
+eval suite in task-master's appendix verifying the extraction layer.
+
+---
+
+## 9.1 Ingest logic (Telegram → Hermes → skills → database)
+
+How any document you send gets into the dashboard:
+
+1. You send a document (anything) to the Telegram bot.
+2. Telegram hands it to **Hermes**, the main orchestrator/harness.
+3. Hermes spawns an agent and points it at the **main skill** — a directory/routing skill.
+4. The main skill looks at the document and routes it to the matching **sub-skill** (polish / analyze: figure out what it is, clean it up).
+5. That sub-skill writes the result to the database via the API.
+6. A **background agent** does the data processing and updates the fields the HTML shows.
+
+Standing rule (unchanged): **never edit `data/life.db` directly — always write through the API.**
 
 ---
 
@@ -608,7 +629,7 @@ Try these to solidify the mental model:
 | **Project Tree** | The Projects-tab panel: per-project progress bars with status/priority dots and overdue flags. |
 | **Atom ledger** | The Knowledge-tab grouping of learnings by `related_project` — the dashboard's version of the skill's knowledge atoms. |
 | **Gantt** | The signature Projects Timeline: one stadium-pill bar per project across a 30-day window. |
-| **Master skill** | `skills/task-tracker/SKILL.md` — the project-wide skill describing storage, API, layout, and task logic. |
+| **Master skill** | `skills/main-skill.md` (dispatcher) + `skills/task-master.md` (task extraction & push) — the project's agent skills for storage, API, and task logic. |
 
 ---
 
