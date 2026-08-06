@@ -189,6 +189,16 @@ svg { display: block; }
   animation: pulse 1.2s infinite;
 }
 
+.timer-pill .timer-name {
+  color: var(--color-text-muted);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timer-pill .timer-sep { color: var(--color-text-dim); }
+
 .new-wrap { position: relative; }
 
 .new-btn {

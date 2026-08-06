@@ -254,17 +254,26 @@ function fmtDur(sec) {
   return `${s}s`;
 }
 
+function liveClock(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
+}
+
 function liveText(startedAtIso) {
   const start = parseISO(startedAtIso);
   if (!start) return "0:00";
   const sec = Math.max(0, Math.floor((Date.now() - start.getTime()) / 1000));
   if (state.settings.precision === "min" && sec >= 60) return fmtDur(sec);
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
-  return h
-    ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-    : `${m}:${String(s).padStart(2, "0")}`;
+  return liveClock(sec);
+}
+
+function liveRoll(startedAtIso) {
+  const start = parseISO(startedAtIso);
+  if (!start) return "0:00";
+  const sec = Math.max(0, Math.floor((Date.now() - start.getTime()) / 1000));
+  return liveClock(sec);
 }
 
 function fmtTime(iso) {
@@ -449,7 +458,7 @@ async function loadActiveSession() {
   try {
     const s = await fetchJSON("/api/sessions/active");
     state.activeSession = s
-      ? { task_id: s.session.task_id, session_id: s.session.id, started_at: s.session.started_at }
+      ? { task_id: s.session.task_id, session_id: s.session.id, started_at: s.session.started_at, task_title: s.task_title || "" }
       : null;
   } catch (err) {
     state.activeSession = null;
@@ -495,6 +504,7 @@ async function ideaStart(projectId) {
 }
 
 let tickTimer = null;
+let timerRolling = false;
 function syncTopbarTimer() {
   const pill = $("#topbar-timer");
   if (!pill) return;
@@ -503,7 +513,10 @@ function syncTopbarTimer() {
     return;
   }
   pill.hidden = false;
-  $("#topbar-timer-val").textContent = liveText(state.activeSession.started_at);
+  $("#topbar-timer-name").textContent = state.activeSession.task_title || "";
+  $("#topbar-timer-val").textContent = timerRolling
+    ? liveRoll(state.activeSession.started_at)
+    : liveText(state.activeSession.started_at);
 }
 
 function startTicker() {
@@ -760,6 +773,16 @@ function bindEvents() {
     state.settings.precision = btn.dataset.value;
     saveSettings();
     renderSettings();
+    syncTopbarTimer();
+  });
+
+  const timerPill = $("#topbar-timer");
+  timerPill.addEventListener("mouseenter", () => {
+    timerRolling = true;
+    syncTopbarTimer();
+  });
+  timerPill.addEventListener("mouseleave", () => {
+    timerRolling = false;
     syncTopbarTimer();
   });
 
