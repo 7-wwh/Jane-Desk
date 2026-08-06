@@ -454,6 +454,7 @@ async function loadActiveSession() {
   } catch (err) {
     state.activeSession = null;
   }
+  syncTopbarTimer();
 }
 
 async function refreshAll() {
@@ -494,9 +495,21 @@ async function ideaStart(projectId) {
 }
 
 let tickTimer = null;
+function syncTopbarTimer() {
+  const pill = $("#topbar-timer");
+  if (!pill) return;
+  if (!state.activeSession) {
+    pill.hidden = true;
+    return;
+  }
+  pill.hidden = false;
+  $("#topbar-timer-val").textContent = liveText(state.activeSession.started_at);
+}
+
 function startTicker() {
   if (tickTimer) return;
   tickTimer = setInterval(() => {
+    syncTopbarTimer();
     if (!state.activeSession) return;
     $$("[data-live]").forEach((el) => {
       if (Number(el.dataset.live) === state.activeSession.task_id) {
@@ -747,6 +760,7 @@ function bindEvents() {
     state.settings.precision = btn.dataset.value;
     saveSettings();
     renderSettings();
+    syncTopbarTimer();
   });
 
   document.addEventListener("keydown", (e) => {
