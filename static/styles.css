@@ -575,6 +575,18 @@ body.modal-open { overflow: hidden; }
 
 .wp-count { font-size: 11px; color: var(--color-text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+.wp-head-actions { display: inline-flex; align-items: center; gap: 10px; }
+
+.wp-close {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 3px 10px;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.wp-close:hover { color: var(--color-orange); border-color: var(--color-orange); }
+
 .wp-tasks { margin: 10px 0 12px; }
 
 .wp-task {

@@ -380,7 +380,10 @@ function renderProjectsWork() {
       return `<div class="wp-project ${ap.overdue ? "overdue" : ""}">
         <div class="wp-head">
           <span class="wp-title" title="${esc(p.title)}">${esc(p.title)}</span>
-          <span class="wp-count">${ap.done}/${ap.total} done</span>
+          <span class="wp-head-actions">
+            <span class="wp-count">${ap.done}/${ap.total} done</span>
+            <button class="wp-close" data-action="project-close" data-id="${p.id}" data-open="${ap.open_tasks.length}" title="Close project">Close</button>
+          </span>
         </div>
         <div class="proj-progress-track"><div class="proj-progress-fill ${ap.overdue ? "warn" : ""}" style="width:${pct}%"></div></div>
         ${tasks ? `<div class="wp-tasks">${tasks}</div>` : `<p class="work-empty">No tasks yet.</p>`}
@@ -600,6 +603,23 @@ async function deleteSession(sessionId, taskId) {
     await loadActiveSession();
     await refreshAll();
     if (taskId) openSessions(taskId);
+  } catch (err) {
+    toast("Failed: " + err.message, "error");
+  }
+}
+
+async function closeProject(projectId, openTasks) {
+  if (openTasks > 0 && !window.confirm(`This project has ${openTasks} open task${openTasks === 1 ? "" : "s"}. Close the whole project anyway?`)) {
+    return;
+  }
+  try {
+    await fetchJSON(`/api/projects/${projectId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "done" }),
+    });
+    toast("Project closed");
+    await refreshAll();
   } catch (err) {
     toast("Failed: " + err.message, "error");
   }
@@ -854,6 +874,7 @@ function bindEvents() {
         const card = action.closest(".wp-project");
         addTask(Number(id), card ? card.querySelector(".add-task-input") : null);
       }
+      else if (kind === "project-close") closeProject(Number(id), Number(action.dataset.open));
     }
   });
 }
