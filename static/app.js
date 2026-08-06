@@ -17,7 +17,6 @@ const ENDPOINTS = {
   journal: "/api/journal",
 };
 const PRIO_COLORS = { high: "#F5A623", medium: "#AAEB47", low: "#6DC533" };
-const PAGE_TITLES = { work: "Work", settings: "Settings" };
 const DEFAULT_SETTINGS = { clock24: false, precision: "sec" };
 
 const state = {
@@ -606,7 +605,6 @@ function switchTab(tab) {
     b.setAttribute("aria-selected", String(active));
   });
   $$(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === "panel-" + tab));
-  $("#page-title").textContent = PAGE_TITLES[tab] || tab;
 }
 
 function renderFields(defaults) {
