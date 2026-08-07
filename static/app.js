@@ -25,6 +25,7 @@ const state = {
   activeSession: null,
   tree: null,
   mindRoot: null,
+  mindClosing: false,
   tab: "work",
   settings: { ...DEFAULT_SETTINGS },
 };
@@ -581,22 +582,26 @@ function renderMindMap() {
   wrap.style.width = w + "px";
   wrap.style.height = hh + "px";
   const edges = [];
+  let maxDepth = 0;
   (function collect(n, depth) {
     if (!n.expanded) return;
     (n.children || []).forEach((c) => {
       edges.push({ x1: n._x + n._w, y1: n._y, x2: c._x, y2: c._y, depth });
+      maxDepth = Math.max(maxDepth, depth);
       collect(c, depth + 1);
     });
   })(state.mindRoot, 0);
   const lines = edges
     .map((e) => `<path d="${mindConnector(e.x1, e.y1, e.x2, e.y2)}" fill="none" class="mind-line"/>`)
     .join("");
+  const closing = state.mindClosing;
   const pulses = edges
     .map((e) => {
       const d = mindConnector(e.x1, e.y1, e.x2, e.y2);
-      const t = e.depth * 0.14;
+      const t = closing ? (maxDepth - e.depth) * 0.14 : e.depth * 0.14;
+      const kp = closing ? "keyPoints=\"1;0\" keyTimes=\"0;1\"" : "";
       return `<circle class="mind-pulse" r="3.4">
-        <animateMotion dur="0.55s" begin="${t}s" fill="freeze" path="${d}"/>
+        <animateMotion dur="0.55s" begin="${t}s" fill="freeze" path="${d}" ${kp}/>
         <animate attributeName="opacity" dur="0.7s" begin="${t}s" fill="freeze" values="0;1;1;0" keyTimes="0;0.1;0.75;1"/>
       </circle>`;
     })
@@ -1016,6 +1021,7 @@ function bindEvents() {
       const node = findMindNode(state.mindRoot, nodeEl.dataset.key);
       if (node && node.children && node.children.length) {
         node.expanded = !node.expanded;
+        state.mindClosing = !node.expanded;
         renderMindMap();
       }
     }
