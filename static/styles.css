@@ -706,129 +706,107 @@ body.modal-open { overflow: hidden; }
 .session-live { color: var(--color-lime); }
 .session-row.running .session-live::before { content: "\25CF"; margin-right: 4px; animation: pulse 1.2s infinite; }
 
-/* ---------- Project tree ---------- */
+/* ---------- Mind map ---------- */
 
-.tree { display: flex; flex-direction: column; }
-
-.tree-branch,
-.tree-project { display: flex; flex-direction: column; }
-
-.tree-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.tree-branch > .tree-row { border-bottom: none; }
-
-.tree-sub {
-  display: flex;
-  flex-direction: column;
-  margin-left: 14px;
-  padding-left: 14px;
-  border-left: 1px solid var(--color-border);
-}
-
-.tree-sub[hidden] { display: none; }
-
-.tree-toggle {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-dim);
-  font-size: 10px;
-  border-radius: 6px;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.tree-toggle:hover { background: var(--color-surface-hi); color: var(--color-text-primary); }
-.tree-toggle .chev { display: inline-block; transition: transform 0.15s ease; }
-.tree-toggle[aria-expanded="true"] .chev { transform: rotate(90deg); }
-
-.tree-toggle-none { width: 20px; flex-shrink: 0; }
-
-.tree-branch-name {
-  font-size: 13px;
-  font-weight: var(--fw-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-primary);
+#work-tree {
+  position: relative;
+  height: 560px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
 }
 
-.tree-branch-meta {
-  font-size: 11px;
-  color: var(--color-text-dim);
-  font-variant-numeric: tabular-nums;
-  margin-left: auto;
-  white-space: nowrap;
+.mind-wrap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  transform-origin: center;
 }
 
-.tree-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.tree-dot-active { background: var(--color-lime); }
-.tree-dot-backlog { background: var(--color-text-dim); }
-.tree-dot-paused { background: var(--color-orange); }
-.tree-dot-done { background: var(--color-green); }
-.tree-dot.running { animation: pulse 1.2s infinite; box-shadow: 0 0 6px var(--color-lime); }
+.mind-svg { position: absolute; inset: 0; }
 
-.tree-project-title {
-  font-size: 14px;
+.mind-line { stroke: var(--color-border); stroke-width: 1.5; }
+
+.mind-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 12px;
   font-weight: var(--fw-medium);
-  color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  cursor: pointer;
   white-space: nowrap;
-  min-width: 0;
+  transition: border-color 0.15s ease, box-shadow 0.2s ease;
+}
+.mind-node:hover { border-color: var(--color-lime); }
+
+.mind-node.kind-root {
+  background: var(--color-lime);
+  border-color: var(--color-lime);
+  color: #111;
+  font-weight: var(--fw-black);
+  letter-spacing: 0.06em;
 }
 
-.tree-project-meta {
-  font-size: 11px;
-  color: var(--color-text-dim);
-  font-variant-numeric: tabular-nums;
-  margin-left: auto;
-  white-space: nowrap;
-}
-
-.working-chip {
-  font-size: 10px;
-  font-weight: var(--fw-bold);
+.mind-node.kind-branch {
+  border-color: var(--color-lime);
+  color: var(--color-lime);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--color-lime);
-  border: 1px solid var(--color-lime);
-  border-radius: var(--radius-pill);
-  padding: 2px 9px;
-  white-space: nowrap;
+  font-size: 11px;
+  font-weight: var(--fw-bold);
 }
 
-.tree-project.working { border-radius: 10px; background: rgba(170, 235, 71, 0.05); }
-.tree-project.working > .tree-row { border-bottom-color: transparent; }
-
-.tree-proj-progress {
-  height: 6px;
+.mind-node.kind-task {
+  font-size: 11px;
+  color: var(--color-text-muted);
   background: var(--color-bg);
-  border-radius: var(--radius-pill);
-  overflow: hidden;
-  margin: 6px 0 4px;
 }
 
-.tree-project .tree-sub { margin-left: 20px; padding-top: 6px; }
+.mind-node.st-done { border-color: var(--color-green); color: var(--color-green); }
+.mind-node.st-paused { border-color: var(--color-orange); color: var(--color-orange); }
+.mind-node.st-backlog { border-color: var(--color-text-dim); color: var(--color-text-muted); }
+.mind-node.st-in_progress { border-color: var(--color-lime); color: var(--color-text-primary); }
 
-.tree-task.done .wp-task-title { color: var(--color-text-dim); text-decoration: line-through; }
+.mind-node.running {
+  border-color: var(--color-lime);
+  color: var(--color-lime);
+  box-shadow: 0 0 0 3px rgba(170, 235, 71, 0.2), 0 0 14px rgba(170, 235, 71, 0.45);
+  animation: mindPulse 1.6s infinite;
+}
 
-.tree-project-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+@keyframes mindPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(170, 235, 71, 0.2), 0 0 12px rgba(170, 235, 71, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(170, 235, 71, 0.1), 0 0 22px rgba(170, 235, 71, 0.6); }
+}
+
+.mind-label { overflow: hidden; text-overflow: ellipsis; }
+
+.mind-tag {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mind-count {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  padding: 1px 7px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.mind-count.hint { color: var(--color-lime); border-color: var(--color-lime); }
 
 /* ---------- Settings screen ---------- */
 
@@ -902,6 +880,7 @@ body.modal-open { overflow: hidden; }
 @media (max-width: 640px) {
   .main { padding: 16px; }
   .topbar { padding: 0 16px; gap: 12px; }
+  #work-tree { height: 420px; }
   .topnav { overflow-x: auto; }
   .tab-btn { padding: 7px 12px; font-size: 12px; }
   .brand-name { font-size: 13px; }

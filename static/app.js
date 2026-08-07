@@ -24,11 +24,10 @@ const state = {
   projects: [],
   activeSession: null,
   tree: null,
+  mindRoot: null,
   tab: "work",
   settings: { ...DEFAULT_SETTINGS },
 };
-
-const expanded = new Set();
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (c) => ({
@@ -426,7 +425,7 @@ function renderWork() {
   renderIdeas();
 }
 
-/* ---------- Project tree ---------- */
+/* ---------- Mind map ---------- */
 
 function countProjects(roots) {
   let n = 0;
@@ -439,116 +438,170 @@ function countProjects(roots) {
   return n;
 }
 
-function collectDefaultOpen(roots) {
-  const out = new Set();
-  (function walk(nodes, anc) {
-    nodes.forEach((node) => {
-      const key = "b:" + node.path;
-      const hasRunning = (node.projects || []).some((p) => p.running);
-      const ancPlus = new Set(anc);
-      if (anc.size === 0) out.add(key);
-      if (hasRunning) {
-        anc.forEach((k) => out.add(k));
-        out.add(key);
-      }
-      ancPlus.add(key);
-      (node.projects || []).forEach((p) => {
-        if (p.running) {
-          ancPlus.forEach((k) => out.add(k));
-          out.add("p:" + p.project.id);
-        }
-      });
-      walk(node.children || [], ancPlus);
-    });
-  })(roots, new Set());
+function mindFromBranch(b) {
+  const node = { key: "b:" + b.path, label: b.name, kind: "branch", children: [] };
+  (b.projects || []).forEach((p) => node.children.push(mindFromProject(p)));
+  (b.tasks || []).forEach((t) => node.children.push(mindFromTask(t, true)));
+  (b.children || []).forEach((c) => node.children.push(mindFromBranch(c)));
+  return node;
+}
+
+function mindFromProject(p) {
+  const proj = p.project;
+  const node = {
+    key: "p:" + proj.id,
+    label: proj.title,
+    kind: "project",
+    status: proj.status,
+    running: p.running,
+    children: [],
+  };
+  (p.open_tasks || []).forEach((t) => node.children.push(mindFromTask(t, false)));
+  return node;
+}
+
+function mindFromTask(t, showProject) {
+  return {
+    key: "task:" + t.id,
+    label: t.title,
+    kind: "task",
+    status: t.status,
+    priority: t.priority,
+    running: t.running_session_id != null,
+    tag: showProject ? t.project_title : "",
+    children: [],
+  };
+}
+
+function buildMindRoot(roots) {
+  const root = { key: "root", label: "WORK", kind: "root", children: [] };
+  (roots || []).forEach((b) => root.children.push(mindFromBranch(b)));
+  return root;
+}
+
+function collectMindOpen(root) {
+  const out = new Set(["root"]);
+  (root.children || []).forEach((c) => out.add(c.key));
+  (function walk(node, anc) {
+    if (node.kind === "project" && node.running) {
+      anc.forEach((k) => out.add(k));
+      out.add(node.key);
+    }
+    (node.children || []).forEach((c) => walk(c, [...anc, node.key]));
+  })(root, []);
   return out;
 }
 
-function treeTaskRow(t, showProject) {
-  const pc = PRIO_COLORS[t.priority] || "#9B9B9B";
-  const today = state.tree ? state.tree.today : todayISO();
-  const dl = daysLabel(t.due_date, today);
-  const done = t.status === "done";
-  return `<div class="wp-task tree-task${done ? " done" : ""}">
-    <span class="brief-prio" style="background:${pc}"></span>
-    <span class="wp-task-title${done ? " tree-task-done" : ""}">${esc(t.title)}${showProject ? ` <span class="work-project">${esc(t.project_title)}</span>` : ""}</span>
-    <div class="wp-task-meta">
-      ${dl.cls ? `<span class="work-due ${dl.cls}">${esc(dl.text)}</span>` : ""}
-      ${timeLabel(t)}
-    </div>
-    ${playButton(t)}
-    ${workCheckbox(t)}
-  </div>`;
+function applyMindOpen(root, openSet) {
+  root.expanded = openSet.has(root.key);
+  (root.children || []).forEach((c) => applyMindOpen(c, openSet));
 }
 
-function renderProject(p, openKeys) {
-  const proj = p.project;
-  const key = "p:" + proj.id;
-  const open = openKeys.has(key);
-  const tasks = (p.open_tasks || []).map((t) => treeTaskRow(t, false)).join("");
-  const body = tasks || `<p class="work-empty">No tasks yet.</p>`;
-  const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
-  return `<div class="tree-project${p.running ? " working" : ""}">
-    <div class="tree-row">
-      ${tasks ? `<button class="tree-toggle" data-key="${key}" aria-expanded="${open}"><span class="chev">▸</span></button>` : `<span class="tree-toggle-none"></span>`}
-      <span class="tree-dot tree-dot-${proj.status}${p.running ? " running" : ""}"></span>
-      <span class="tree-project-title" title="${esc(proj.title)}">${esc(proj.title)}</span>
-      ${p.running ? `<span class="working-chip">&#9679; Working</span>` : ""}
-      <span class="tree-project-meta">${esc(proj.status)}${p.total ? ` · ${p.done}/${p.total} done` : ""}</span>
-    </div>
-    <div class="tree-sub"${open ? "" : " hidden"}>
-      <div class="tree-proj-progress"><div class="proj-progress-fill${p.overdue ? " warn" : ""}" style="width:${pct}%"></div></div>
-      ${body}
-      <div class="add-task">
-        <input class="input add-task-input" type="text" placeholder="Add a task..." aria-label="Add a task to ${esc(proj.title)}" maxlength="200" autocomplete="off">
-        <button class="btn btn-sm add-task-btn" data-action="task-add" data-id="${proj.id}">Add</button>
-      </div>
-      <div class="tree-project-actions">
-        <button class="wp-close" data-action="project-close" data-id="${proj.id}" data-open="${(p.open_tasks || []).length}" title="Close project">Close</button>
-      </div>
-    </div>
-  </div>`;
+function mindVisibleLeaves(n) {
+  if (!n.expanded || !n.children.length) return 1;
+  return n.children.reduce((s, c) => s + mindVisibleLeaves(c), 0);
 }
 
-function renderBranch(node, openKeys) {
-  const key = "b:" + node.path;
-  const open = openKeys.has(key);
-  const projectCount = (node.projects || []).length;
-  const taskCount = (node.tasks || []).length;
-  const hasBody = !!(projectCount || taskCount || (node.children && node.children.length));
-  const body =
-    (node.projects || []).map((p) => renderProject(p, openKeys)).join("") +
-    (node.tasks || []).map((t) => treeTaskRow(t, true)).join("") +
-    (node.children || []).map((c) => renderBranch(c, openKeys)).join("");
-  const meta = [
-    projectCount ? `${projectCount} project${projectCount === 1 ? "" : "s"}` : "",
-    taskCount ? `${taskCount} task${taskCount === 1 ? "" : "s"}` : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  return `<div class="tree-branch">
-    <div class="tree-row">
-      ${hasBody ? `<button class="tree-toggle" data-key="${key}" aria-expanded="${open}"><span class="chev">▸</span></button>` : `<span class="tree-toggle-none"></span>`}
-      <span class="tree-branch-name" title="${esc(node.path)}">${esc(node.name)}</span>
-      ${meta ? `<span class="tree-branch-meta">${esc(meta)}</span>` : ""}
-    </div>
-    <div class="tree-sub"${open ? "" : " hidden"}>${body}</div>
-  </div>`;
+function mindDescendantCount(n) {
+  let c = 0;
+  (n.children || []).forEach((ch) => {
+    c += 1 + mindDescendantCount(ch);
+  });
+  return c;
 }
 
-function renderTree() {
+function mindLayout(root) {
+  const placed = [];
+  const edges = [];
+  let maxR = 0;
+  const RING = 150;
+  function place(n, a0, a1, depth, px, py) {
+    const a = (a0 + a1) / 2;
+    const r = depth * RING;
+    const x = r * Math.cos(a);
+    const y = r * Math.sin(a);
+    n._x = x;
+    n._y = y;
+    placed.push(n);
+    maxR = Math.max(maxR, r);
+    if (px !== null) edges.push({ px, py, x, y });
+    if (n.expanded && n.children.length) {
+      const total = n.children.reduce((s, c) => s + mindVisibleLeaves(c), 0);
+      let acc = a0;
+      n.children.forEach((c) => {
+        const span = ((a1 - a0) * mindVisibleLeaves(c)) / total;
+        place(c, acc, acc + span, depth + 1, x, y);
+        acc += span;
+      });
+    }
+  }
+  place(root, -Math.PI, Math.PI, 0, null, null);
+  return { placed, edges, maxR };
+}
+
+function mindConnector(px, py, x, y) {
+  const dx = x - px;
+  const dy = y - py;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = dx / len;
+  const ny = dy / len;
+  const pull = len * 0.45;
+  return `M ${px} ${py} C ${px + nx * pull} ${py + ny * pull} ${x - nx * pull} ${y - ny * pull} ${x} ${y}`;
+}
+
+function findMindNode(n, key) {
+  if (n.key === key) return n;
+  for (const c of n.children || []) {
+    const found = findMindNode(c, key);
+    if (found) return found;
+  }
+  return null;
+}
+
+function renderMindMap() {
   const el = $("#work-tree");
   const t = state.tree;
   if (!t) return;
+  $("#tree-count").textContent = t.roots && t.roots.length ? `· ${countProjects(t.roots)}` : "";
   if (!t.roots || !t.roots.length) {
     el.innerHTML = `<p class="work-empty">No projects yet. Add one with +.</p>`;
-    $("#tree-count").textContent = "";
     return;
   }
-  $("#tree-count").textContent = `· ${countProjects(t.roots)}`;
-  const openKeys = new Set([...collectDefaultOpen(t.roots), ...expanded]);
-  el.innerHTML = `<div class="tree">${t.roots.map((r) => renderBranch(r, openKeys)).join("")}</div>`;
+  if (!state.mindRoot) {
+    state.mindRoot = buildMindRoot(t.roots);
+    applyMindOpen(state.mindRoot, collectMindOpen(state.mindRoot));
+  }
+  const { placed, edges, maxR } = mindLayout(state.mindRoot);
+  const R = maxR + 170;
+  const w = R * 2;
+  const h = R * 2;
+  const lines = edges
+    .map((e) => `<path d="${mindConnector(e.px, e.py, e.x, e.y)}" fill="none" class="mind-line"/>`)
+    .join("");
+  const nodes = placed
+    .map((n) => {
+      const width = Math.min(190, 26 + n.label.length * 7.2) + (n.tag ? Math.min(90, n.tag.length * 6) : 0);
+      const hasKids = n.children && n.children.length;
+      const open = !!n.expanded;
+      const count = hasKids ? mindDescendantCount(n) : 0;
+      return `<div class="mind-node kind-${n.kind}${n.running ? " running" : ""}${n.status ? " st-" + n.status : ""}${open ? " open" : ""}" data-key="${esc(n.key)}" style="left:${Math.round(n._x + R)}px;top:${Math.round(n._y + R)}px;width:${Math.round(width)}px">
+        <span class="mind-label">${esc(n.label)}</span>
+        ${n.tag ? `<span class="mind-tag">${esc(n.tag)}</span>` : ""}
+        ${hasKids ? `<span class="mind-count${open ? "" : " hint"}">${open ? "&#9662;" : "&#9656;"}${count}</span>` : ""}
+      </div>`;
+    })
+    .join("");
+  el.innerHTML = `<div class="mind-wrap" style="width:${w}px;height:${h}px">
+      <svg class="mind-svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">${lines}</svg>
+      ${nodes}
+    </div>`;
+  const wrap = el.querySelector(".mind-wrap");
+  if (el.clientWidth > 0 && el.clientHeight > 0) {
+    const s = Math.min(el.clientWidth / w, el.clientHeight / h, 1);
+    wrap.style.transform = `translate(-50%, -50%) scale(${s})`;
+  }
 }
+
 
 /* ---------- Clock ---------- */
 
@@ -606,8 +659,9 @@ async function loadTree() {
 
 async function refreshAll() {
   await Promise.all([loadWork(), loadProjects(), loadActiveSession(), loadTree()]);
+  state.mindRoot = null;
   renderWork();
-  renderTree();
+  renderMindMap();
 }
 
 /* ---------- Actions ---------- */
@@ -943,15 +997,12 @@ function bindEvents() {
   });
 
   document.addEventListener("click", (e) => {
-    const toggle = e.target.closest(".tree-toggle");
-    if (toggle && toggle.dataset.key) {
-      const row = toggle.closest(".tree-row");
-      const sub = row ? row.nextElementSibling : null;
-      if (sub && sub.classList.contains("tree-sub")) {
-        sub.hidden = !sub.hidden;
-        toggle.setAttribute("aria-expanded", String(!sub.hidden));
-        if (sub.hidden) expanded.add(toggle.dataset.key);
-        else expanded.delete(toggle.dataset.key);
+    const nodeEl = e.target.closest(".mind-node");
+    if (nodeEl && state.mindRoot) {
+      const node = findMindNode(state.mindRoot, nodeEl.dataset.key);
+      if (node && node.children && node.children.length) {
+        node.expanded = !node.expanded;
+        renderMindMap();
       }
     }
   });
