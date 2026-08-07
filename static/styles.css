@@ -711,7 +711,7 @@ body.modal-open { overflow: hidden; }
 #work-tree {
   position: relative;
   height: 560px;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .mind-wrap {
@@ -728,7 +728,7 @@ body.modal-open { overflow: hidden; }
 
 .mind-node {
   position: absolute;
-  transform: translate(-50%, -50%);
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   gap: 8px;

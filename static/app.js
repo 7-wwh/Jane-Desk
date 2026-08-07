@@ -497,9 +497,17 @@ function applyMindOpen(root, openSet) {
   (root.children || []).forEach((c) => applyMindOpen(c, openSet));
 }
 
-function mindVisibleLeaves(n) {
+const MIND_LEVEL_GAP = 230;
+const MIND_ROW = 46;
+
+function mindMeasure(n) {
   if (!n.expanded || !n.children.length) return 1;
-  return n.children.reduce((s, c) => s + mindVisibleLeaves(c), 0);
+  return n.children.reduce((s, c) => s + mindMeasure(c), 0);
+}
+
+function mindWidth(n) {
+  const base = Math.min(200, 22 + n.label.length * 7.1);
+  return base + (n.tag ? Math.min(90, n.tag.length * 5.8) : 0);
 }
 
 function mindDescendantCount(n) {
@@ -512,41 +520,38 @@ function mindDescendantCount(n) {
 
 function mindLayout(root) {
   const placed = [];
-  const edges = [];
-  let maxR = 0;
-  const RING = 150;
-  function place(n, a0, a1, depth, px, py) {
-    const a = (a0 + a1) / 2;
-    const r = depth * RING;
-    const x = r * Math.cos(a);
-    const y = r * Math.sin(a);
-    n._x = x;
-    n._y = y;
-    placed.push(n);
-    maxR = Math.max(maxR, r);
-    if (px !== null) edges.push({ px, py, x, y });
-    if (n.expanded && n.children.length) {
-      const total = n.children.reduce((s, c) => s + mindVisibleLeaves(c), 0);
-      let acc = a0;
-      n.children.forEach((c) => {
-        const span = ((a1 - a0) * mindVisibleLeaves(c)) / total;
-        place(c, acc, acc + span, depth + 1, x, y);
-        acc += span;
-      });
+  let slot = 0;
+  let maxRight = 0;
+  (function place(n, depth) {
+    n._x = depth * MIND_LEVEL_GAP;
+    n._w = mindWidth(n);
+    if (!n.expanded || !n.children.length) {
+      n._y = slot * MIND_ROW;
+      n._top = n._bottom = n._y;
+      slot++;
+    } else {
+      n.children.forEach((c) => place(c, depth + 1));
+      n._top = n.children[0]._top;
+      n._bottom = n.children[n.children.length - 1]._bottom;
+      n._y = (n._top + n._bottom) / 2;
     }
-  }
-  place(root, -Math.PI, Math.PI, 0, null, null);
-  return { placed, edges, maxR };
+    placed.push(n);
+    maxRight = Math.max(maxRight, n._x + n._w);
+  })(root, 0);
+  const edges = [];
+  (function collect(n) {
+    if (!n.expanded) return;
+    (n.children || []).forEach((c) => {
+      edges.push({ x1: n._x + n._w, y1: n._y, x2: c._x, y2: c._y });
+      collect(c);
+    });
+  })(root);
+  return { placed, edges, w: maxRight + 24, h: Math.max(1, slot) * MIND_ROW + 24 };
 }
 
-function mindConnector(px, py, x, y) {
-  const dx = x - px;
-  const dy = y - py;
-  const len = Math.hypot(dx, dy) || 1;
-  const nx = dx / len;
-  const ny = dy / len;
-  const pull = len * 0.45;
-  return `M ${px} ${py} C ${px + nx * pull} ${py + ny * pull} ${x - nx * pull} ${y - ny * pull} ${x} ${y}`;
+function mindConnector(x1, y1, x2, y2) {
+  const dx = (x2 - x1) * 0.5;
+  return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
 }
 
 function findMindNode(n, key) {
@@ -571,35 +576,26 @@ function renderMindMap() {
     state.mindRoot = buildMindRoot(t.roots);
     applyMindOpen(state.mindRoot, collectMindOpen(state.mindRoot));
   }
-  const { placed, edges, maxR } = mindLayout(state.mindRoot);
-  const R = maxR + 170;
-  const w = R * 2;
-  const h = R * 2;
+  const { placed, edges, w, h } = mindLayout(state.mindRoot);
   const lines = edges
-    .map((e) => `<path d="${mindConnector(e.px, e.py, e.x, e.y)}" fill="none" class="mind-line"/>`)
+    .map((e) => `<path d="${mindConnector(e.x1, e.y1, e.x2, e.y2)}" fill="none" class="mind-line"/>`)
     .join("");
   const nodes = placed
     .map((n) => {
-      const width = Math.min(190, 26 + n.label.length * 7.2) + (n.tag ? Math.min(90, n.tag.length * 6) : 0);
-      const hasKids = n.children && n.children.length;
       const open = !!n.expanded;
+      const hasKids = n.children && n.children.length;
       const count = hasKids ? mindDescendantCount(n) : 0;
-      return `<div class="mind-node kind-${n.kind}${n.running ? " running" : ""}${n.status ? " st-" + n.status : ""}${open ? " open" : ""}" data-key="${esc(n.key)}" style="left:${Math.round(n._x + R)}px;top:${Math.round(n._y + R)}px;width:${Math.round(width)}px">
+      return `<div class="mind-node kind-${n.kind}${n.running ? " running" : ""}${n.status ? " st-" + n.status : ""}${open ? " open" : ""}" data-key="${esc(n.key)}" style="left:${Math.round(n._x)}px;top:${Math.round(n._y)}px;width:${Math.round(n._w)}px">
         <span class="mind-label">${esc(n.label)}</span>
         ${n.tag ? `<span class="mind-tag">${esc(n.tag)}</span>` : ""}
         ${hasKids ? `<span class="mind-count${open ? "" : " hint"}">${open ? "&#9662;" : "&#9656;"}${count}</span>` : ""}
       </div>`;
     })
     .join("");
-  el.innerHTML = `<div class="mind-wrap" style="width:${w}px;height:${h}px">
+  el.innerHTML = `<div class="mind-wrap" style="width:${Math.round(w)}px;height:${Math.round(h)}px">
       <svg class="mind-svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">${lines}</svg>
       ${nodes}
     </div>`;
-  const wrap = el.querySelector(".mind-wrap");
-  if (el.clientWidth > 0 && el.clientHeight > 0) {
-    const s = Math.min(el.clientWidth / w, el.clientHeight / h, 1);
-    wrap.style.transform = `translate(-50%, -50%) scale(${s})`;
-  }
 }
 
 
