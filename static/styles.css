@@ -754,6 +754,11 @@ body.modal-open { overflow: hidden; }
 
 .mind-line { stroke: var(--color-border); stroke-width: 1.5; }
 
+.mind-pulse {
+  fill: var(--color-lime);
+  filter: drop-shadow(0 0 5px var(--color-lime));
+}
+
 .mind-node {
   position: absolute;
   transform: translateY(-50%);

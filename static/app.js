@@ -581,22 +581,32 @@ function renderMindMap() {
   wrap.style.width = w + "px";
   wrap.style.height = hh + "px";
   const edges = [];
-  (function collect(n) {
+  (function collect(n, depth) {
     if (!n.expanded) return;
     (n.children || []).forEach((c) => {
-      edges.push({ x1: n._x + n._w, y1: n._y, x2: c._x, y2: c._y });
-      collect(c);
+      edges.push({ x1: n._x + n._w, y1: n._y, x2: c._x, y2: c._y, depth });
+      collect(c, depth + 1);
     });
-  })(state.mindRoot);
+  })(state.mindRoot, 0);
   const lines = edges
     .map((e) => `<path d="${mindConnector(e.x1, e.y1, e.x2, e.y2)}" fill="none" class="mind-line"/>`)
+    .join("");
+  const pulses = edges
+    .map((e) => {
+      const d = mindConnector(e.x1, e.y1, e.x2, e.y2);
+      const t = e.depth * 0.14;
+      return `<circle class="mind-pulse" r="3.4">
+        <animateMotion dur="0.55s" begin="${t}s" fill="freeze" path="${d}"/>
+        <animate attributeName="opacity" dur="0.7s" begin="${t}s" fill="freeze" values="0;1;1;0" keyTimes="0;0.1;0.75;1"/>
+      </circle>`;
+    })
     .join("");
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("class", "mind-svg");
   svg.setAttribute("width", w);
   svg.setAttribute("height", hh);
   svg.setAttribute("viewBox", `0 0 ${w} ${hh}`);
-  svg.innerHTML = lines;
+  svg.innerHTML = lines + pulses;
   wrap.prepend(svg);
   if (el.clientWidth > 0 && el.clientHeight > 0) {
     const fit = Math.min(el.clientWidth / w, el.clientHeight / hh, 1);
