@@ -598,6 +598,12 @@ function renderMindMap() {
   svg.setAttribute("viewBox", `0 0 ${w} ${hh}`);
   svg.innerHTML = lines;
   wrap.prepend(svg);
+  if (el.clientWidth > 0 && el.clientHeight > 0) {
+    const fit = Math.min(el.clientWidth / w, el.clientHeight / hh, 1);
+    if (fit < 1 && fit >= 0.72) {
+      wrap.style.transform = `translate(-50%, -50%) scale(${fit})`;
+    }
+  }
 }
 
 

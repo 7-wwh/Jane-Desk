@@ -251,7 +251,7 @@ svg { display: block; }
 .main {
   flex: 1;
   width: 100%;
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: var(--space-outer);
 }
@@ -461,29 +461,47 @@ body.modal-open { overflow: hidden; }
 /* ---------- Work screen ---------- */
 
 .work-layout {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-gutter);
-  max-width: 860px;
+  height: calc(100vh - 64px - var(--space-outer) * 2);
+  max-width: 1100px;
 }
 
 .work-hero-card,
 .work-card {
-  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.work-hero-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: var(--space-card-pad);
-}
-
-.work-cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.work-side {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-gutter);
-  align-items: start;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tree-card { grid-row: 1; grid-column: 1; }
+.work-hero-card { grid-row: 1; grid-column: 2; }
+.projects-card { grid-row: 2; grid-column: 1; }
+.work-side { grid-row: 2; grid-column: 2; }
+
+#work-tree,
+#work-current,
+#work-projects,
+#work-upcoming,
+#work-ideas {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+#work-upcoming,
+#work-ideas {
+  flex: 0 1 auto;
 }
 
 .work-empty {
@@ -710,7 +728,6 @@ body.modal-open { overflow: hidden; }
 
 #work-tree {
   position: relative;
-  height: 560px;
   overflow: auto;
 }
 
@@ -879,14 +896,21 @@ body.modal-open { overflow: hidden; }
 /* ---------- Responsive ---------- */
 
 @media (max-width: 720px) {
-  .work-cols { grid-template-columns: 1fr; }
+  .work-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .tree-card { grid-row: auto; grid-column: 1; }
+  .work-hero-card { grid-row: auto; grid-column: 1; }
+  .projects-card { grid-row: auto; grid-column: 1; }
+  .work-side { grid-row: auto; grid-column: 1; }
+  #work-tree { height: 420px; }
   .hero-title { font-size: 22px; }
 }
 
 @media (max-width: 640px) {
   .main { padding: 16px; }
   .topbar { padding: 0 16px; gap: 12px; }
-  #work-tree { height: 420px; }
   .topnav { overflow-x: auto; }
   .tab-btn { padding: 7px 12px; font-size: 12px; }
   .brand-name { font-size: 13px; }
