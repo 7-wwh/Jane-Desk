@@ -500,16 +500,6 @@ function applyMindOpen(root, openSet) {
 const MIND_LEVEL_GAP = 230;
 const MIND_ROW = 46;
 
-function mindMeasure(n) {
-  if (!n.expanded || !n.children.length) return 1;
-  return n.children.reduce((s, c) => s + mindMeasure(c), 0);
-}
-
-function mindWidth(n) {
-  const base = Math.min(200, 22 + n.label.length * 7.1);
-  return base + (n.tag ? Math.min(90, n.tag.length * 5.8) : 0);
-}
-
 function mindDescendantCount(n) {
   let c = 0;
   (n.children || []).forEach((ch) => {
@@ -521,10 +511,8 @@ function mindDescendantCount(n) {
 function mindLayout(root) {
   const placed = [];
   let slot = 0;
-  let maxRight = 0;
   (function place(n, depth) {
     n._x = depth * MIND_LEVEL_GAP;
-    n._w = mindWidth(n);
     if (!n.expanded || !n.children.length) {
       n._y = slot * MIND_ROW;
       n._top = n._bottom = n._y;
@@ -536,17 +524,8 @@ function mindLayout(root) {
       n._y = (n._top + n._bottom) / 2;
     }
     placed.push(n);
-    maxRight = Math.max(maxRight, n._x + n._w);
   })(root, 0);
-  const edges = [];
-  (function collect(n) {
-    if (!n.expanded) return;
-    (n.children || []).forEach((c) => {
-      edges.push({ x1: n._x + n._w, y1: n._y, x2: c._x, y2: c._y });
-      collect(c);
-    });
-  })(root);
-  return { placed, edges, w: maxRight + 24, h: Math.max(1, slot) * MIND_ROW + 24 };
+  return { placed, h: Math.max(1, slot) * MIND_ROW + 24 };
 }
 
 function mindConnector(x1, y1, x2, y2) {
@@ -576,26 +555,49 @@ function renderMindMap() {
     state.mindRoot = buildMindRoot(t.roots);
     applyMindOpen(state.mindRoot, collectMindOpen(state.mindRoot));
   }
-  const { placed, edges, w, h } = mindLayout(state.mindRoot);
-  const lines = edges
-    .map((e) => `<path d="${mindConnector(e.x1, e.y1, e.x2, e.y2)}" fill="none" class="mind-line"/>`)
-    .join("");
-  const nodes = placed
+  const { placed, h } = mindLayout(state.mindRoot);
+  const nodesHtml = placed
     .map((n) => {
       const open = !!n.expanded;
       const hasKids = n.children && n.children.length;
       const count = hasKids ? mindDescendantCount(n) : 0;
-      return `<div class="mind-node kind-${n.kind}${n.running ? " running" : ""}${n.status ? " st-" + n.status : ""}${open ? " open" : ""}" data-key="${esc(n.key)}" style="left:${Math.round(n._x)}px;top:${Math.round(n._y)}px;width:${Math.round(n._w)}px">
+      return `<div class="mind-node kind-${n.kind}${n.running ? " running" : ""}${n.status ? " st-" + n.status : ""}${open ? " open" : ""}" data-key="${esc(n.key)}" style="left:${Math.round(n._x)}px;top:${Math.round(n._y)}px">
         <span class="mind-label">${esc(n.label)}</span>
         ${n.tag ? `<span class="mind-tag">${esc(n.tag)}</span>` : ""}
         ${hasKids ? `<span class="mind-count${open ? "" : " hint"}">${open ? "&#9662;" : "&#9656;"}${count}</span>` : ""}
       </div>`;
     })
     .join("");
-  el.innerHTML = `<div class="mind-wrap" style="width:${Math.round(w)}px;height:${Math.round(h)}px">
-      <svg class="mind-svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">${lines}</svg>
-      ${nodes}
-    </div>`;
+  el.innerHTML = `<div class="mind-wrap">${nodesHtml}</div>`;
+  const wrap = el.querySelector(".mind-wrap");
+  const nodeEls = [...wrap.querySelectorAll(".mind-node")];
+  let maxRight = 0;
+  placed.forEach((n, i) => {
+    n._w = nodeEls[i].offsetWidth || 80;
+    maxRight = Math.max(maxRight, n._x + n._w);
+  });
+  const w = Math.round(maxRight + 24);
+  const hh = Math.round(h);
+  wrap.style.width = w + "px";
+  wrap.style.height = hh + "px";
+  const edges = [];
+  (function collect(n) {
+    if (!n.expanded) return;
+    (n.children || []).forEach((c) => {
+      edges.push({ x1: n._x + n._w, y1: n._y, x2: c._x, y2: c._y });
+      collect(c);
+    });
+  })(state.mindRoot);
+  const lines = edges
+    .map((e) => `<path d="${mindConnector(e.x1, e.y1, e.x2, e.y2)}" fill="none" class="mind-line"/>`)
+    .join("");
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "mind-svg");
+  svg.setAttribute("width", w);
+  svg.setAttribute("height", hh);
+  svg.setAttribute("viewBox", `0 0 ${w} ${hh}`);
+  svg.innerHTML = lines;
+  wrap.prepend(svg);
 }
 
 
