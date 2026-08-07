@@ -257,3 +257,28 @@ class WorkOut(BaseModel):
     upcoming: list[WorkTask] = []
     active_projects: list[ActiveProject] = []
     ideas: list[Idea] = []
+
+
+class TreeProject(BaseModel):
+    project: ProjectOut
+    done: int = 0
+    total: int = 0
+    overdue: bool = False
+    running: bool = False
+    open_tasks: list[WorkTask] = []
+
+
+class TreeNode(BaseModel):
+    name: str
+    path: str
+    projects: list[TreeProject] = []
+    tasks: list[WorkTask] = []
+    children: list["TreeNode"] = []
+
+
+class TreeOut(BaseModel):
+    today: date
+    roots: list[TreeNode] = []
+
+
+TreeNode.model_rebuild()

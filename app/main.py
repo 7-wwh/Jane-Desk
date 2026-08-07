@@ -530,6 +530,132 @@ def delete_journal(journal_id: int, db: Session = Depends(get_db)):
 
 # ---------- Aggregates ----------
 
+PROJECT_STATUS_ORDER = {"active": 0, "backlog": 1, "paused": 2, "done": 3}
+
+
+class _TreeNode:
+    __slots__ = ("name", "path", "projects", "project_tasks", "tasks", "children")
+
+    def __init__(self, name: str, path: str):
+        self.name = name
+        self.path = path
+        self.projects: list = []
+        self.project_tasks: dict[int, list] = {}
+        self.tasks: list = []
+        self.children: dict[str, _TreeNode] = {}
+
+    def child(self, seg: str) -> "_TreeNode":
+        if seg not in self.children:
+            self.children[seg] = _TreeNode(seg, f"{self.path}/{seg}" if self.path else seg)
+        return self.children[seg]
+
+
+def build_tree(db: Session) -> schemas.TreeOut:
+    """Complete project tree: branch roots -> projects -> tasks, built from branch_path."""
+    today = date.today()
+    projects: list[models.Project] = list(db.query(models.Project).all())
+    proj_by_id = {p.id: p for p in projects}
+    all_tasks = list(db.query(models.Task).all())
+    time_map = task_time_summaries(db)
+
+    running_project_id = None
+    active_sess = (
+        db.query(models.TaskSession)
+        .filter(models.TaskSession.ended_at.is_(None))
+        .order_by(models.TaskSession.started_at.desc())
+        .first()
+    )
+    if active_sess:
+        t = db.get(models.Task, active_sess.task_id)
+        if t:
+            running_project_id = t.project_id
+
+    def with_time(t) -> schemas.WorkTask:
+        base = schemas.TaskOut.model_validate(t).model_dump()
+        ts = time_map.get(t.id, schemas.TaskTimeSummary())
+        proj = proj_by_id.get(t.project_id)
+        return schemas.WorkTask(**base, **ts.model_dump(), project_title=proj.title if proj else "Unknown")
+
+    def sort_tasks(tasks):
+        open_ = [t for t in tasks if t.status != "done"]
+        closed = [t for t in tasks if t.status == "done"]
+        open_.sort(key=lambda t: task_sort_key(t, proj_by_id))
+        closed.sort(key=lambda t: task_sort_key(t, proj_by_id))
+        return open_ + closed
+
+    root = _TreeNode("", "")
+    for p in projects:
+        node = root
+        for seg in (p.branch_path or "").split("/"):
+            if not seg:
+                continue
+            node = node.child(seg)
+        node.projects.append(p)
+
+    for t in all_tasks:
+        proj = proj_by_id.get(t.project_id)
+        base = (proj.branch_path or "") if proj else ""
+        tp = t.branch_path or ""
+        rel = tp[len(base) + 1 :] if (tp and base and tp.startswith(base + "/")) else ""
+        node = root
+        for seg in base.split("/"):
+            if not seg:
+                continue
+            node = node.child(seg)
+        if rel:
+            for seg in rel.split("/"):
+                if not seg:
+                    continue
+                node = node.child(seg)
+            node.tasks.append(t)
+        else:
+            node.project_tasks.setdefault(t.project_id, []).append(t)
+
+    def node_out(node: _TreeNode) -> schemas.TreeNode:
+        tprojects = []
+        for p in node.projects:
+            ts = node.project_tasks.get(p.id, [])
+            open_tasks = [t for t in ts if t.status != "done"]
+            open_tasks.sort(key=lambda t: task_sort_key(t, proj_by_id))
+            done = len(ts) - len(open_tasks)
+            overdue = any(t.due_date and t.due_date < today for t in open_tasks)
+            tprojects.append(
+                schemas.TreeProject(
+                    project=schemas.ProjectOut.model_validate(p),
+                    done=done,
+                    total=len(ts),
+                    overdue=overdue,
+                    running=(p.id == running_project_id),
+                    open_tasks=[with_time(t) for t in open_tasks],
+                )
+            )
+        tprojects.sort(
+            key=lambda tp: (
+                0 if tp.running else 1,
+                PROJECT_STATUS_ORDER.get(tp.project.status, 9),
+                PRIORITY_ORDER.get(tp.project.priority, 1),
+                tp.project.title.lower(),
+            )
+        )
+        return schemas.TreeNode(
+            name=node.name,
+            path=node.path,
+            projects=tprojects,
+            tasks=[with_time(t) for t in sort_tasks(node.tasks)],
+            children=[node_out(c) for c in sorted(node.children.values(), key=lambda c: c.name.lower())],
+        )
+
+    roots = [node_out(c) for c in sorted(root.children.values(), key=lambda c: c.name.lower())]
+    if root.projects or root.project_tasks or root.tasks:
+        inbox = _TreeNode("inbox", "inbox")
+        inbox.projects = root.projects
+        inbox.project_tasks = root.project_tasks
+        inbox.tasks = root.tasks
+        roots.insert(0, node_out(inbox))
+
+    return schemas.TreeOut(today=today, roots=roots)
+
+
 @app.get("/api/work", response_model=schemas.WorkOut)
 def get_work(db: Session = Depends(get_db)):
     """The work screen's single data contract (see WORK_LOGIC.md rules 1-5)."""
@@ -678,6 +804,11 @@ def dashboard(db: Session = Depends(get_db)):
             for pid, tasks in tasks_by_project.items()
         },
     }
+
+
+@app.get("/api/tree", response_model=schemas.TreeOut)
+def get_tree(db: Session = Depends(get_db)):
+    return build_tree(db)
 
 
 @app.get("/api/timeline", response_model=list[schemas.TimelineItem])

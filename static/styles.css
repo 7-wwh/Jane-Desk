@@ -706,6 +706,130 @@ body.modal-open { overflow: hidden; }
 .session-live { color: var(--color-lime); }
 .session-row.running .session-live::before { content: "\25CF"; margin-right: 4px; animation: pulse 1.2s infinite; }
 
+/* ---------- Project tree ---------- */
+
+.tree { display: flex; flex-direction: column; }
+
+.tree-branch,
+.tree-project { display: flex; flex-direction: column; }
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tree-branch > .tree-row { border-bottom: none; }
+
+.tree-sub {
+  display: flex;
+  flex-direction: column;
+  margin-left: 14px;
+  padding-left: 14px;
+  border-left: 1px solid var(--color-border);
+}
+
+.tree-sub[hidden] { display: none; }
+
+.tree-toggle {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-dim);
+  font-size: 10px;
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.tree-toggle:hover { background: var(--color-surface-hi); color: var(--color-text-primary); }
+.tree-toggle .chev { display: inline-block; transition: transform 0.15s ease; }
+.tree-toggle[aria-expanded="true"] .chev { transform: rotate(90deg); }
+
+.tree-toggle-none { width: 20px; flex-shrink: 0; }
+
+.tree-branch-name {
+  font-size: 13px;
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.tree-branch-meta {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.tree-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.tree-dot-active { background: var(--color-lime); }
+.tree-dot-backlog { background: var(--color-text-dim); }
+.tree-dot-paused { background: var(--color-orange); }
+.tree-dot-done { background: var(--color-green); }
+.tree-dot.running { animation: pulse 1.2s infinite; box-shadow: 0 0 6px var(--color-lime); }
+
+.tree-project-title {
+  font-size: 14px;
+  font-weight: var(--fw-medium);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.tree-project-meta {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.working-chip {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-lime);
+  border: 1px solid var(--color-lime);
+  border-radius: var(--radius-pill);
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+
+.tree-project.working { border-radius: 10px; background: rgba(170, 235, 71, 0.05); }
+.tree-project.working > .tree-row { border-bottom-color: transparent; }
+
+.tree-proj-progress {
+  height: 6px;
+  background: var(--color-bg);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  margin: 6px 0 4px;
+}
+
+.tree-project .tree-sub { margin-left: 20px; padding-top: 6px; }
+
+.tree-task.done .wp-task-title { color: var(--color-text-dim); text-decoration: line-through; }
+
+.tree-project-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+
 /* ---------- Settings screen ---------- */
 
 .settings-layout {

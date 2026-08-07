@@ -160,11 +160,59 @@ def main():
     print(f"{'PASS' if final else 'FAIL'}  sessions persist after per-session delete")
     failures += 0 if final else 1
 
+    # --- project tree guards ---
+    code, body = request("POST", "/api/projects", {"title": "Eval Tree Proj", "branch_path": "evaltree"})
+    if code != 201:
+        print(f"FAIL  could not create eval tree project (got {code})")
+        return 1
+    tree_pid = json.loads(body)["id"]
+
+    code, _ = request("POST", f"/api/projects/{tree_pid}/tasks", {"title": "Eval Deep Task", "branch_path": "evaltree/deep/nest"})
+    deep_created = code == 201
+    code, _ = request("POST", f"/api/projects/{tree_pid}/tasks", {"title": "Eval Flat Task"})
+    flat_created = code == 201
+
+    code, body = request("GET", "/api/tree")
+    tree_ok = code == 200
+    tree = json.loads(body) if tree_ok else {}
+
+    def find_branch(nodes, path):
+        for n in nodes:
+            if n["path"] == path:
+                return n
+            found = find_branch(n.get("children", []), path)
+            if found:
+                return found
+        return None
+
+    roots_ok = bool(tree.get("roots"))
+    branch = find_branch(tree.get("roots", []), "evaltree")
+    branch_ok = bool(branch) and any(p["project"]["id"] == tree_pid for p in branch.get("projects", []))
+    deep = find_branch(tree.get("roots", []), "evaltree/deep/nest")
+    deep_ok = bool(deep) and any(t["title"] == "Eval Deep Task" for t in deep.get("tasks", []))
+    flat_ok = False
+    if branch:
+        for p in branch["projects"]:
+            if p["project"]["id"] == tree_pid:
+                flat_ok = any(t["title"] == "Eval Flat Task" for t in p["open_tasks"])
+
+    tree_checks = [
+        ("tree endpoint returns roots", tree_ok and roots_ok),
+        ("branch node holds project", branch_ok),
+        ("deep branch nests task", deep_created and deep_ok),
+        ("flat task under project", flat_created and flat_ok),
+    ]
+    for name, ok in tree_checks:
+        print(f"{'PASS' if ok else 'FAIL'}  {name}")
+        failures += 0 if ok else 1
+
+    request("DELETE", f"/api/projects/{tree_pid}")
+
     request("DELETE", f"/api/tasks/{sid_task}")
     if temp_project:
         request("DELETE", f"/api/projects/{temp_project}")
 
-    print(f"\n{len(cases) + 2 + 9} checks, {failures} failure(s)")
+    print(f"\n{len(cases) + 2 + 9 + len(tree_checks)} checks, {failures} failure(s)")
     return 1 if failures else 0
 
 
