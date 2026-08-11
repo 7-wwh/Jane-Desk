@@ -1,0 +1,51 @@
+<section class="card settings-card">
+  <div class="card-head">
+    <h3 class="card-label">Display</h3>
+  </div>
+
+  <div class="settings-group">
+    <div class="settings-row">
+      <div class="settings-label">
+        <span class="settings-name">Clock format</span>
+        <span class="settings-desc">How the clock in the top bar is shown.</span>
+      </div>
+      <div class="segmented" id="set-clock">
+        <button class="seg-btn" data-value="12">12-hour</button>
+        <button class="seg-btn" data-value="24">24-hour</button>
+      </div>
+    </div>
+
+    <div class="settings-row">
+      <div class="settings-label">
+        <span class="settings-name">Timer precision</span>
+        <span class="settings-desc">Show seconds on the running timer, or round to minutes.</span>
+      </div>
+      <div class="segmented" id="set-precision">
+        <button class="seg-btn" data-value="sec">Seconds</button>
+        <button class="seg-btn" data-value="min">Minutes</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="card settings-card">
+  <div class="card-head">
+    <h3 class="card-label">System</h3>
+  </div>
+  <div class="settings-group">
+    <div class="settings-row">
+      <div class="settings-label">
+        <span class="settings-name">Timezone</span>
+        <span class="settings-desc">Your device&rsquo;s timezone. Session times are shown in this local time.</span>
+      </div>
+      <span class="settings-value" id="set-tz"></span>
+    </div>
+    <div class="settings-row">
+      <div class="settings-label">
+        <span class="settings-name">Storage</span>
+        <span class="settings-desc">Everything lives in a local SQLite database on this server, written via the API.</span>
+      </div>
+      <span class="settings-value" id="set-server"></span>
+    </div>
+  </div>
+</section>

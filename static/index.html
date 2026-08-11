@@ -8,7 +8,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="core.css">
+  <link rel="stylesheet" href="widgets/mind-map/widget.css">
+  <link rel="stylesheet" href="widgets/current-task/widget.css">
+  <link rel="stylesheet" href="widgets/tasks/widget.css">
+  <link rel="stylesheet" href="widgets/upcoming/widget.css">
+  <link rel="stylesheet" href="widgets/ideas/widget.css">
+  <link rel="stylesheet" href="widgets/settings/widget.css">
+  <link rel="stylesheet" href="widgets/quick-add/widget.css">
+  <link rel="stylesheet" href="widgets/sessions/widget.css">
 </head>
 <body>
   <a class="sr-only skip-link" href="#main">Skip to content</a>
@@ -54,46 +62,13 @@
 
           <div class="work-layout">
 
-            <section class="card work-card tree-card">
-              <div class="card-head">
-                <h3 class="card-label">Mind Map <span class="mono-mute" id="tree-count"></span></h3>
-                <span class="overflow" aria-hidden="true">&#8943;</span>
-              </div>
-              <div id="work-tree"></div>
-            </section>
-
-            <section class="card work-hero-card">
-              <div class="card-head">
-                <h3 class="card-label">Current Task</h3>
-                <span class="overflow" aria-hidden="true">&#8943;</span>
-              </div>
-              <div id="work-current"></div>
-            </section>
-
-            <section class="card work-card projects-card">
-              <div class="card-head">
-                <h3 class="card-label">Projects <span class="mono-mute" id="work-projects-count"></span></h3>
-                <span class="overflow" aria-hidden="true">&#8943;</span>
-              </div>
-              <div id="work-projects"></div>
-            </section>
+            <div class="widget-part" data-part="mind-map"></div>
+            <div class="widget-part" data-part="current-task"></div>
+            <div class="widget-part" data-part="tasks"></div>
 
             <div class="work-side">
-              <section class="card work-card upcoming-card">
-                <div class="card-head">
-                  <h3 class="card-label">Upcoming</h3>
-                  <span class="overflow" aria-hidden="true">&#8943;</span>
-                </div>
-                <div id="work-upcoming"></div>
-              </section>
-
-              <section class="card work-card ideas-card">
-                <div class="card-head">
-                  <h3 class="card-label">Ideas</h3>
-                  <button class="btn btn-sm" id="work-new-idea" data-action="new-idea">+ New</button>
-                </div>
-                <div id="work-ideas"></div>
-              </section>
+              <div class="widget-part" data-part="upcoming"></div>
+              <div class="widget-part" data-part="ideas"></div>
             </div>
 
           </div>
@@ -103,57 +78,7 @@
         <section id="panel-settings" class="tab-panel" role="tabpanel" aria-labelledby="tab-settings">
 
           <div class="settings-layout">
-            <section class="card settings-card">
-              <div class="card-head">
-                <h3 class="card-label">Display</h3>
-              </div>
-
-              <div class="settings-group">
-                <div class="settings-row">
-                  <div class="settings-label">
-                    <span class="settings-name">Clock format</span>
-                    <span class="settings-desc">How the clock in the top bar is shown.</span>
-                  </div>
-                  <div class="segmented" id="set-clock">
-                    <button class="seg-btn" data-value="12">12-hour</button>
-                    <button class="seg-btn" data-value="24">24-hour</button>
-                  </div>
-                </div>
-
-                <div class="settings-row">
-                  <div class="settings-label">
-                    <span class="settings-name">Timer precision</span>
-                    <span class="settings-desc">Show seconds on the running timer, or round to minutes.</span>
-                  </div>
-                  <div class="segmented" id="set-precision">
-                    <button class="seg-btn" data-value="sec">Seconds</button>
-                    <button class="seg-btn" data-value="min">Minutes</button>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section class="card settings-card">
-              <div class="card-head">
-                <h3 class="card-label">System</h3>
-              </div>
-              <div class="settings-group">
-                <div class="settings-row">
-                  <div class="settings-label">
-                    <span class="settings-name">Timezone</span>
-                    <span class="settings-desc">Your device&rsquo;s timezone. Session times are shown in this local time.</span>
-                  </div>
-                  <span class="settings-value" id="set-tz"></span>
-                </div>
-                <div class="settings-row">
-                  <div class="settings-label">
-                    <span class="settings-name">Storage</span>
-                    <span class="settings-desc">Everything lives in a local SQLite database on this server, written via the API.</span>
-                  </div>
-                  <span class="settings-value" id="set-server"></span>
-                </div>
-              </div>
-            </section>
+            <div class="widget-part" data-part="settings"></div>
           </div>
 
         </section>
@@ -163,44 +88,20 @@
     </div>
   </div>
 
-  <div class="modal-backdrop" id="modal-backdrop" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div class="modal-head">
-        <h2 id="modal-title">Quick Add</h2>
-        <button class="btn-icon" id="modal-close" data-close aria-label="Close">&#215;</button>
-      </div>
-      <form id="quick-form">
-        <div class="field">
-          <label for="qa-type">Type</label>
-          <select class="input" id="qa-type" name="type">
-            <option value="project">Project</option>
-            <option value="task">Task</option>
-            <option value="learning">Learning</option>
-            <option value="goal">Goal</option>
-            <option value="journal">Journal</option>
-          </select>
-        </div>
-        <div id="qa-fields"></div>
-        <div class="modal-actions">
-          <button type="button" class="btn" data-close>Cancel</button>
-          <button type="submit" class="btn btn-primary">Create</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div class="modal-backdrop" id="sessions-backdrop" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sessions-title">
-      <div class="modal-head">
-        <h2 id="sessions-title">Sessions</h2>
-        <button class="btn-icon" data-action="session-close" aria-label="Close">&#215;</button>
-      </div>
-      <div id="sessions-body"></div>
-    </div>
-  </div>
+  <div class="widget-part" data-part="quick-add"></div>
+  <div class="widget-part" data-part="sessions"></div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js"></script>
+  <script src="core.js"></script>
+  <script src="widgets/mind-map/widget.js"></script>
+  <script src="widgets/current-task/widget.js"></script>
+  <script src="widgets/upcoming/widget.js"></script>
+  <script src="widgets/tasks/widget.js"></script>
+  <script src="widgets/ideas/widget.js"></script>
+  <script src="widgets/settings/widget.js"></script>
+  <script src="widgets/quick-add/widget.js"></script>
+  <script src="widgets/sessions/widget.js"></script>
+  <script src="main.js"></script>
 </body>
 </html>

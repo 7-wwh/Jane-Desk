@@ -160,6 +160,18 @@ def main():
     print(f"{'PASS' if final else 'FAIL'}  sessions persist after per-session delete")
     failures += 0 if final else 1
 
+    code, body = request("GET", "/api/work")
+    work_ok = code == 200
+    work = json.loads(body) if work_ok else {}
+    last_started = work.get("last_started")
+    work_checks = [
+        ("work exposes last_started", work_ok and "last_started" in work),
+        ("last_started is the most-recent session task", bool(last_started) and last_started.get("id") == sid_task),
+    ]
+    for name, ok in work_checks:
+        print(f"{'PASS' if ok else 'FAIL'}  {name}")
+        failures += 0 if ok else 1
+
     # --- project tree guards ---
     code, body = request("POST", "/api/projects", {"title": "Eval Tree Proj", "branch_path": "evaltree"})
     if code != 201:
@@ -212,7 +224,7 @@ def main():
     if temp_project:
         request("DELETE", f"/api/projects/{temp_project}")
 
-    print(f"\n{len(cases) + 2 + 9 + len(tree_checks)} checks, {failures} failure(s)")
+    print(f"\n{len(cases) + 2 + 9 + len(work_checks) + len(tree_checks)} checks, {failures} failure(s)")
     return 1 if failures else 0
 
 

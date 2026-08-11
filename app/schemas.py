@@ -257,6 +257,7 @@ class WorkOut(BaseModel):
     upcoming: list[WorkTask] = []
     active_projects: list[ActiveProject] = []
     ideas: list[Idea] = []
+    last_started: WorkTask | None = None
 
 
 class TreeProject(BaseModel):

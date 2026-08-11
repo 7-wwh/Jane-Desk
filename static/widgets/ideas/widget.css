@@ -1,0 +1,21 @@
+/* ---------- Ideas ---------- */
+
+.idea-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.idea-row:last-child { border-bottom: none; }
+
+.idea-body { flex: 1; min-width: 0; }
+
+.idea-task {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

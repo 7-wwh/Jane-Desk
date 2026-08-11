@@ -704,6 +704,17 @@ def get_work(db: Session = Depends(get_db)):
             needs_start = True
     current_out = work_task(current)
 
+    last_started: schemas.WorkTask | None = None
+    last_sess = (
+        db.query(models.TaskSession)
+        .join(models.Task)
+        .filter(models.Task.status != "done")
+        .order_by(models.TaskSession.started_at.desc())
+        .first()
+    )
+    if last_sess:
+        last_started = work_task(db.get(models.Task, last_sess.task_id))
+
     # Rule 3: upcoming = non-done tasks in active projects, excluding current.
     active_ids = {p.id for p in projects.values() if p.status == "active"}
     upcoming_tasks = [
@@ -757,6 +768,7 @@ def get_work(db: Session = Depends(get_db)):
         upcoming=upcoming,
         active_projects=active_projects,
         ideas=ideas,
+        last_started=last_started,
     )
 
 

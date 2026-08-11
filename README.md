@@ -42,7 +42,7 @@ Two audiences use it:
 
 This repo is two products in one: the **dashboard app** (backend + frontend) and the **agent skill package** (instructions that make agents productive with it).
 
-The interface is **CHECK BOX**, an industrial dark theme: near-black backgrounds, a lime accent, and *semantic green/orange only* (no blue/purple/pink). Layout is an icon sidebar + topbar tabs + subheader, with a two-column Overview. The full design spec (palette, type scale, card system, layout diagram) lives in `DESIGN.md`.
+The interface is **CHECK BOX**, an industrial dark theme: near-black backgrounds, a lime accent, and *semantic green/orange only* (no blue/purple/pink). Layout is a topbar with two tabs — **Work** (a fixed-height five-widget grid: Mind Map, Current Task, Tasks, Upcoming, Ideas) and **Settings**. Only the Tasks list scrolls; scrollbars are hidden globally. The full design spec (palette, type scale, card system, layout diagram) lives in `DESIGN.md`.
 
 ---
 
@@ -69,9 +69,11 @@ The interface is **CHECK BOX**, an industrial dark theme: near-black backgrounds
 
    BROWSER (phone/laptop via Tailscale)
    ──────────────────────────────────────────────┐
-        GET /  → static/index.html (HTML+CSS+JS) │
-        GET /api/dashboard  ─────────────────────▶ FastAPI ─▶ JSON
-        app.js fetches, computes charts, renders │
+        GET /  → static/index.html (shell)
+        GET /widgets/<name>/index.html (JS injects each widget's markup)
+        core.js fetches the API, boot() injects + renders widgets │
+        GET /api/work, /api/tree, ... ──────────▶ FastAPI ─▶ JSON
+        main.js App.boot() renders the work screen  │
    ◀─────────────────────────────────────────────┘
 ```
 
@@ -109,9 +111,19 @@ life-at-a-glance/
 │   └── seed.py                     ← one-time seed script (sample data)
 │
 ├── static/                         ← FRONTEND (served as-is, no build step)
-│   ├── index.html                  ← the page skeleton (shell + containers)
-│   ├── styles.css                  ← the design system (CHECK BOX dark theme)
-│   └── app.js                      ← all logic: fetch, state, render, charts
+│   ├── index.html                  ← thin assembly: shell, topbar, layout, <link>/<script> tags
+│   ├── core.css                    ← design system + shared components (CHECK BOX dark theme)
+│   ├── core.js                     ← shared logic: state, fetch, helpers, data loading, dispatch
+│   ├── main.js                     ← boot: App.boot() injects widgets, binds, renders, refreshes
+│   └── widgets/                    ← one folder per widget (html/css/js edited together)
+│       ├── mind-map/               ←   pan/zoom/collapse mind map (index.html, widget.css, widget.js)
+│       ├── current-task/           ←   hero card + flip clock
+│       ├── tasks/                  ←   flat task rows + Deadline/A-Z/Priority sort
+│       ├── upcoming/               ←   upcoming task rows
+│       ├── ideas/                  ←   idea rows + "+ New"
+│       ├── settings/               ←   Display + System cards
+│       ├── quick-add/              ←   the "+" composer modal
+│       └── sessions/               ←   session history modal
 │
 ├── bin/                            ← OPERATIONS scripts (run manually / by agents)
 │   ├── post.sh                     ← one-command helper for agents to add entries
@@ -165,9 +177,9 @@ The **backend is the product** — it owns the data and the write path agents de
 
 - **Zero deployment friction** — restart the service and the new code is live.
 - **Fits the scale** — a personal dashboard doesn't need a framework's complexity.
-- **The design is achieved in CSS** — dark industrial theme, cards, Gantt, and charts are all hand-rolled (see the SVG chart helpers in `app.js`), no charting library required.
+- **The design is achieved in CSS** — dark industrial theme, cards, and the hand-rolled SVG mind map (see `renderMindMap()` in `widgets/mind-map/widget.js`), no charting library required.
 
-Trade-off acknowledged: frameworks give you state management and components; vanilla JS means we manage both by hand (see the `state` object in `app.js`). For a single-page dashboard of this size, that's the right call.
+Trade-off acknowledged: frameworks give you state management and components; vanilla JS means we manage both by hand (see the `state` object in `core.js`). For a single-page dashboard of this size, that's the right call.
 
 ### 4.4 Operational folders: `bin/` and `deploy/`
 
@@ -344,34 +356,36 @@ FastAPI auto-generates **OpenAPI** docs. Open `http://127.0.0.1:8000/docs` — e
 
 ## 8. HTML projection
 
-The frontend is a **single-page app in plain JavaScript**. There is no framework and no routing — one page, five tab panels, toggled by CSS classes.
+The frontend is a **single-page app in plain JavaScript**. There is no framework and no routing — one page, two tab panels (`Work` / `Settings`), toggled by CSS classes.
 
 ### 8.1 The page load lifecycle
 
 ```
 browser opens /
    │
-   ├─ static/index.html  (shell: header, nav, panels, modal, toast)
-   ├─ static/styles.css  (design system)
-   └─ static/app.js      (logic)
+   ├─ static/index.html  (thin shell: topbar, layout wrappers, <link>/<script> tags)
+   ├─ static/core.css + widgets/*/widget.css   (design system + per-widget styles)
+   ├─ static/core.js + widgets/*/widget.js + main.js   (logic)
             │
-            ├─ init(): updateClock() + bindEvents() + refreshAll()
+            ├─ App.boot(): bindCore() → injectParts() (fetch + inject each widget's markup)
+            │             → renderSettings() + updateClock() + startTicker() + refreshAll()
             │
             └─ refreshAll():
-                 ├─ GET /api/dashboard  → renderOverview() + renderGoals() + renderGoalsAreaChart()
-                 ├─ GET /api/projects   → renderProjects() + renderProjectsCharts()
-                 ├─ GET /api/learnings  → renderLearnings() + renderKnowledgeCharts()
-                 └─ GET /api/journal    → (feeds charts)
+                 ├─ GET /api/work           → state.work        → renderCurrent() + renderUpcomingWork() + renderProjectsWork() + renderIdeas()
+                 ├─ GET /api/projects       → state.projects    → (project dropdown in the Quick Add modal)
+                 ├─ GET /api/sessions/active → state.activeSession → topbar timer pill + live labels
+                 └─ GET /api/tree           → state.tree        → renderMindMap()
 ```
 
 ### 8.2 State → render pipeline
 
-`app.js` keeps a single `state` object (the poor-man's Redux):
+`core.js` keeps a single `state` object (the poor-man's Redux):
 
 ```js
 const state = {
-  dashboard, projects, learnings, journal, timeline,
-  projectFilter, timelineLoaded, growthDays
+  work, projects, activeSession, tree,
+  mindRoot, mindPan, mindZoom, mindDragged,
+  editId, workSort, tab, settings
 };
 ```
 
@@ -379,81 +393,68 @@ Every fetch **writes into `state`**, then a matching `render*()` function **read
 
 ### 8.3 Element ID → render function map
 
-| DOM container (`index.html`) | Render function (`app.js`) | What it draws |
+| DOM container (widget markup) | Render function | What it draws |
 | :--- | :--- | :--- |
-| `#metric-projects` | `renderMetricProjects()` | PROJECTS metric tile: active count + delta + sparkline |
-| `#metric-knowledge` | `renderMetricKnowledge()` | KNOWLEDGE metric tile: learnings this week + delta + sparkline |
-| `#gantt-chart` | `renderGantt()` | Projects Timeline Gantt (30-day task spans) |
-| `#brief-body` | `renderDailyBrief()` | **Daily Brief**: overdue / due this week / top priorities / focus / recent learnings |
-| `#project-tree` | `renderProjectTree()` | **Project Tree**: per-project progress bars + status/priority + overdue flags |
-| `#weekly-chart` | `renderWeeklyChart()` | SVG line chart, this week vs last week |
-| `#hex-cluster` + `#hex-list` | `renderHexAreas()` | hexagon cluster colored by goal area |
-| `#weekday-chart` | `renderWeekdayChart()` | weekday activity bars, today highlighted |
-| `#tasks-body` | `renderTasks()` | **today's tasks**: open first, then done, from active projects (status/priority/due chips) |
-| `#focus-body` | `renderFocus()` | **next-up task**: highest-priority non-done task of the top active project |
-| `#projects-cols` | `renderProjects()` | project list grouped by status |
-| `#goals-list` | `renderGoals()` | goals grouped by life area |
-| `#learn-list` | `renderLearnings()` | **atom ledger**: learnings grouped by related project, date + tags |
+| `#work-tree` (`widgets/mind-map/`) | `renderMindMap()` | **Mind Map**: the branch/project/task hierarchy as a pannable, zoomable SVG tree |
+| `#work-current` (`widgets/current-task/`) | `renderCurrent()` | **Current Task** hero: title, priority chip, live flip-clock timer, Start/Stop, Edit, Done |
+| `#work-projects` (`widgets/tasks/`) | `renderProjectsWork()` | **Tasks**: every open task across projects, sortable by deadline / A–Z / priority |
+| `#work-upcoming` (`widgets/upcoming/`) | `renderUpcomingWork()` | **Upcoming**: next queued tasks |
+| `#work-ideas` (`widgets/ideas/`) | `renderIdeas()` | **Ideas**: backlog projects, each with a Start button |
 
-### 8.4 Charts are hand-rolled SVG
+### 8.4 The work screen, in detail
 
-There are **no chart libraries**. The widgets build their own SVG/HTML:
+The **Work** tab is a fixed-height two-column grid (the whole dashboard fits `100vh`, no page
+scroll). Top row: Mind Map (left) + Current Task hero (right). Bottom row: Tasks (left) +
+Upcoming + Ideas (right, stacked):
 
-- `lineChart()` builds `<path>` and `<circle>` elements in a `<svg viewBox>` for the Reports and Weekly charts.
-- `sparkline()` draws the thin fill-gradient lines inside the metric cards.
-- `renderGantt()` lays out the **Projects Timeline** — stadium-pill bars with embedded project-initial dots on a dotted 30-day grid, the signature element of the design.
-- `renderHexAreas()` lays out hexagons in expanding rings (`hexLayout()`), coloring each by life-area color and opacity by goal count.
-- `renderWeekdayChart()` computes per-weekday totals and renders CSS bars with the "today" column highlighted.
-- `renderDonut()` renders SVG donuts for project status and journal types.
-
-All aggregation (counting learnings per day, this-week vs last-week, weekday totals) happens **client-side** from the raw lists returned by the API. This keeps the backend simple — it returns raw rows; the frontend shapes them into charts.
-
-### 8.5 Safety: escaping
-
-All user/agent-provided text is passed through `esc()` before being written into HTML, preventing XSS from anything an agent posts. This is a non-negotiable practice whenever a page renders third-party input.
-
-### 8.6 The panels, in detail
-
-The dashboard has five tabs (Overview / Projects / Goals / Knowledge / Timeline) reachable from
-both the sidebar icons and the topbar pills. The design system (tokens, radii, the Gantt
-signature) is fully specified in `DESIGN.md`; here is what each panel actually draws.
-
-**Overview** (two columns — left ~57% cards, right ~43% sticky scroll):
-
-| Card | Renderer | What it shows |
+| Widget | Renderer | What it shows |
 | :--- | :--- | :--- |
-| Greeting + Today Ring | `renderGreeting()` / `renderTodayRing()` | time-of-day greeting, date, a 220px ring showing % through the day |
-| PROJECTS metric | `renderMetricProjects()` | active project count, ▲/▼ delta vs last month, 14-day creation sparkline |
-| KNOWLEDGE metric | `renderMetricKnowledge()` | learnings this week, delta vs last week, total, 14-day sparkline |
-| **Daily Brief** | `renderDailyBrief()` | the skill's task logic, live: overdue tasks, due this week, top 5 priorities, a focus suggestion, and recent learnings (last 7 days) as "atoms" |
-| Tasks / Intentions | `renderTasks()` | all open tasks across active projects (then done, capped), each with a checkbox, status chip, priority chip, and due-date/overdue hint |
-| Habit Streaks | `renderHabits()` | active goals as habits with a 7-day dot row per goal |
-| Projects Timeline Gantt | `renderGantt()` | one stadium-pill bar per non-done project spanning its task window over the trailing 30 days; orange when an open task is overdue |
-| Focus | `renderFocus()` | the single highest-priority non-done task (falls back to top project, then an active goal) |
-| Today | `renderDayTimeline()` | today's journal + learning entries on a compact spine |
-| Upcoming | `renderUpcoming()` | next three dated projects |
-| Insights | charts below | activity heatmap, project-status donut, cumulative growth, journal-type donut, goals-by-area bars, top tags, weekly summary, weekday bars, life-area hexagons |
+| **Mind Map** | `renderMindMap()` | the `branch_path` hierarchy as an SVG tree — branch nodes → project nodes → open task nodes, joined by animated connectors. The task with the running timer glows. |
+| **Current Task** | `renderCurrent()` | the single `in_progress` task (the work rules, see `WORK_LOGIC.md`), its live flip-clock timer, Start/Stop, Edit, Done |
+| **Tasks** | `renderProjectsWork()` | all open tasks from every project, one row each: priority dot, due/overdue label, session-time pill, Start, play/stop, done checkbox, Edit |
+| **Upcoming** | `renderUpcomingWork()` | the next non-done tasks in active projects |
+| **Ideas** | `renderIdeas()` | backlog projects; one click promotes the idea and starts its top task |
 
-**Projects** — a **Project Tree** panel at the top (`renderProjectTree()`): one row per project
-with a status dot, name + status/priority meta, a task progress bar (done/total), and an orange
-flag when an open task is overdue. Below it, By-Status and By-Priority charts, then project cards
-(grouped Active / Backlog) each with its task checklist, progress bar, and an inline add-task box.
+**Scroll policy:** only the **Tasks** list scrolls. Every other widget is non-scrolling
+(`overflow: hidden`), and scrollbars are hidden globally (`scrollbar-width: none` +
+`::-webkit-scrollbar { display: none }`) — no scrollbar chrome anywhere.
 
-**Goals** — a progress-by-area chart plus goal cards grouped by life area (career/health/family/
-learning/finance/other), each with a 0–100 progress bar.
+### 8.5 The mind map is a viewport, not a scrollable card
 
-**Knowledge** — Top Tags and Learnings-over-Time charts, then the **atom ledger**
-(`renderLearnings()`): every learning rendered as an atom row (date, title, content, tags) grouped
-by `related_project` under a count header, with tag/date filters. This mirrors the skill's
-knowledge-atom concept — completing a task should prompt logging what you learned.
+The tree is rendered once and moved with transforms — the user explores it like a PDF:
 
-**Timeline** — a monthly-activity bar chart plus the merged chronological feed
-(`renderTimeline()`): learnings, projects, and journal normalized into one list.
+- **Pan** — drag anywhere to move in **all** directions (grab / grabbing cursor).
+- **Zoom** — the scroll wheel zooms about the cursor (`0.25×–3×`), keeping the map point under the mouse stationary.
+- **Reset** — double-click empty space returns to the home view (centered when the map fits, top-left when it overflows).
+- **Expand** — a single click on a branch or project node expands/collapses it; a drag never toggles.
+- Expands/collapses and data refreshes preserve the current pan/zoom.
 
-**Task interaction model:** every task checkbox calls `PATCH /api/tasks/{id}/status` with the next
-state. The `+` button in the topbar opens the Quick Add modal (project/learning/goal/journal), and
-every card has delete actions. After any mutation, `refreshAll()` re-fetches and re-renders
-everything — the DOM is always a reflection of `state`.
+### 8.6 Task interaction model
+
+Every task row exposes the full action set, and the Current Task hero mirrors it:
+
+| Action | Endpoint |
+| :--- | :--- |
+| Start task (rule 1: demotes any other `in_progress`) | `POST /api/tasks/{id}/start` |
+| Start / stop the timer | `POST /api/tasks/{id}/sessions/start` · `POST /api/sessions/{id}/stop` |
+| Mark done (checkbox) | `PATCH /api/tasks/{id}/status?status=done` |
+| Session history (time pill opens the modal) | `GET /api/tasks/{id}/sessions` |
+| **Edit** (pencil / Edit button) | `PUT /api/tasks/{id}` |
+
+**Editing a task:** the pencil on any task row (and the Edit button on the Current Task hero)
+opens the Quick Add modal pre-filled with the task's title, status, priority, due date, begin
+date, duration, and branch path (project is read-only). Saving issues a
+`PUT /api/tasks/{id}` with just those fields. Creating is unchanged: the `+` menu → Quick Add
+modal → `POST /api/projects/{id}/tasks`.
+
+After any mutation, `refreshAll()` re-fetches and re-renders everything — the DOM is always a
+reflection of `state`.
+
+### 8.7 Safety: escaping
+
+All user/agent-provided text is passed through `esc()` before being written into HTML,
+preventing XSS from anything an agent posts. This is a non-negotiable practice whenever a page
+renders third-party input.
 
 ---
 
@@ -535,9 +536,9 @@ speak the project's actual language**. That optimization had three moves:
    `daily_brief.py`, `install_cron.sh`) and the JSON `references/` — they only operated on the
    Obsidian vault and the cron brief. What the skill *did* (task lifecycle, a daily brief, a
    project tree, knowledge atoms) was kept, but re-expressed as operations on the dashboard:
-   "Daily Brief" → the Overview's Daily Brief card; "Project Tree" → the Projects tab panel;
-   "atoms" → the Knowledge tab's atom ledger. So an agent following the skill now drives the real
-   webapp rather than a parallel JSON world.
+    "Daily Brief" → the Current Task hero + Tasks list; the "Project Tree" → the Mind Map;
+    "atoms" → `learnings` records. So an agent following the skill now drives the real
+    webapp rather than a parallel JSON world.
 
 The result: a skill chain that a fresh agent can read top-to-bottom and know *exactly* where data
 lives, how to write to it, what the UI shows, and how the task logic works — with the
@@ -623,7 +624,7 @@ Note it's a **user** service (`--user`), not a system service — no root needed
 Try these to solidify the mental model:
 
 1. **Trace a write**: `bin/post.sh learning '{"title":"X","content":"Y"}'` → `post.sh` curls `/api/learnings` → `create_learning()` validates → `models.Learning(**data)` → `db.commit()` → JSON back. Where is each step in `app/main.py`?
-2. **Trace a read**: browser loads `/` → `app.js init()` → `refreshAll()` → `/api/dashboard` → `dashboard()` runs 5 queries → `renderOverview()` writes DOM. Which file owns each step?
+2. **Trace a read**: browser loads `/` → `App.boot()` → `injectParts()` + `refreshAll()` → `GET /api/work` + `/api/tree` → `renderWork()` writes the DOM. Which files own each step?
 3. **Add a filter**: make `/api/goals` also filter by `progress >= X`. Which files change (`main.py` only) and which don't (models, schemas, frontend)? Why?
 4. **Why not an enum column?** Re-read section 6. What breaks for agents if `status` became a DB enum? (Hint: what does an LLM need to send in JSON?)
 5. **New view**: add a new dashboard section "Contacts". Which new table, model, schema, route, and DOM container would you create? Notice the 1:1:1:1 mapping.

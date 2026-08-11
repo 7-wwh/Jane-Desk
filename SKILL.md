@@ -23,7 +23,7 @@ The package is **two things**:
 | Path | Purpose |
 |---|---|
 | `app/` | FastAPI backend: `models.py`, `schemas.py`, `main.py`, `database.py` |
-| `static/` | Frontend: `index.html`, `styles.css`, `app.js` (no build step) |
+| `static/` | Frontend, no build step: `index.html` (shell), `core.css`/`core.js` (shared), `main.js` (boot), `widgets/*/` (per-widget `index.html` + `widget.css` + `widget.js`) |
 | `data/life.db` | SQLite database — **never edit directly, always via the API** |
 | `bin/post.sh` | One-command agent writer for entries |
 | `DESIGN.md` | Design specification (vision, palette, layout, status layer) |
@@ -74,5 +74,5 @@ routes to the right sub-skill. Today's skills are:
 | Routing/entry point for any agent message | `skills/main-skill.md` |
 
 If the task spans the backend or frontend, read `app/models.py`, `app/schemas.py`,
-`app/main.py` (backend) or `static/app.js` + `static/index.html` (frontend) for the core
-conventions before writing code.
+`app/main.py` (backend) or `static/core.js` + the matching `static/widgets/*/` folder
+(frontend) for the core conventions before writing code.

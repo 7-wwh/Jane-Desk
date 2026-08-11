@@ -168,6 +168,10 @@ The skill's task-logic surfaced live. Sections separated by hairline rules: **Ov
 
 - **Hover:** cards and pills shift to `#242424` background. No scale, no shadows — restrained.
 - **Checkbox tap:** instant lime fill + checkmark. No bounce.
+- **Mind map is a viewport, not a scrollable card.** The tree is a canvas you pan and zoom like a PDF: drag anywhere to pan in **all** directions, scroll wheel to zoom about the cursor (`0.25×–3×`), double-click empty space to reset to the home view. Node clicks still expand/collapse; a drag never toggles. The home view centers the map when it fits, top-left when it overflows.
+- **Widget scroll policy.** Only the Tasks list scrolls. Every other widget — mind map, Current Task/timer, Upcoming, Ideas — is non-scrolling (`overflow: hidden`); the mind map moves via drag-pan instead.
+- **No scroll indicators.** Scrollbars are hidden globally (`scrollbar-width: none` + `::-webkit-scrollbar { display: none }`) — no scrollbar chrome anywhere, including the page and the task list.
+- **Task editing.** Every task row and the Current Task hero expose an **Edit** action that opens the quick-add modal pre-filled (title, status, priority, due/begin date, duration, branch path; project read-only) and saves via `PUT /api/tasks/{id}`.
 - **Motion:** card entrance `fade + translate-Y(6px)`, 200ms ease-out. Metric numbers static (no count-up). Gantt bars render in place. No spring physics — this is a tool, not a marketing page.
 - **`prefers-reduced-motion`:** all animations/transitions disabled.
 - **Loading:** initial paint of greeting + ring is client-side (no API call). Data loads async into held space.
@@ -249,7 +253,7 @@ To keep the build honest:
 
 ## Implementation Notes
 
-**Stack:** Vanilla HTML/CSS/JS served by FastAPI's StaticFiles. No build step, no charting library — all charts are hand-rolled SVG (`svgEl`, `lineChart`, `donutSVG`, `sparkline` in `app.js`).
+**Stack:** Vanilla HTML/CSS/JS served by FastAPI's StaticFiles. No build step, no charting library — all charts are hand-rolled SVG. Frontend is split per widget under `static/widgets/*/` (`index.html` + `widget.css` + `widget.js`); shared design system and helpers live in `static/core.css` and `static/core.js`; `static/main.js` boots it (`App.boot()` injects each widget's markup, then renders).
 
 **Fonts:** Inter from Google Fonts (400–900).
 
