@@ -12,106 +12,128 @@
   -webkit-user-select: none;
 }
 
-.mind-wrap {
+.mm-wrap {
   position: absolute;
   left: 0;
   top: 0;
   transform-origin: 0 0;
 }
 
-.mind-svg { position: absolute; inset: 0; pointer-events: none; }
+.mm-svg { position: absolute; inset: 0; pointer-events: none; }
 
-.mind-line { stroke: var(--color-border); stroke-width: 1.5; }
-
-.mind-pulse {
-  fill: var(--color-lime);
-  filter: drop-shadow(0 0 5px var(--color-lime));
-}
-
-.mind-node {
+.mn {
   position: absolute;
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border);
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 0.5px solid var(--color-border);
   background: var(--color-surface);
-  color: var(--color-text-primary);
-  font-size: 13px;
-  font-weight: var(--fw-medium);
-  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: var(--fw-regular);
   white-space: nowrap;
-  transition: border-color 0.15s ease, box-shadow 0.2s ease;
-  animation: mindIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  cursor: pointer;
+  pointer-events: all;
 }
-.mind-node:hover { border-color: var(--color-lime); }
+.mn:hover { border-color: var(--color-text-dim); color: var(--color-text-primary); }
 
-@keyframes mindIn {
-  from { opacity: 0; transform: translateY(-50%) scale(0.85); }
-  to { opacity: 1; transform: translateY(-50%) scale(1); }
-}
-
-.mind-node.kind-root {
-  background: var(--color-lime);
-  border-color: var(--color-lime);
-  color: #111;
-  font-weight: var(--fw-black);
-  letter-spacing: 0.06em;
-}
-
-.mind-node.kind-branch {
-  border-color: var(--color-lime);
-  color: var(--color-lime);
+.mn.root {
+  background: var(--color-text-primary);
+  color: var(--color-surface);
+  border-color: var(--color-text-primary);
+  font-size: 11px;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  padding: 7px 16px;
+}
+.mn.branch {
+  background: var(--color-surface-hi);
+  border-color: var(--color-text-dim);
+  color: var(--color-text-secondary);
   font-size: 11px;
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.mn.branch:hover { border-color: var(--color-text-secondary); color: var(--color-text-primary); }
+.mn.task { font-size: 11px; color: var(--color-text-dim); }
+.mn.task:hover { color: var(--color-text-secondary); }
+.mn.done { color: var(--color-green); border-color: var(--color-green); }
+.mn.in_progress { color: var(--color-text-primary); border-color: var(--color-text-secondary); font-weight: var(--fw-medium); }
+.mn.paused,
+.mn.backlog { color: var(--color-text-dim); }
+.mn.running {
+  border-color: var(--color-amber);
+  color: var(--color-amber-deep);
+  font-weight: var(--fw-medium);
+  box-shadow: 0 0 0 3px rgba(245, 194, 0, 0.35);
 }
 
-.mind-node.kind-task {
-  font-size: 11px;
-  color: var(--color-text-muted);
+.mn-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
   background: var(--color-bg);
-}
-
-.mind-node.st-done { border-color: var(--color-green); color: var(--color-green); }
-.mind-node.st-paused { border-color: var(--color-orange); color: var(--color-orange); }
-.mind-node.st-backlog { border-color: var(--color-text-dim); color: var(--color-text-muted); }
-.mind-node.st-in_progress { border-color: var(--color-lime); color: var(--color-text-primary); }
-
-.mind-node.running {
-  border-color: var(--color-lime);
-  color: var(--color-lime);
-  box-shadow: 0 0 0 2px rgba(170, 235, 71, 0.2), 0 0 10px rgba(170, 235, 71, 0.35);
-  animation: mindIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both, mindGlow 2.4s ease-in-out infinite;
-}
-
-@keyframes mindGlow {
-  0%, 100% { box-shadow: 0 0 0 2px rgba(170, 235, 71, 0.18), 0 0 8px rgba(170, 235, 71, 0.3); }
-  50% { box-shadow: 0 0 0 2px rgba(170, 235, 71, 0.28), 0 0 16px rgba(170, 235, 71, 0.55); }
-}
-
-.mind-label { flex: 0 1 auto; min-width: 0; }
-
-.mind-tag {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  border: 0.5px solid var(--color-border);
   color: var(--color-text-dim);
+  font-size: 9px;
   flex-shrink: 0;
+  transition: transform var(--dur) var(--ease-out);
+}
+.mn.open .mn-toggle { transform: rotate(90deg); }
+
+.mn-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-text-dim);
+}
+.mn.done .mn-dot { background: var(--color-green); }
+.mn.in_progress .mn-dot { background: var(--color-amber); }
+.mn.running .mn-dot { background: var(--color-amber); }
+.mn.paused .mn-dot,
+.mn.backlog .mn-dot { background: var(--color-border); }
+
+.me { fill: none; stroke: var(--color-text-dim); stroke-width: 1; opacity: 0.6; }
+
+.mm-hint {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--color-text-dim);
+  background: var(--color-surface-hi);
+  border: 0.5px solid var(--color-border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  pointer-events: none;
+  opacity: 0.7;
+  white-space: nowrap;
 }
 
-.mind-count {
-  font-size: 10px;
-  font-weight: var(--fw-bold);
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border);
-  padding: 1px 7px;
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
+.mm-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
-
-.mind-count.hint { color: var(--color-lime); border-color: var(--color-lime); }
+.mm-btn {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  background: none;
+  border: 0.5px solid var(--color-border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.mm-btn:hover { background: var(--color-surface-hi); color: var(--color-text-primary); }

@@ -16,14 +16,24 @@ const ENDPOINTS = {
   goal: "/api/goals",
   journal: "/api/journal",
 };
-const PRIO_COLORS = { high: "#F5A623", medium: "#AAEB47", low: "#6DC533" };
-const DEFAULT_SETTINGS = { clock24: false, precision: "sec" };
+const PRIO_COLORS = { high: "#E03E2D", medium: "#F5C200", low: "#2D9F5C" };
+const PRIO_TEXT = { high: "#E03E2D", medium: "#D4A800", low: "#2D9F5C" };
+const PRIO_BG = { high: "#FDECEA", medium: "#FFF8D6", low: "#E8F7EE" };
+const DEFAULT_SETTINGS = {
+  clock24: false,
+  precision: "sec",
+  user_name: "Alex",
+  weekly_focus_hours: 40,
+  daily_task_target: 8,
+  widget_order: ["widget-hero", "widget-chart", "widget-timer", "widget-tasks"],
+};
 
 const state = {
   work: null,
   projects: [],
   activeSession: null,
   tree: null,
+  stats: null,
   mindRoot: null,
   mindClosing: false,
   mindPan: { x: 0, y: 0 },
@@ -114,6 +124,49 @@ function toast(message, kind = "success") {
   el.className = "toast show " + kind;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+}
+
+/* ---------- Settings (server-backed, localStorage fallback) ---------- */
+
+const SETTINGS_LS_KEY = "checkboxSettings";
+
+function loadLocalSettings() {
+  try {
+    return { ...DEFAULT_SETTINGS, ...(JSON.parse(localStorage.getItem(SETTINGS_LS_KEY) || "{}")) };
+  } catch (_) {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+function persistLocalSettings() {
+  try { localStorage.setItem(SETTINGS_LS_KEY, JSON.stringify(state.settings)); } catch (_) {}
+}
+
+// Merge server-side settings into state.settings. Fires on boot and after saves.
+async function syncServerSettings() {
+  try {
+    const res = await fetchJSON("/api/settings");
+    const server = (res && res.settings) || {};
+    state.settings = { ...state.settings, ...server };
+    persistLocalSettings();
+  } catch (_) {}
+}
+
+// Persist changed keys locally + to the server (best-effort). Returns a Promise.
+async function saveSettingsToServer(changes, showToast_) {
+  state.settings = { ...state.settings, ...changes };
+  persistLocalSettings();
+  try {
+    const res = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ settings: changes }),
+    });
+    if (!res.ok) throw new Error();
+    if (showToast_) toast("Settings saved", "success");
+  } catch (_) {
+    if (showToast_) toast("Offline — saved in this browser only", "info");
+  }
 }
 
 /* ---------- Work screen ---------- */
@@ -232,7 +285,7 @@ function playButton(t) {
 }
 
 function workRow(t, today) {
-  const pc = PRIO_COLORS[t.priority] || "#9B9B9B";
+  const pc = PRIO_COLORS[t.priority] || "#6B6460";
   return `<div class="work-row">
     <span class="brief-prio" style="background:${pc}"></span>
     <div class="work-row-body">
@@ -308,11 +361,59 @@ async function loadTree() {
   }
 }
 
+async function loadStats() {
+  try {
+    state.stats = await fetchJSON("/api/stats");
+  } catch (err) {
+    toast("Failed to load stats: " + err.message, "error");
+  }
+}
+
+function renderAllWidgets() {
+  Object.values(App.widgets).forEach((widget) => {
+    if (typeof widget.render !== "function") return;
+    $$(".widget-part").forEach((el) => {
+      const widgetDef = App.widgets[el.dataset.part];
+      if (widgetDef === widget) widget.render(el);
+    });
+  });
+}
+
+function renderGreetingMetrics() {
+  const s = state.stats;
+  const set = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+  if (!s) return;
+  const total = s.done_tasks + s.open_tasks;
+  const completed = total ? Math.round((s.done_tasks / total) * 100) : 0;
+  set("metric-completed", completed + "%");
+  set("metric-habits", completed + "%");
+  set("metric-todo", String(s.open_tasks));
+  set("keymetric-projects", String(s.active_projects));
+  set("keymetric-focus", completed + "%");
+  const sessions = s.sessions || [];
+  const todayKey = todayISO();
+  let todaySec = 0;
+  sessions.forEach((sess) => {
+    const start = parseISO(sess.started_at);
+    if (!start) return;
+    const dur = sess.ended_at ? sess.duration_seconds || 0 : Math.max(0, (Date.now() - start.getTime()) / 1000);
+    const key = start.getFullYear() + "-" + String(start.getMonth() + 1).padStart(2, "0") + "-" + String(start.getDate()).padStart(2, "0");
+    if (key === todayKey) todaySec += dur;
+  });
+  set("metric-deep-work", fmtDur(todaySec));
+  set("keymetric-tasks", String(s.tasks_due_today));
+}
+
 async function refreshAll() {
-  await Promise.all([loadWork(), loadProjects(), loadActiveSession(), loadTree()]);
+  await Promise.all([loadWork(), loadProjects(), loadActiveSession(), loadTree(), loadStats()]);
   state.mindRoot = null;
   renderWork();
   renderMindMap();
+  renderAllWidgets();
+  renderGreetingMetrics();
 }
 
 /* ---------- Actions ---------- */
@@ -437,14 +538,131 @@ async function injectParts() {
   );
 }
 
+/* ---------- Drag and Drop Rearrange Mode ---------- */
+
+let draggedElement = null;
+let isRearrangeMode = false;
+
+function toggleRearrangeMode() {
+  isRearrangeMode = !isRearrangeMode;
+  const btn = $("#btn-rearrange");
+  const label = $("#rearrange-label");
+  const handles = $$(".drag-handle");
+
+  if (isRearrangeMode) {
+    if (btn) btn.classList.add("active");
+    if (label) label.innerText = "Lock Layout";
+    handles.forEach((h) => (h.hidden = false));
+    toast("Rearrange mode active: Drag widgets to reorder", "info");
+  } else {
+    if (btn) btn.classList.remove("active");
+    if (label) label.innerText = "Rearrange";
+    handles.forEach((h) => (h.hidden = true));
+    toast("Layout locked", "info");
+  }
+}
+
+function setupDragAndDrop() {
+  const widgets = $$(".draggable-widget");
+  widgets.forEach((widget) => {
+    widget.setAttribute("draggable", "true");
+    widget.addEventListener("dragstart", (e) => {
+      if (!isRearrangeMode) {
+        e.preventDefault();
+        return;
+      }
+      draggedElement = widget;
+      e.dataTransfer.effectAllowed = "move";
+      widget.classList.add("dragging");
+    });
+
+    widget.addEventListener("dragover", (e) => {
+      if (e.preventDefault) e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      return false;
+    });
+
+    widget.addEventListener("dragenter", (e) => {
+      if (widget !== draggedElement) {
+        widget.classList.add("drag-over");
+      }
+    });
+
+    widget.addEventListener("dragleave", (e) => {
+      widget.classList.remove("drag-over");
+    });
+
+    widget.addEventListener("drop", (e) => {
+      if (e.stopPropagation) e.stopPropagation();
+      widget.classList.remove("drag-over");
+
+      if (draggedElement && widget !== draggedElement && widget.parentNode === draggedElement.parentNode) {
+        const container = widget.parentNode;
+        const children = Array.from(container.children);
+        const draggedIdx = children.indexOf(draggedElement);
+        const targetIdx = children.indexOf(widget);
+
+        if (draggedIdx < targetIdx) {
+          container.insertBefore(draggedElement, widget.nextSibling);
+        } else {
+          container.insertBefore(draggedElement, widget);
+        }
+        toast("Widget positions updated!", "success");
+      }
+      return false;
+    });
+
+    widget.addEventListener("dragend", () => {
+      $$(".draggable-widget").forEach((w) => w.classList.remove("dragging", "drag-over"));
+      draggedElement = null;
+    });
+  });
+}
+
+/* ---------- Dynamic Greeting ---------- */
+
+function updateGreeting() {
+  const hour = new Date().getHours();
+  const greetingEl = $("#greeting-text");
+  const nameEl = $("#greeting-name");
+  if (greetingEl) {
+    const name = (state.settings.user_name || "").trim() || "Alex";
+    if (hour < 12) { greetingEl.innerText = "Good morning"; if (nameEl) nameEl.innerText = `${name} ☀️`; }
+    else if (hour < 18) { greetingEl.innerText = "Good afternoon"; if (nameEl) nameEl.innerText = `${name} 🌤️`; }
+    else { greetingEl.innerText = "Good evening"; if (nameEl) nameEl.innerText = `${name} 🌙`; }
+  }
+
+  const dateEl = $("#current-date-str");
+  if (dateEl) {
+    const now = new Date();
+    const options = { weekday: "long", month: "long", day: "numeric", year: "numeric" };
+    dateEl.innerText = now.toLocaleDateString(undefined, options);
+  }
+}
+
 /* ---------- Global bindings ---------- */
 
 function bindCore() {
-  $("#new-btn").addEventListener("click", () => {
-    const menu = $("#new-menu");
-    menu.hidden = !menu.hidden;
-    $("#new-btn").setAttribute("aria-expanded", String(!menu.hidden));
-  });
+  const newBtn = $("#new-btn");
+  if (newBtn) {
+    newBtn.addEventListener("click", () => {
+      const menu = $("#new-menu");
+      menu.hidden = !menu.hidden;
+      newBtn.setAttribute("aria-expanded", String(!menu.hidden));
+    });
+  }
+
+  const btnRearrange = $("#btn-rearrange");
+  if (btnRearrange) {
+    btnRearrange.addEventListener("click", toggleRearrangeMode);
+  }
+
+  const btnNotify = $("#btn-notifications");
+  if (btnNotify) {
+    btnNotify.addEventListener("click", () => {
+      toast("You have 2 pending deadline reminders", "info");
+    });
+  }
 
   $$(".new-item").forEach((item) =>
     item.addEventListener("click", () => {
@@ -456,25 +674,29 @@ function bindCore() {
   $$(".tab-btn").forEach((btn) => btn.addEventListener("click", () => switchTab(btn.dataset.tab)));
 
   const timerPill = $("#topbar-timer");
-  timerPill.addEventListener("mouseenter", () => {
-    timerRolling = true;
-    syncTopbarTimer();
-  });
-  timerPill.addEventListener("mouseleave", () => {
-    timerRolling = false;
-    syncTopbarTimer();
-  });
+  if (timerPill) {
+    timerPill.addEventListener("mouseenter", () => {
+      timerRolling = true;
+      syncTopbarTimer();
+    });
+    timerPill.addEventListener("mouseleave", () => {
+      timerRolling = false;
+      syncTopbarTimer();
+    });
+  }
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      if (!$("#sessions-backdrop").hidden) closeSessions();
+      const sessBd = $("#sessions-backdrop");
+      if (sessBd && !sessBd.hidden) closeSessions();
       else closeModal();
       hideMenu();
     }
   });
 
   document.addEventListener("click", (e) => {
-    if (!document.querySelector(".new-wrap").contains(e.target)) hideMenu();
+    const wrap = document.querySelector(".new-wrap");
+    if (wrap && !wrap.contains(e.target)) hideMenu();
     if (e.target === $("#modal-backdrop")) closeModal();
     if (e.target === $("#sessions-backdrop")) closeSessions();
     const closeBtn = e.target.closest("[data-close]");
@@ -518,13 +740,17 @@ function bindCore() {
 /* ---------- Boot ---------- */
 
 async function boot() {
+  state.settings = { ...loadLocalSettings() };
   bindCore();
   await injectParts();
+  await syncServerSettings();
   renderSettings();
   updateClock();
+  updateGreeting();
   setInterval(updateClock, 60000);
   startTicker();
   await refreshAll();
+  setupDragAndDrop();
 }
 
 App.boot = boot;

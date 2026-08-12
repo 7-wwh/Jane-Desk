@@ -1,7 +1,9 @@
-from datetime import date, datetime
+import json
+from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Body, Depends, FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -528,6 +530,63 @@ def delete_journal(journal_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
+# ---------- Settings (key-value) ----------
+
+
+def _json_dumps(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def _read_settings(db: Session) -> dict[str, Any]:
+    rows = db.query(models.Setting).all()
+    out: dict[str, Any] = {}
+    for row in rows:
+        try:
+            out[row.key] = json.loads(row.value)
+        except (json.JSONDecodeError, TypeError):
+            out[row.key] = row.value
+    return out
+
+
+@app.get("/api/settings", response_model=schemas.SettingsOut)
+def get_settings(db: Session = Depends(get_db)):
+    return schemas.SettingsOut(settings=_read_settings(db))
+
+
+@app.put("/api/settings", response_model=schemas.SettingsOut)
+def update_settings(data: schemas.SettingsUpdate, db: Session = Depends(get_db)):
+    for key, value in data.settings.items():
+        row = db.get(models.Setting, key)
+        if row is None:
+            row = models.Setting(key=key, value=_json_dumps(value))
+            db.add(row)
+        else:
+            row.value = _json_dumps(value)
+    db.commit()
+    return schemas.SettingsOut(settings=_read_settings(db))
+
+
+@app.patch("/api/settings/{key}", response_model=schemas.SettingsOut)
+def update_setting_key(key: str, value: Any = Body(...), db: Session = Depends(get_db)):
+    row = db.get(models.Setting, key)
+    if row is None:
+        row = models.Setting(key=key, value=_json_dumps(value))
+        db.add(row)
+    else:
+        row.value = _json_dumps(value)
+    db.commit()
+    return schemas.SettingsOut(settings=_read_settings(db))
+
+
+@app.delete("/api/settings/{key}", response_model=schemas.SettingsOut)
+def delete_setting_key(key: str, db: Session = Depends(get_db)):
+    row = db.get(models.Setting, key)
+    if row:
+        db.delete(row)
+        db.commit()
+    return schemas.SettingsOut(settings=_read_settings(db))
+
+
 # ---------- Aggregates ----------
 
 PROJECT_STATUS_ORDER = {"active": 0, "backlog": 1, "paused": 2, "done": 3}
@@ -821,6 +880,39 @@ def dashboard(db: Session = Depends(get_db)):
 @app.get("/api/tree", response_model=schemas.TreeOut)
 def get_tree(db: Session = Depends(get_db)):
     return build_tree(db)
+
+
+@app.get("/api/stats")
+def stats(db: Session = Depends(get_db)):
+    """Aggregate counters + recent time sessions — powers the analytics/habits/greeting widgets."""
+    today = date.today()
+    tasks = db.query(models.Task).all()
+    projects = db.query(models.Project).all()
+    since = datetime.utcnow() - timedelta(days=60)
+    sessions = (
+        db.query(models.TaskSession)
+        .filter(models.TaskSession.started_at >= since)
+        .order_by(models.TaskSession.started_at.desc())
+        .all()
+    )
+    open_tasks = [t for t in tasks if t.status != "done"]
+    done_tasks = [t for t in tasks if t.status == "done"]
+    due_today = [t for t in tasks if t.status != "done" and t.due_date == today]
+    return {
+        "today": today.isoformat(),
+        "open_tasks": len(open_tasks),
+        "done_tasks": len(done_tasks),
+        "active_projects": sum(1 for p in projects if p.status == "active"),
+        "tasks_due_today": len(due_today),
+        "sessions": [
+            {
+                "started_at": s.started_at.isoformat(),
+                "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+                "duration_seconds": s.duration_seconds,
+            }
+            for s in sessions
+        ],
+    }
 
 
 @app.get("/api/timeline", response_model=list[schemas.TimelineItem])

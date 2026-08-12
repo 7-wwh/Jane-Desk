@@ -1,5 +1,6 @@
 import datetime as dt
 from datetime import date, datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -231,6 +232,15 @@ class TimelineItem(BaseModel):
     body: str
     tags: str = ""
     entity_id: int
+
+
+class SettingsUpdate(BaseModel):
+    # Any JSON-encodable value is allowed per key.
+    settings: dict[str, Any] = Field(default_factory=dict)
+
+
+class SettingsOut(BaseModel):
+    settings: dict[str, Any] = Field(default_factory=dict)
 
 
 class WorkTask(TaskTimeOut):

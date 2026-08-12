@@ -1,0 +1,52 @@
+.notes-card {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.notes-card .card-header {
+  margin-bottom: 10px;
+}
+
+.notes-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notes-textarea {
+  width: 100%;
+  height: 90px;
+  padding: 10px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  resize: none;
+  transition: border-color var(--dur-fast);
+}
+
+.notes-textarea:focus {
+  outline: none;
+  border-color: var(--color-amber);
+}
+
+.notes-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-save-notes {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--color-text-primary);
+  color: #FFFFFF;
+  transition: background var(--dur-fast);
+}
+
+.btn-save-notes:hover {
+  background: #333333;
+}

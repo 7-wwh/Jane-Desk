@@ -1,0 +1,73 @@
+.projects-overview-card {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.projects-overview-card .card-header {
+  margin-bottom: 12px;
+}
+
+.projects-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.project-progress-item {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.project-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.project-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.project-pct {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.project-pct.text-amber {
+  color: var(--color-amber-deep);
+}
+
+.progress-bar-track {
+  width: 100%;
+  height: 6px;
+  background: var(--color-surface-hi);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width var(--dur);
+}
+
+.progress-bar-fill.bg-amber {
+  background: var(--color-amber);
+}
+
+.progress-bar-fill.bg-dark {
+  background: var(--color-text-primary);
+}
+
+.progress-bar-fill.bg-green {
+  background: var(--color-green);
+}

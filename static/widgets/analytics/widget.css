@@ -1,0 +1,125 @@
+.analytics-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  min-height: 280px;
+}
+
+.analytics-card .card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.analytics-stat-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.analytics-number {
+  font-size: 26px;
+  font-weight: var(--fw-black);
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+
+.analytics-subtext {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.btn-analytics-breakdown {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  transition: background var(--dur-fast);
+}
+
+.btn-analytics-breakdown:hover {
+  background: var(--color-surface-hi);
+  color: var(--color-text-primary);
+}
+
+.bar-chart-container {
+  position: relative;
+  margin-top: 20px;
+  padding: 0 4px;
+}
+
+.today-badge {
+  position: absolute;
+  top: -18px;
+  right: 18%;
+  background: var(--color-amber);
+  color: var(--color-text-primary);
+  font-size: 10px;
+  font-weight: var(--fw-black);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 110px;
+}
+
+.chart-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.bar-track {
+  width: 10px;
+  height: 90px;
+  background: var(--color-surface-hi);
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.bar-fill {
+  width: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-text-dim);
+  transition: background var(--dur-fast), height var(--dur);
+}
+
+.chart-col:hover .bar-fill {
+  background: var(--color-amber-deep);
+}
+
+.bar-fill.active-dark {
+  background: var(--color-text-primary);
+}
+
+.bar-fill.highlight {
+  background: var(--color-amber);
+}
+
+.day-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-dim);
+}
+
+.day-label.today {
+  font-weight: var(--fw-black);
+  color: var(--color-text-primary);
+}

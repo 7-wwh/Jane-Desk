@@ -1,8 +1,14 @@
 /* ---------- Current Task ---------- */
 
+.work-hero-card.running {
+  box-shadow: inset 3px 0 0 var(--color-amber), 0 1px 4px rgba(26, 23, 20, 0.06);
+  background: linear-gradient(to bottom, var(--color-amber-bg) 0 48px, var(--color-surface) 48px 100%);
+}
+.work-hero-card.running:hover { box-shadow: inset 3px 0 0 var(--color-amber), 0 8px 24px rgba(26, 23, 20, 0.08); }
+
 .hero-hint {
   font-size: 12px;
-  color: var(--color-orange);
+  color: var(--color-red);
   margin-bottom: 10px;
   letter-spacing: 0.02em;
 }
@@ -21,7 +27,7 @@
 
 .hero-meta {
   font-size: 13px;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -67,7 +73,7 @@
   justify-content: center;
   font-size: 30px;
   font-weight: var(--fw-black);
-  color: var(--color-lime);
+  color: var(--color-amber-deep);
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: var(--color-surface);
@@ -87,26 +93,12 @@
 
 .btn-lure {
   flex: 1;
-  font-size: 15px;
-  font-weight: var(--fw-black);
-  padding: 14px 22px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  box-shadow: 0 0 0 3px rgba(170, 235, 71, 0.12), inset 0 0 24px rgba(170, 235, 71, 0.15);
-}
-
-.btn-lure {
-  flex: 1;
-  font-size: 16px;
-  font-weight: var(--fw-black);
-  padding: 13px 22px;
+  font-size: 13px;
+  font-weight: var(--fw-bold);
+  padding: 10px 22px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.btn-lure:hover { box-shadow: 0 0 0 5px rgba(170, 235, 71, 0.2), inset 0 0 34px rgba(170, 235, 71, 0.25); background: #b9f05d; border-color: #b9f05d; }
-
-.btn-finish { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
-.btn-finish { font-size: 13px; }
 
 .task-chip {
   font-size: 10px;
@@ -116,7 +108,11 @@
   padding: 2px 7px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--color-border);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
-.task-chip.task-prio { color: var(--chip, var(--color-text-muted)); border-color: var(--chip, var(--color-border)); }
+.task-chip.task-prio {
+  color: var(--chip, var(--color-text-secondary));
+  border-color: var(--chip, var(--color-border));
+  background: var(--chip-bg, var(--color-surface-hi));
+}

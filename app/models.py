@@ -87,3 +87,13 @@ class Journal(Base):
     content: Mapped[str] = mapped_column(Text, default="")
     related_entity: Mapped[str] = mapped_column(String(200), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=NOW)
+
+
+class Setting(Base):
+    """Key-value app settings (display name, widget layout, dashboard targets)."""
+
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="")  # JSON-serialized value
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=NOW, onupdate=NOW)

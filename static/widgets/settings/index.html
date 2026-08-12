@@ -1,5 +1,37 @@
 <section class="card settings-card">
   <div class="card-head">
+    <h3 class="card-label">Profile &amp; Targets</h3>
+  </div>
+
+  <div class="settings-group">
+    <div class="settings-row">
+      <div class="settings-label">
+        <span class="settings-name">Display name</span>
+        <span class="settings-desc">Used in your greeting and topbar avatar.</span>
+      </div>
+      <input class="settings-value field-input" id="set-user-name" type="text" maxlength="24" placeholder="Alex">
+    </div>
+
+    <div class="settings-row">
+      <div class="settings-label">
+        <span class="settings-name">Weekly focus target</span>
+        <span class="settings-desc">Goal hours shown on the Weekly Output card.</span>
+      </div>
+      <input class="settings-value field-input field-input-sm" id="set-weekly-hours" type="number" min="1" max="168">
+    </div>
+
+    <div class="settings-row">
+      <div class="settings-label">
+        <span class="settings-name">Daily task target</span>
+        <span class="settings-desc">Goal number of tasks completed per day.</span>
+      </div>
+      <input class="settings-value field-input field-input-sm" id="set-daily-target" type="number" min="1" max="50">
+    </div>
+  </div>
+</section>
+
+<section class="card settings-card">
+  <div class="card-head">
     <h3 class="card-label">Display</h3>
   </div>
 

@@ -1,3 +1,5 @@
+/* ---------- Mind map widget ---------- */
+
 function countProjects(roots) {
   let n = 0;
   (function walk(nodes) {
@@ -68,23 +70,16 @@ function applyMindOpen(root, openSet) {
   (root.children || []).forEach((c) => applyMindOpen(c, openSet));
 }
 
-function mindDescendantCount(n) {
-  let c = 0;
-  (n.children || []).forEach((ch) => {
-    c += 1 + mindDescendantCount(ch);
-  });
-  return c;
-}
-
-const MIND_LEVEL_GAP = 230;
-const MIND_ROW = 46;
+const MIND_LEVEL_GAP = 200;
+const MIND_ROW = 40;
 
 function mindLayout(root) {
   const placed = [];
   let slot = 0;
   (function place(n, depth) {
     n._x = depth * MIND_LEVEL_GAP;
-    if (!n.expanded || !n.children.length) {
+    const hasKids = (n.children && n.children.length) && n.expanded;
+    if (!hasKids) {
       n._y = slot * MIND_ROW;
       n._top = n._bottom = n._y;
       slot++;
@@ -96,7 +91,7 @@ function mindLayout(root) {
     }
     placed.push(n);
   })(root, 0);
-  return { placed, h: Math.max(1, slot) * MIND_ROW + 24 };
+  return { placed, h: Math.max(1, slot) * MIND_ROW + 60 };
 }
 
 function mindConnector(x1, y1, x2, y2) {
@@ -134,8 +129,18 @@ function toggleMindTree() {
     n.expanded = isRoot || expand;
     (n.children || []).forEach((c) => walk(c, false));
   })(root, true);
-  state.mindClosing = !expand;
   renderMindMap();
+}
+
+function ensureMindSkeleton(el) {
+  let wrap = el.querySelector("#mm-wrap");
+  if (!wrap) {
+    el.innerHTML =
+      `<div class="mm-wrap" id="mm-wrap"><svg class="mm-svg" id="mm-svg"></svg></div>` +
+      `<div class="mm-hint">Scroll to zoom · drag to pan · click nodes to expand</div>`;
+    wrap = el.querySelector("#mm-wrap");
+  }
+  return wrap;
 }
 
 function renderMindMap() {
@@ -153,62 +158,50 @@ function renderMindMap() {
     applyMindOpen(state.mindRoot, collectMindOpen(state.mindRoot));
   }
   const { placed, h } = mindLayout(state.mindRoot);
-  const nodesHtml = placed
-    .map((n) => {
-      const open = !!n.expanded;
-      const hasKids = n.children && n.children.length;
-      const count = hasKids ? mindDescendantCount(n) : 0;
-      return `<div class="mind-node kind-${n.kind}${n.running ? " running" : ""}${n.status ? " st-" + n.status : ""}${open ? " open" : ""}" data-key="${esc(n.key)}" style="left:${Math.round(n._x)}px;top:${Math.round(n._y)}px">
-        <span class="mind-label">${esc(n.label)}</span>
-        ${n.tag ? `<span class="mind-tag">${esc(n.tag)}</span>` : ""}
-        ${hasKids ? `<span class="mind-count${open ? "" : " hint"}">${open ? "&#9662;" : "&#9656;"}${count}</span>` : ""}
-      </div>`;
-    })
-    .join("");
-  el.innerHTML = `<div class="mind-wrap">${nodesHtml}</div>`;
-  const wrap = el.querySelector(".mind-wrap");
-  const nodeEls = [...wrap.querySelectorAll(".mind-node")];
+  const wrap = ensureMindSkeleton(el);
+  const svgEl = document.getElementById("mm-svg");
+
+  [...wrap.querySelectorAll(".mn")].forEach((n) => n.remove());
+
+  let html = "";
+  placed.forEach((n) => {
+    const open = !!n.expanded;
+    const kids = n.children && n.children.length;
+    const cls = ["mn", n.kind, n.status || "", n.running ? "running" : "", open && kids ? "open" : ""]
+      .filter(Boolean)
+      .join(" ");
+    const dot = n.kind === "project" || n.kind === "task" ? `<span class="mn-dot"></span>` : "";
+    const toggle = kids ? `<span class="mn-toggle">›</span>` : "";
+    html +=
+      `<div class="${cls}" data-key="${esc(n.key)}" style="left:${Math.round(n._x)}px;top:${Math.round(n._y)}px">` +
+      `${dot}<span>${esc(n.label)}</span>${toggle}</div>`;
+  });
+  wrap.insertAdjacentHTML("beforeend", html);
+
+  const nodeEls = [...wrap.querySelectorAll(".mn")];
   let maxRight = 0;
   placed.forEach((n, i) => {
-    n._w = nodeEls[i].offsetWidth || 80;
+    n._w = nodeEls[i] ? nodeEls[i].offsetWidth || 100 : 100;
     maxRight = Math.max(maxRight, n._x + n._w);
   });
-  const w = Math.round(maxRight + 24);
+  const w = Math.round(maxRight + 40);
   const hh = Math.round(h);
   wrap.style.width = w + "px";
   wrap.style.height = hh + "px";
+  svgEl.setAttribute("width", w);
+  svgEl.setAttribute("height", hh);
+  svgEl.setAttribute("viewBox", `0 0 ${w} ${hh}`);
+
   const edges = [];
-  let maxDepth = 0;
-  (function collect(n, depth) {
+  (function collect(n) {
     if (!n.expanded) return;
     (n.children || []).forEach((c) => {
-      edges.push({ x1: n._x + n._w, y1: n._y, x2: c._x, y2: c._y, depth });
-      maxDepth = Math.max(maxDepth, depth);
-      collect(c, depth + 1);
+      edges.push({ x1: n._x + n._w, y1: n._y, x2: c._x, y2: c._y });
+      collect(c);
     });
-  })(state.mindRoot, 0);
-  const lines = edges
-    .map((e) => `<path d="${mindConnector(e.x1, e.y1, e.x2, e.y2)}" fill="none" class="mind-line"/>`)
-    .join("");
-  const closing = state.mindClosing;
-  const pulses = edges
-    .map((e) => {
-      const d = mindConnector(e.x1, e.y1, e.x2, e.y2);
-      const t = closing ? (maxDepth - e.depth) * 0.14 : e.depth * 0.14;
-      const kp = closing ? "keyPoints=\"1;0\" keyTimes=\"0;1\"" : "";
-      return `<circle class="mind-pulse" r="3.4">
-        <animateMotion dur="0.55s" begin="${t}s" fill="freeze" path="${d}" ${kp}/>
-        <animate attributeName="opacity" dur="0.7s" begin="${t}s" fill="freeze" values="0;1;1;0" keyTimes="0;0.1;0.75;1"/>
-      </circle>`;
-    })
-    .join("");
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("class", "mind-svg");
-  svg.setAttribute("width", w);
-  svg.setAttribute("height", hh);
-  svg.setAttribute("viewBox", `0 0 ${w} ${hh}`);
-  svg.innerHTML = lines + pulses;
-  wrap.prepend(svg);
+  })(state.mindRoot);
+  svgEl.innerHTML = edges.map((e) => `<path d="${mindConnector(e.x1, e.y1, e.x2, e.y2)}" class="me"/>`).join("");
+
   if (!state.mindInitialized) {
     const home = mindHomePan(el, w, hh);
     if (home) {
@@ -219,12 +212,11 @@ function renderMindMap() {
     }
   }
   applyMindPan(wrap);
-  updateTreeToggleLabel(state.mindRoot ? mindAllExpanded(state.mindRoot) : true);
+  updateTreeToggleLabel(mindAllExpanded(state.mindRoot));
 }
 
 const MIND_ZOOM_MIN = 0.25;
 const MIND_ZOOM_MAX = 3;
-const MIND_ZOOM_STEP = 1.12;
 
 function applyMindPan(wrap) {
   if (!wrap) return;
@@ -236,13 +228,13 @@ function mindHomePan(el, w, hh) {
   const ch = el.clientHeight;
   if (cw <= 0 || ch <= 0) return null;
   return {
-    x: w <= cw ? (cw - w) / 2 : 0,
-    y: hh <= ch ? (ch - hh) / 2 : 0,
+    x: w <= cw ? (cw - w) / 2 : 60,
+    y: hh <= ch ? (ch - hh) / 2 : 60,
   };
 }
 
 function resetMindView(el) {
-  const wrap = el.querySelector(".mind-wrap");
+  const wrap = el.querySelector("#mm-wrap");
   if (!wrap) return;
   const home = mindHomePan(el, wrap.offsetWidth, wrap.offsetHeight);
   if (!home) return;
@@ -252,85 +244,74 @@ function resetMindView(el) {
   applyMindPan(wrap);
 }
 
-function zoomMindAt(el, cx, cy, factor) {
-  const wrap = el.querySelector(".mind-wrap");
-  if (!wrap) return;
-  const old = state.mindZoom;
-  const next = Math.min(MIND_ZOOM_MAX, Math.max(MIND_ZOOM_MIN, old * factor));
-  if (next === old) return;
-  const p = state.mindPan;
-  const wx = (cx - p.x) / old;
-  const wy = (cy - p.y) / old;
-  state.mindZoom = next;
-  p.x = cx - wx * next;
-  p.y = cy - wy * next;
-  applyMindPan(wrap);
-}
-
 function bindMindMap() {
-  const mindTree = $("#work-tree");
-  if (mindTree) {
-    const onPanMove = (e) => {
-      if (!state.panStart) return;
-      const dx = e.clientX - state.panStart.x;
-      const dy = e.clientY - state.panStart.y;
-      if (Math.hypot(dx, dy) > 4) state.mindDragged = true;
-      state.mindPan.x = state.panStart.px + dx;
-      state.mindPan.y = state.panStart.py + dy;
-      applyMindPan(mindTree.querySelector(".mind-wrap"));
-    };
-    const clearPan = () => {
-      if (!state.panStart) return;
-      state.panStart = null;
-      mindTree.classList.remove("panning");
-      document.removeEventListener("pointermove", onPanMove);
-      document.removeEventListener("pointerup", onPanUp);
-      document.removeEventListener("pointercancel", onPanEnd);
-    };
-    const onPanEnd = () => clearPan();
-    const onPanUp = () => {
-      const key = panNodeKey;
-      const moved = state.mindDragged;
-      clearPan();
-      if (moved || !key) return;
-      const node = findMindNode(state.mindRoot, key);
-      if (node && node.children && node.children.length) {
-        node.expanded = !node.expanded;
-        state.mindClosing = !node.expanded;
-        renderMindMap();
-      }
-    };
-    let panNodeKey = null;
-    mindTree.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0) return;
-      state.mindDragged = false;
-      panNodeKey = e.target.closest(".mind-node") ? e.target.closest(".mind-node").dataset.key : null;
-      state.panStart = {
-        x: e.clientX,
-        y: e.clientY,
-        px: state.mindPan.x,
-        py: state.mindPan.y,
-      };
-      mindTree.classList.add("panning");
-      document.addEventListener("pointermove", onPanMove);
-      document.addEventListener("pointerup", onPanUp);
-      document.addEventListener("pointercancel", onPanEnd);
-    });
-    mindTree.addEventListener(
-      "wheel",
-      (e) => {
-        e.preventDefault();
-        const rect = mindTree.getBoundingClientRect();
-        const factor = e.deltaY < 0 ? MIND_ZOOM_STEP : 1 / MIND_ZOOM_STEP;
-        zoomMindAt(mindTree, e.clientX - rect.left, e.clientY - rect.top, factor);
-      },
-      { passive: false }
-    );
-    mindTree.addEventListener("dblclick", (e) => {
-      if (e.target.closest(".mind-node")) return;
-      resetMindView(mindTree);
-    });
-  }
+  const canvas = $("#work-tree");
+  if (!canvas) return;
+
+  const resetBtn = $("#mm-reset");
+  if (resetBtn) resetBtn.addEventListener("click", () => resetMindView(canvas));
+
+  let panStart = null;
+  let panMoved = false;
+
+  canvas.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    panMoved = false;
+    panStart = { x: e.clientX, y: e.clientY, px: state.mindPan.x, py: state.mindPan.y };
+    canvas.setPointerCapture(e.pointerId);
+    canvas.classList.add("panning");
+  });
+
+  canvas.addEventListener("pointermove", (e) => {
+    if (!panStart) return;
+    const dx = e.clientX - panStart.x;
+    const dy = e.clientY - panStart.y;
+    if (Math.hypot(dx, dy) > 4) panMoved = true;
+    if (panMoved) {
+      state.mindPan.x = panStart.px + dx;
+      state.mindPan.y = panStart.py + dy;
+      applyMindPan(canvas.querySelector("#mm-wrap"));
+    }
+  });
+
+  canvas.addEventListener("pointerup", (e) => {
+    if (!panStart) return;
+    const wasDrag = panMoved;
+    panStart = null;
+    canvas.classList.remove("panning");
+    if (wasDrag) return;
+
+    const hit = document.elementFromPoint(e.clientX, e.clientY);
+    const nodeEl = hit && hit.closest(".mn");
+    if (!nodeEl) return;
+    const k = nodeEl.dataset.key;
+    const n = findMindNode(state.mindRoot, k);
+    if (n && n.children && n.children.length) {
+      n.expanded = !n.expanded;
+      renderMindMap();
+    }
+  });
+
+  canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+    const old = state.mindZoom;
+    const next = Math.min(MIND_ZOOM_MAX, Math.max(MIND_ZOOM_MIN, old * factor));
+    if (next === old) return;
+    const p = state.mindPan;
+    const wx = (e.clientX - rect.left - p.x) / old;
+    const wy = (e.clientY - rect.top - p.y) / old;
+    state.mindZoom = next;
+    p.x = e.clientX - rect.left - wx * next;
+    p.y = e.clientY - rect.top - wy * next;
+    applyMindPan(canvas.querySelector("#mm-wrap"));
+  }, { passive: false });
+
+  canvas.addEventListener("dblclick", (e) => {
+    if (e.target.closest(".mn")) return;
+    resetMindView(canvas);
+  });
 }
 
 App.register("mind-map", { bind: bindMindMap });

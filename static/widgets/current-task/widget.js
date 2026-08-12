@@ -67,6 +67,8 @@ function renderCurrent() {
   const w = state.work;
   const el = $("#work-current");
   const c = currentTask(w);
+  const hero = document.querySelector(".work-hero-card");
+  if (hero) hero.classList.toggle("running", !!c && isRunningTask(c));
   if (!c) {
     el.innerHTML = `<p class="work-empty">Nothing on your list. Start an idea below or add a task.</p>`;
     return;
@@ -74,13 +76,14 @@ function renderCurrent() {
   const running = isRunningTask(c);
   const started = running && state.activeSession ? parseISO(state.activeSession.started_at) : null;
   const baseSec = started ? Math.floor((Date.now() - started.getTime()) / 1000) : c.total_seconds || 0;
-  const pc = PRIO_COLORS[c.priority] || "#9B9B9B";
+  const pc = PRIO_TEXT[c.priority] || "#6B6460";
+  const pb = PRIO_BG[c.priority] || "var(--color-surface-hi)";
   el.innerHTML = `
     ${w.needs_start && !running ? `<p class="hero-hint">Nothing in progress — start this next task:</p>` : ""}
     <div class="hero-body">
       <div class="hero-top">
         <h2 class="hero-title">${esc(c.title)}</h2>
-        <span class="task-chip task-prio" style="--chip:${pc}">${esc(c.priority)}</span>
+        <span class="task-chip task-prio" style="--chip:${pc};--chip-bg:${pb}">${esc(c.priority)}</span>
       </div>
       <p class="hero-meta">${esc(c.project_title)}${c.due_date ? ` · ${workTaskMeta(c, w.today)}` : ""}</p>
       ${flipMarkup()}
@@ -88,7 +91,7 @@ function renderCurrent() {
       <div class="hero-actions">
         ${!running ? `<button class="btn btn-primary btn-lure" data-action="session-start" data-id="${c.id}">Start</button>` : playButton(c)}
         <button class="btn btn-sm" data-action="task-edit" data-id="${c.id}">Edit</button>
-        <button class="btn btn-finish" data-action="task-finish" data-id="${c.id}">Done</button>
+        <button class="btn btn-done" data-action="task-finish" data-id="${c.id}">Done</button>
       </div>
     </div>`;
   setFlipClock(baseSec, !!running);

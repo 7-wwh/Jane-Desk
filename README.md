@@ -42,7 +42,7 @@ Two audiences use it:
 
 This repo is two products in one: the **dashboard app** (backend + frontend) and the **agent skill package** (instructions that make agents productive with it).
 
-The interface is **CHECK BOX**, an industrial dark theme: near-black backgrounds, a lime accent, and *semantic green/orange only* (no blue/purple/pink). Layout is a topbar with two tabs — **Work** (a fixed-height five-widget grid: Mind Map, Current Task, Tasks, Upcoming, Ideas) and **Settings**. Only the Tasks list scrolls; scrollbars are hidden globally. The full design spec (palette, type scale, card system, layout diagram) lives in `DESIGN.md`.
+The interface is **CHECK BOX**, a warm "vibrant light" theme (*CHECK BOX DAYLIGHT*): creamy off-white backgrounds, an amber-yellow accent, and *semantic green/red only* (no blue/purple/pink). Layout is a topbar with two tabs — **Work** (a fixed-height five-widget grid: Mind Map, Current Task, Tasks, Upcoming, Ideas) and **Settings**. Only the Tasks list scrolls; scrollbars are hidden globally. The full design spec (palette, type scale, card system, layout diagram) lives in `DESIGN.md`.
 
 ---
 
@@ -112,7 +112,7 @@ life-at-a-glance/
 │
 ├── static/                         ← FRONTEND (served as-is, no build step)
 │   ├── index.html                  ← thin assembly: shell, topbar, layout, <link>/<script> tags
-│   ├── core.css                    ← design system + shared components (CHECK BOX dark theme)
+│   ├── core.css                    ← design system + shared components (CHECK BOX light theme)
 │   ├── core.js                     ← shared logic: state, fetch, helpers, data loading, dispatch
 │   ├── main.js                     ← boot: App.boot() injects widgets, binds, renders, refreshes
 │   └── widgets/                    ← one folder per widget (html/css/js edited together)

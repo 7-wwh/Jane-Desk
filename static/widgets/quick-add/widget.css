@@ -7,10 +7,10 @@
   font-weight: var(--fw-bold);
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   margin-bottom: 6px;
 }
 .field .input, .field select.input, .field textarea.input { width: 100%; }
-.req { color: var(--color-orange); }
+.req { color: var(--color-red); }
 
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
