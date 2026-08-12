@@ -13,6 +13,18 @@ from .database import Base, engine, get_db
 
 Base.metadata.create_all(bind=engine)
 
+
+def _ensure_done_at_column():
+    """SQLite: create_all() won't add a column to an existing table, so migrate it
+    idempotently at startup so done_at exists for archive bucketing."""
+    with engine.connect() as conn:
+        cols = [row[1] for row in conn.exec_driver_sql("PRAGMA table_info(tasks)")]
+        if "done_at" not in cols:
+            conn.exec_driver_sql("ALTER TABLE tasks ADD COLUMN done_at DATETIME")
+
+
+_ensure_done_at_column()
+
 app = FastAPI(title="Life-at-a-Glance", version="0.1.0")
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -135,6 +147,15 @@ def touch_project(db: Session, project_id: int):
         db.commit()
 
 
+def sync_done_at(task: models.Task):
+    """Track when a task was marked done (cleared when re-opened)."""
+    if task.status == "done":
+        if task.done_at is None:
+            task.done_at = datetime.utcnow()
+    else:
+        task.done_at = None
+
+
 def stop_running_sessions(db: Session):
     """Close any currently running session (server-wide, one timer at a time)."""
     running = db.query(models.TaskSession).filter(models.TaskSession.ended_at.is_(None)).all()
@@ -188,11 +209,43 @@ def create_task(project_id: int, data: schemas.TaskCreate, db: Session = Depends
         raise HTTPException(404, "project not found")
     validate_task(data)
     task = models.Task(project_id=project_id, **data.model_dump())
+    sync_done_at(task)
     db.add(task)
     db.commit()
     db.refresh(task)
     touch_project(db, project_id)
     return task
+
+
+@app.get("/api/tasks", response_model=list[schemas.WorkTask])
+def list_all_tasks(
+    status: str | None = None,
+    project_id: int | None = None,
+    q: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """Every task (open + done) with project title and time summary."""
+    query = db.query(models.Task)
+    if status:
+        query = query.filter(models.Task.status == status)
+    if project_id is not None:
+        query = query.filter(models.Task.project_id == project_id)
+    if q:
+        like = f"%{q}%"
+        query = query.filter(models.Task.title.ilike(like))
+    tasks = query.order_by(models.Task.updated_at.desc()).all()
+    projects = {p.id: p for p in db.query(models.Project).all()}
+    time_map = task_time_summaries(db)
+
+    def with_time(t) -> schemas.WorkTask:
+        base = schemas.TaskOut.model_validate(t).model_dump()
+        ts = time_map.get(t.id, schemas.TaskTimeSummary())
+        proj = projects.get(t.project_id)
+        return schemas.WorkTask(
+            **base, **ts.model_dump(), project_title=proj.title if proj else "Unknown"
+        )
+
+    return [with_time(t) for t in tasks]
 
 
 @app.put("/api/tasks/{task_id}", response_model=schemas.TaskOut)
@@ -201,8 +254,15 @@ def update_task(task_id: int, data: schemas.TaskUpdate, db: Session = Depends(ge
     if not task:
         raise HTTPException(404, "task not found")
     validate_task(data)
-    for field, value in data.model_dump(exclude_unset=True).items():
+    payload = data.model_dump(exclude_unset=True)
+    project_id = payload.pop("project_id", None)
+    if project_id is not None:
+        if not db.get(models.Project, project_id):
+            raise HTTPException(404, "project not found")
+        task.project_id = project_id
+    for field, value in payload.items():
         setattr(task, field, value)
+    sync_done_at(task)
     db.commit()
     db.refresh(task)
     touch_project(db, task.project_id)
@@ -217,6 +277,7 @@ def update_task_status(task_id: int, status: str = Query(...), db: Session = Dep
     if status not in schemas.TASK_STATUSES:
         raise HTTPException(400, f"status must be one of {sorted(schemas.TASK_STATUSES)}")
     task.status = status
+    sync_done_at(task)
     db.commit()
     db.refresh(task)
     touch_project(db, task.project_id)
@@ -311,6 +372,70 @@ def stop_session(session_id: int, db: Session = Depends(get_db)):
         session.duration_seconds = (session.ended_at - session.started_at).total_seconds()
         db.commit()
         db.refresh(session)
+    return session
+
+
+def _resolve_session_times(data, started_at, ended_at, duration_seconds):
+    """Fill session start/end/duration from a partial update, keeping derived fields consistent."""
+    if started_at is not None:
+        started_at = started_at
+    if ended_at is not None:
+        ended_at = ended_at
+    if duration_seconds is not None:
+        duration_seconds = duration_seconds
+    # If both times known but duration omitted, derive it.
+    if duration_seconds is None and started_at is not None and ended_at is not None:
+        duration_seconds = max((ended_at - started_at).total_seconds(), 0.0)
+    # If duration given but only one time set, keep times as-is (still valid for display).
+    return started_at, ended_at, duration_seconds
+
+
+@app.post("/api/tasks/{task_id}/sessions", response_model=schemas.TaskSessionOut, status_code=201)
+def create_session(task_id: int, data: schemas.TaskSessionCreate, db: Session = Depends(get_db)):
+    """Manually log a time session on a task (backdated / future)."""
+    if not db.get(models.Task, task_id):
+        raise HTTPException(404, "task not found")
+    started_at = data.started_at or datetime.utcnow()
+    ended_at = data.ended_at
+    duration_seconds = data.duration_seconds
+    if duration_seconds is None and ended_at is not None:
+        duration_seconds = max((ended_at - started_at).total_seconds(), 0.0)
+    session = models.TaskSession(
+        task_id=task_id,
+        started_at=started_at,
+        ended_at=ended_at,
+        duration_seconds=duration_seconds,
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    task = db.get(models.Task, task_id)
+    touch_project(db, task.project_id)
+    return session
+
+
+@app.put("/api/sessions/{session_id}", response_model=schemas.TaskSessionOut)
+def update_session(session_id: int, data: schemas.TaskSessionUpdate, db: Session = Depends(get_db)):
+    session = db.get(models.TaskSession, session_id)
+    if not session:
+        raise HTTPException(404, "session not found")
+    started_at = data.started_at if data.started_at is not None else session.started_at
+    ended_at = data.ended_at if data.ended_at is not None else session.ended_at
+    duration_seconds = (
+        data.duration_seconds
+        if data.duration_seconds is not None
+        else session.duration_seconds
+    )
+    if duration_seconds is None and ended_at is not None:
+        duration_seconds = max((ended_at - started_at).total_seconds(), 0.0)
+    session.started_at = started_at
+    session.ended_at = ended_at
+    session.duration_seconds = duration_seconds
+    db.commit()
+    db.refresh(session)
+    task = db.get(models.Task, session.task_id)
+    if task:
+        touch_project(db, task.project_id)
     return session
 
 

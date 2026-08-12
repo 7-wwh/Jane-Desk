@@ -172,6 +172,7 @@ class TaskUpdate(BaseModel):
     title: str | None = None
     status: str | None = None
     priority: str | None = None
+    project_id: int | None = None
     due_date: date | None = None
     begin_date: date | None = None
     duration: float | None = Field(default=None, ge=0.0, le=DURATION_MAX_HOURS)
@@ -188,6 +189,7 @@ class TaskOut(TaskBase):
 
     id: int
     project_id: int
+    done_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -196,6 +198,24 @@ class TaskTimeOut(TaskOut):
     total_seconds: float = 0.0
     session_count: int = 0
     running_session_id: int | None = None
+
+
+class TaskSessionBase(BaseModel):
+    started_at: datetime
+    ended_at: datetime | None = None
+    duration_seconds: float | None = Field(default=None, ge=0.0)
+
+
+class TaskSessionCreate(BaseModel):
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    duration_seconds: float | None = Field(default=None, ge=0.0)
+
+
+class TaskSessionUpdate(BaseModel):
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    duration_seconds: float | None = Field(default=None, ge=0.0)
 
 
 class TaskSessionOut(BaseModel):

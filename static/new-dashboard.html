@@ -25,7 +25,8 @@
               bg: '#F3EFE6',
               cardBg: '#FAF8F3',
               muted: '#71717A'
-            }
+            },
+            brandYellow: '#F5C200'
           }
         }
       }
@@ -46,6 +47,16 @@
     }
     .custom-scrollbar::-webkit-scrollbar-track {
       background: transparent;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .bar-transition {
+      transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease;
     }
     .striped-pattern {
       background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.25), rgba(255,255,255,0.25) 8px, transparent 8px, transparent 16px);
@@ -100,6 +111,7 @@
       <!-- Navigation Bar Pills -->
       <nav class="flex items-center gap-1 sm:gap-2 bg-stone-200/50 p-1.5 rounded-full overflow-x-auto max-w-full custom-scrollbar">
         <button onclick="switchTab('dashboard', this)" class="nav-btn active-nav px-4 py-2 rounded-full text-xs sm:text-sm font-semibold bg-stone-900 text-white shadow-sm transition-all duration-200">Dashboard</button>
+        <button onclick="switchTab('tasks', this)" class="nav-btn px-4 py-2 rounded-full text-xs sm:text-sm font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-300/40 transition-all duration-200">Tasks</button>
         <button onclick="switchTab('settings', this)" class="nav-btn px-4 py-2 rounded-full text-xs sm:text-sm font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-300/40 transition-all duration-200">Settings</button>
       </nav>
 
@@ -235,93 +247,6 @@
             <svg class="w-3.5 h-3.5 text-[#F5C200]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
             Done
           </button>
-        </div>
-      </div>
-
-      <!-- CARD 2: WEEKLY PRODUCTIVITY CHART -->
-      <div id="widget-chart" draggable="true" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)" class="draggable-widget bg-stone-100/90 rounded-3xl p-5 border border-stone-200/70 flex flex-col justify-between shadow-sm relative group transition-all duration-200">
-        <div class="drag-handle absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-stone-200/80 p-1 rounded-md cursor-grab active:cursor-grabbing z-20" title="Drag to rearrange">
-          <svg class="w-4 h-4 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/></svg>
-        </div>
-        <div class="flex items-start justify-between pr-6">
-          <div>
-            <div class="text-sm font-bold text-stone-700">Weekly Output</div>
-            <div class="mt-1 flex items-baseline gap-2">
-              <span class="text-3xl font-black text-stone-900">32.4 h</span>
-              <span class="text-[11px] text-stone-500 font-semibold leading-tight">Focus time this week</span>
-            </div>
-            <div id="weekly-target-pill" class="hidden mt-1.5 inline-flex items-center gap-1.5 text-[10px] font-bold bg-amber-100 text-amber-900 px-2.5 py-1 rounded-full">
-              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-              Weekly target: 40h
-            </div>
-          </div>
-          <button onclick="showToast('Weekly velocity: +14% vs last week')" class="w-8 h-8 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-600 hover:bg-stone-50 transition-colors shadow-sm" title="View breakdown">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-          </button>
-        </div>
-
-        <!-- Bar Graph -->
-        <div class="mt-6 flex items-end justify-between px-1 h-28 relative">
-          <!-- Floating Highlight Badge on Friday -->
-          <div class="absolute -top-3 right-5 bg-[#F5C200] text-stone-900 font-extrabold text-[10px] px-2 py-0.5 rounded-full shadow-sm">
-            6.5h today
-          </div>
-
-          <!-- Day S -->
-          <div class="flex flex-col items-center gap-1.5 cursor-pointer group" onclick="showToast('Sunday: 1.5h deep work')">
-            <div class="w-2.5 bg-stone-300/60 rounded-full h-12 flex items-end">
-              <div class="w-full bg-stone-400 rounded-full h-3 group-hover:bg-amber-400 transition-colors"></div>
-            </div>
-            <span class="text-[11px] font-medium text-stone-400">S</span>
-          </div>
-
-          <!-- Day M -->
-          <div class="flex flex-col items-center gap-1.5 cursor-pointer group" onclick="showToast('Monday: 5.2h deep work')">
-            <div class="w-2.5 bg-stone-300/60 rounded-full h-16 flex items-end">
-              <div class="w-full bg-stone-900 rounded-full h-12 group-hover:bg-amber-400 transition-colors"></div>
-            </div>
-            <span class="text-[11px] font-semibold text-stone-600">M</span>
-          </div>
-
-          <!-- Day T -->
-          <div class="flex flex-col items-center gap-1.5 cursor-pointer group" onclick="showToast('Tuesday: 6.5h deep work')">
-            <div class="w-2.5 bg-stone-300/60 rounded-full h-20 flex items-end">
-              <div class="w-full bg-[#F5C200] rounded-full h-18 shadow-sm"></div>
-            </div>
-            <span class="text-[11px] font-black text-stone-900">T</span>
-          </div>
-
-          <!-- Day W -->
-          <div class="flex flex-col items-center gap-1.5 cursor-pointer group" onclick="showToast('Wednesday planned: 5.0h')">
-            <div class="w-2.5 bg-stone-300/60 rounded-full h-16 flex items-end">
-              <div class="w-full bg-stone-400/50 rounded-full h-8 group-hover:bg-amber-400 transition-colors"></div>
-            </div>
-            <span class="text-[11px] font-medium text-stone-500">W</span>
-          </div>
-
-          <!-- Day T -->
-          <div class="flex flex-col items-center gap-1.5 cursor-pointer group" onclick="showToast('Thursday planned: 6.0h')">
-            <div class="w-2.5 bg-stone-300/60 rounded-full h-20 flex items-end">
-              <div class="w-full bg-stone-400/50 rounded-full h-10 group-hover:bg-amber-400 transition-colors"></div>
-            </div>
-            <span class="text-[11px] font-medium text-stone-500">T</span>
-          </div>
-
-          <!-- Day F -->
-          <div class="flex flex-col items-center gap-1.5 cursor-pointer group" onclick="showToast('Friday planned: 4.5h')">
-            <div class="w-2.5 bg-stone-300/60 rounded-full h-16 flex items-end">
-              <div class="w-full bg-stone-400/50 rounded-full h-6 group-hover:bg-amber-400 transition-colors"></div>
-            </div>
-            <span class="text-[11px] font-medium text-stone-500">F</span>
-          </div>
-
-          <!-- Day S -->
-          <div class="flex flex-col items-center gap-1.5 cursor-pointer group" onclick="showToast('Saturday planned: 2.0h')">
-            <div class="w-2.5 bg-stone-300/60 rounded-full h-10 flex items-end">
-              <div class="w-full bg-stone-300 rounded-full h-2"></div>
-            </div>
-            <span class="text-[11px] font-medium text-stone-400">S</span>
-          </div>
         </div>
       </div>
 
@@ -482,7 +407,222 @@
 
       </div>
 
+      <!-- CARD 5: EMPTY PLACEHOLDER (AVAILABLE) -->
+      <div id="widget-empty-3" draggable="true" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)" class="draggable-widget bg-stone-100/90 rounded-3xl p-5 border-2 border-dashed border-stone-300/80 flex flex-col items-center justify-center shadow-sm relative group transition-all duration-200 min-h-[310px]">
+        <div class="drag-handle absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-stone-200/80 p-1 rounded-md cursor-grab active:cursor-grabbing z-20" title="Drag to rearrange">
+          <svg class="w-4 h-4 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/></svg>
+        </div>
+        <div class="w-10 h-10 rounded-2xl bg-stone-200/80 flex items-center justify-center text-stone-500 mb-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+        </div>
+        <div class="text-xs font-bold text-stone-400">Empty widget — add later</div>
+      </div>
+
     </div>
+
+    <!-- MAIN CONTENT GRID - ROW 2 (WIDGET CARDS) -->
+    <div id="widgets-row-2" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+
+      <!-- CARD A: ANALYTICS TRACKER WIDGET (spans 2 blocks) -->
+      <div id="widget-chart" draggable="true" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)" class="draggable-widget bg-stone-100/90 backdrop-blur-md rounded-3xl p-6 border border-stone-200/70 flex flex-col justify-between shadow-sm relative group transition-all duration-300 w-full md:col-span-2 lg:col-span-2 h-[310px] overflow-hidden">
+        <div class="drag-handle absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-stone-200/80 p-1.5 rounded-lg cursor-grab active:cursor-grabbing z-20" title="Drag to rearrange">
+          <svg class="w-4 h-4 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/></svg>
+        </div>
+
+        <div class="flex items-center justify-between mb-3 pr-6">
+          <div class="flex items-center gap-2">
+            <div class="w-3.5 h-3.5 rounded-full bg-[#F5C200] shadow-sm flex-shrink-0 animate-pulse"></div>
+            <div class="flex flex-col">
+              <span class="text-xs font-semibold text-stone-500 uppercase tracking-wider">Analytics</span>
+              <span class="text-sm font-bold text-stone-800 -mt-0.5">Tracker</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-6 sm:gap-10">
+            <div class="flex items-baseline gap-2">
+              <span class="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight" id="metric1-val">09.45</span>
+              <span class="text-[10px] font-bold text-stone-400 uppercase">AM</span>
+              <span class="inline-flex items-center gap-0.5 bg-[#F5C200]/90 text-stone-900 text-[11px] font-extrabold px-2 py-0.5 rounded-full shadow-sm">
+                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"/></svg>
+                30min
+              </span>
+            </div>
+            <div class="flex items-baseline gap-2">
+              <span class="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight" id="metric2-val">98.57°</span>
+              <span class="inline-flex items-center gap-0.5 bg-[#F5C200]/90 text-stone-900 text-[11px] font-extrabold px-2 py-0.5 rounded-full shadow-sm">
+                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
+                0.7%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="relative my-2 flex-1 flex flex-col justify-end pt-1 pb-1" id="chart-wrapper">
+          <div id="chart-tooltip" class="absolute z-30 pointer-events-none transition-all duration-150 ease-out hidden opacity-0 -translate-x-1/2 -translate-y-full mb-2">
+            <div class="bg-stone-900 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg shadow-md flex items-center gap-1.5 whitespace-nowrap">
+              <span id="tooltip-dot" class="w-2 h-2 rounded-full bg-[#F5C200]"></span>
+              <span id="tooltip-text">0.00%</span>
+            </div>
+            <div class="w-2 h-2 bg-stone-900 rotate-45 mx-auto -mt-1 rounded-sm"></div>
+          </div>
+
+          <div class="flex items-end gap-3 h-24 relative px-1">
+            <div class="flex flex-col justify-between h-full text-[10px] font-semibold text-stone-400 pr-2 select-none py-1">
+              <span>1.0%</span>
+              <span>0.5%</span>
+              <span>0.0%</span>
+            </div>
+            <div id="bars-container" class="flex-1 flex items-end justify-between h-full pt-4 relative"></div>
+          </div>
+
+          <div class="flex justify-between pl-8 pr-1 mt-1 text-[11px] font-semibold text-stone-400 select-none">
+            <span>Jan</span>
+            <span>Mar</span>
+            <span>May</span>
+            <span>Jul</span>
+          </div>
+        </div>
+
+        <div class="mt-2 pt-2 border-t border-stone-200/60 overflow-x-auto no-scrollbar">
+          <div class="flex items-center gap-2 min-w-max" id="tabs-nav">
+            <button class="tab-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 bg-[#F5C200] text-stone-900 shadow-sm" data-tab="Tracker">Tracker</button>
+            <button class="tab-btn px-4 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-200/50 transition-all duration-200" data-tab="MedicalAnalytics">MedicalAnalytics</button>
+            <button class="tab-btn px-4 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-200/50 transition-all duration-200" data-tab="FitnessMetrics">FitnessMetrics</button>
+            <button class="tab-btn px-4 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-200/50 transition-all duration-200" data-tab="PatientInsights">PatientInsights</button>
+            <button class="tab-btn px-4 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-200/50 transition-all duration-200" data-tab="AI Healthcare">AI Healthcare</button>
+          </div>
+        </div>
+
+        <div id="widget-toast-msg" class="absolute bottom-16 left-1/2 -translate-x-1/2 bg-stone-900 text-stone-100 text-xs font-medium px-4 py-2 rounded-xl shadow-xl transition-all duration-300 opacity-0 pointer-events-none translate-y-2 z-40">Tab updated</div>
+
+      </div>
+
+      <!-- CARD B: EMPTY PLACEHOLDER (AVAILABLE) -->
+      <div id="widget-empty-1" draggable="true" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)" class="draggable-widget bg-stone-100/90 rounded-3xl p-5 border-2 border-dashed border-stone-300/80 flex flex-col items-center justify-center shadow-sm relative group transition-all duration-200 min-h-[310px]">
+        <div class="drag-handle absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-stone-200/80 p-1 rounded-md cursor-grab active:cursor-grabbing z-20" title="Drag to rearrange">
+          <svg class="w-4 h-4 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/></svg>
+        </div>
+        <div class="w-10 h-10 rounded-2xl bg-stone-200/80 flex items-center justify-center text-stone-500 mb-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+        </div>
+        <div class="text-xs font-bold text-stone-400">Empty widget — add later</div>
+      </div>
+
+      <!-- CARD C: EMPTY PLACEHOLDER (AVAILABLE) -->
+      <div id="widget-empty-2" draggable="true" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)" class="draggable-widget bg-stone-100/90 rounded-3xl p-5 border-2 border-dashed border-stone-300/80 flex flex-col items-center justify-center shadow-sm relative group transition-all duration-200 min-h-[310px]">
+        <div class="drag-handle absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-stone-200/80 p-1 rounded-md cursor-grab active:cursor-grabbing z-20" title="Drag to rearrange">
+          <svg class="w-4 h-4 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/></svg>
+        </div>
+        <div class="w-10 h-10 rounded-2xl bg-stone-200/80 flex items-center justify-center text-stone-500 mb-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+        </div>
+        <div class="text-xs font-bold text-stone-400">Empty widget — add later</div>
+      </div>
+
+    </div>
+
+    <!-- ANALYTICS TRACKER WIDGET SCRIPT -->
+    <script>
+      (function () {
+        const defaultChartData = [
+          { heightPct: 30, highlight: false, value: "0.30%" },
+          { heightPct: 35, highlight: false, value: "0.35%" },
+          { heightPct: 38, highlight: false, value: "0.38%" },
+          { heightPct: 50, highlight: false, value: "0.50%" },
+          { heightPct: 65, highlight: false, value: "0.65%" },
+          { heightPct: 92, highlight: true, value: "3.62%" },
+          { heightPct: 98, highlight: false, value: "0.98%" },
+          { heightPct: 65, highlight: false, value: "0.65%" },
+          { heightPct: 45, highlight: false, value: "0.45%" },
+          { heightPct: 38, highlight: false, value: "0.38%" },
+          { heightPct: 35, highlight: false, value: "0.35%" },
+          { heightPct: 32, highlight: false, value: "0.32%" },
+          { heightPct: 30, highlight: false, value: "0.30%" },
+          { heightPct: 32, highlight: false, value: "0.32%" },
+          { heightPct: 35, highlight: false, value: "0.35%" },
+          { heightPct: 38, highlight: false, value: "0.38%" },
+          { heightPct: 36, highlight: false, value: "0.36%" },
+          { heightPct: 52, highlight: true, value: "0.52%" },
+          { heightPct: 88, highlight: false, value: "0.88%" }
+        ];
+
+        let currentScale = 1;
+        const barsContainer = document.getElementById('bars-container');
+        const chartWrapper = document.getElementById('chart-wrapper');
+        const chartTooltip = document.getElementById('chart-tooltip');
+        const tooltipText = document.getElementById('tooltip-text');
+        const tooltipDot = document.getElementById('tooltip-dot');
+
+        if (!barsContainer) return;
+
+        function renderBars(data) {
+          barsContainer.innerHTML = '';
+          data.forEach((bar) => {
+            const barWrapper = document.createElement('div');
+            barWrapper.className = 'flex-1 h-full flex items-end justify-center group cursor-pointer px-0.5 relative';
+            const adjustedHeight = Math.min(100, Math.max(10, bar.heightPct * currentScale));
+            const barEl = document.createElement('div');
+            const isHighlight = bar.highlight;
+            const bgClass = isHighlight ? 'bg-brandYellow shadow-sm' : 'bg-stone-800 hover:bg-stone-700';
+            barEl.className = 'w-full max-w-[14px] sm:max-w-[18px] rounded-full bar-transition ' + bgClass;
+            barEl.style.height = adjustedHeight + '%';
+            barWrapper.appendChild(barEl);
+
+            barWrapper.addEventListener('mouseenter', () => {
+              tooltipText.textContent = bar.value;
+              tooltipDot.className = 'w-2 h-2 rounded-full ' + (isHighlight ? 'bg-stone-900' : 'bg-brandYellow');
+              const barRect = barEl.getBoundingClientRect();
+              const wrapperRect = chartWrapper.getBoundingClientRect();
+              const leftOffset = (barRect.left - wrapperRect.left) + (barRect.width / 2);
+              const topOffset = barRect.top - wrapperRect.top;
+              chartTooltip.style.left = leftOffset + 'px';
+              chartTooltip.style.top = topOffset + 'px';
+              chartTooltip.classList.remove('hidden', 'opacity-0');
+              chartTooltip.classList.add('opacity-100');
+            });
+            barWrapper.addEventListener('mouseleave', () => {
+              chartTooltip.classList.add('opacity-0');
+              chartTooltip.classList.remove('opacity-100');
+            });
+            barsContainer.appendChild(barWrapper);
+          });
+        }
+
+        function chartToast(text) {
+          const toast = document.getElementById('widget-toast-msg');
+          if (!toast) return;
+          toast.textContent = text;
+          toast.classList.remove('opacity-0', 'translate-y-2', 'pointer-events-none');
+          toast.classList.add('opacity-100', 'translate-y-0');
+          setTimeout(() => {
+            toast.classList.add('opacity-0', 'translate-y-2', 'pointer-events-none');
+            toast.classList.remove('opacity-100', 'translate-y-0');
+          }, 2000);
+        }
+
+        const chartEl = document.getElementById('widget-chart');
+        const tabBtns = chartEl ? chartEl.querySelectorAll('.tab-btn') : [];
+        tabBtns.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            tabBtns.forEach((b) => {
+              b.className = 'tab-btn px-4 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-200/50 transition-all duration-200';
+            });
+            btn.className = 'tab-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 bg-brandYellow text-stone-900 shadow-sm';
+            chartToast('Switched to ' + btn.dataset.tab);
+            const modifiedData = defaultChartData.map(d => ({
+              ...d,
+              heightPct: Math.min(100, Math.max(15, d.heightPct + (Math.floor(Math.random() * 16) - 8)))
+            }));
+            renderBars(modifiedData);
+          });
+        });
+
+        renderBars(defaultChartData);
+
+        window.addEventListener('resize', () => {
+          chartTooltip.classList.add('opacity-0');
+        });
+      })();
+    </script>
 
     <!-- LOWER GRID ROW: ACCORDION SIDEBAR & CALENDAR TIMETABLE -->
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-5">
@@ -679,6 +819,47 @@
     </div>
     <!-- /DASHBOARD VIEW -->
 
+    <!-- TASKS VIEW (hidden by default) -->
+    <div id="tasks-view" class="hidden">
+
+      <!-- Tasks Header -->
+      <div class="mt-8 mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h1 class="text-3xl sm:text-4xl font-black text-stone-900 tracking-tight">All Tasks</h1>
+          <p class="text-xs text-stone-500 font-medium mt-1">Every task in the system — active, recently done, and archived. Click any task to edit it.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1.5 bg-stone-100/90 border border-stone-200/70 px-3 py-1.5 rounded-full text-xs font-bold text-stone-700 shadow-sm" id="tasks-summary-pill">
+            <span>Loading…</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex flex-wrap items-center gap-3 mb-6">
+        <div class="relative flex-1 min-w-[220px]">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input id="tasks-search" type="text" oninput="tasksFilterState.q=this.value; renderTasksList()" placeholder="Search tasks…" class="w-full text-xs p-3 pl-9 rounded-full border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white font-medium">
+        </div>
+        <select id="tasks-project-filter" onchange="tasksFilterState.projectId=this.value==='all'?null:Number(this.value); renderTasksList()" class="text-xs p-3 rounded-full border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white font-medium">
+          <option value="all">All Projects</option>
+        </select>
+        <div class="flex items-center gap-1.5 bg-stone-200/50 p-1.5 rounded-full overflow-x-auto max-w-full custom-scrollbar" id="tasks-status-filters">
+          <button onclick="tasksSetFilter('all', this)" class="tasks-filter-btn px-3 py-1.5 rounded-full text-xs font-extrabold bg-stone-900 text-white">All</button>
+          <button onclick="tasksSetFilter('open', this)" class="tasks-filter-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-stone-100 text-stone-700">Open</button>
+          <button onclick="tasksSetFilter('recent', this)" class="tasks-filter-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-stone-100 text-stone-700">Recently Done</button>
+          <button onclick="tasksSetFilter('archived', this)" class="tasks-filter-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-stone-100 text-stone-700">Archived</button>
+        </div>
+      </div>
+
+      <!-- Task list rendered by JS into #tasks-list -->
+      <div id="tasks-list" class="space-y-4">
+        <div class="bg-stone-100/90 rounded-2xl border border-stone-200/80 p-5 text-center text-xs font-semibold text-stone-500">Loading tasks…</div>
+      </div>
+
+    </div>
+    <!-- /TASKS VIEW -->
+
     <!-- SETTINGS VIEW (hidden by default) -->
     <div id="settings-view" class="hidden">
 
@@ -751,6 +932,13 @@
             <input id="setting-daily-target" type="number" min="1" max="50" inputmode="numeric"
               class="w-full text-sm p-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 font-semibold text-stone-900 bg-white">
             <p class="text-[10.5px] text-stone-500 font-medium mt-1.5">Shown under the Today's Tasks metric.</p>
+          </div>
+
+          <div>
+            <label for="setting-archive-days" class="block text-xs font-bold text-stone-700 mb-1.5">Archive Done Tasks After (days)</label>
+            <input id="setting-archive-days" type="number" min="1" max="365" inputmode="numeric"
+              class="w-full text-sm p-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 font-semibold text-stone-900 bg-white">
+            <p class="text-[10.5px] text-stone-500 font-medium mt-1.5">Completed tasks move to the Archived bucket on the Tasks page after this many days.</p>
           </div>
 
           <div class="flex items-center justify-between gap-3 mt-auto">
@@ -873,6 +1061,97 @@
     </div>
   </div>
 
+  <!-- MODAL FOR EDITING AN EXISTING TASK -->
+  <div id="edit-task-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-all duration-300">
+    <div class="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-stone-200 transform scale-95 transition-transform duration-300 max-h-[92vh] flex flex-col" id="edit-modal-box">
+      <div class="flex items-center justify-between pb-3 border-b border-stone-200">
+        <div>
+          <h3 class="text-lg font-extrabold text-stone-900">Edit Task</h3>
+          <div class="text-[11px] text-stone-500 font-semibold mt-0.5" id="edit-task-id-label">#—</div>
+        </div>
+        <button onclick="closeEditTaskModal()" class="text-stone-400 hover:text-stone-700 p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="mt-4 space-y-4 overflow-y-auto pr-1 custom-scrollbar flex-1">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold text-stone-700 mb-1">Title</label>
+            <input id="edit-task-title" type="text" class="w-full text-xs p-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1">Project</label>
+            <select id="edit-task-project" onchange="refreshBranchOptions()" class="w-full text-xs p-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white font-medium"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1">Status</label>
+            <select id="edit-task-status" class="w-full text-xs p-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white font-medium">
+              <option value="wanted">wanted</option>
+              <option value="planned">planned</option>
+              <option value="in_progress">in_progress</option>
+              <option value="done">done</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1">Priority</label>
+            <select id="edit-task-priority" class="w-full text-xs p-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white font-medium">
+              <option value="high">high</option>
+              <option value="medium">medium</option>
+              <option value="low">low</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1">Due Date</label>
+            <input id="edit-task-due" type="date" class="w-full text-xs p-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1">Start Date</label>
+            <input id="edit-task-begin" type="date" class="w-full text-xs p-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1">Branch Path</label>
+            <select id="edit-task-branch" onchange="taskBranchDropdownChanged()" class="w-full text-xs p-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white font-medium"></select>
+            <div id="edit-new-branch-wrap" class="hidden mt-2">
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-stone-400 font-bold">+</span>
+                <input id="edit-task-branch-new" type="text" placeholder="New branch path, e.g. work/2026/Q3 report" class="w-full text-xs p-3 pl-7 rounded-xl border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium bg-amber-50">
+              </div>
+              <p class="text-[9.5px] text-stone-500 font-medium mt-1">Use the project root as the first segment (e.g. work/…, personal/…).</p>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-stone-700 mb-1">Planned Duration (hours)</label>
+            <input id="edit-task-duration" type="number" min="0" step="0.1" class="w-full text-xs p-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium">
+          </div>
+        </div>
+
+        <!-- Sessions panel -->
+        <div class="bg-stone-50 rounded-2xl border border-stone-200/80 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <div class="text-xs font-extrabold text-stone-800">Tracked Sessions</div>
+              <div class="text-[11px] text-stone-500 font-medium mt-0.5"><span id="edit-sessions-total">0.0h</span> logged · <span id="edit-sessions-count">0</span> sessions</div>
+            </div>
+            <button onclick="addEditSessionRow()" class="text-[11px] font-bold bg-stone-900 text-white px-3 py-1.5 rounded-full hover:bg-stone-800 shadow-sm transition-all active:scale-95">+ Add Session</button>
+          </div>
+          <div id="edit-sessions-list" class="space-y-2">
+            <div class="text-[11px] text-stone-400 font-medium py-2 text-center">Loading sessions…</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between gap-3 pt-4 border-t border-stone-200 mt-4">
+        <button onclick="deleteEditTask()" class="px-4 py-2.5 rounded-full text-xs font-bold text-red-600 hover:bg-red-50 transition-colors">Delete Task</button>
+        <div class="flex items-center gap-2 ml-auto">
+          <button type="button" onclick="closeEditTaskModal()" class="px-5 py-2.5 rounded-full text-xs font-bold text-stone-600 hover:bg-stone-100 transition-colors">Cancel</button>
+          <button onclick="saveEditTask()" class="px-6 py-2.5 rounded-full text-xs font-extrabold bg-[#F5C200] text-stone-900 hover:bg-amber-400 shadow-sm transition-all active:scale-95">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toast" class="fixed bottom-6 right-6 bg-stone-900 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-2xl transition-all duration-300 opacity-0 transform translate-y-4 pointer-events-none z-50 flex items-center gap-2">
     <span class="w-2 h-2 rounded-full bg-[#F5C200]"></span>
@@ -987,15 +1266,21 @@
       btnElement.className = "nav-btn px-4 py-2 rounded-full text-xs sm:text-sm font-semibold bg-stone-900 text-white shadow-sm transition-all duration-200";
 
       const dashboardEl = document.getElementById('dashboard-view');
+      const tasksEl = document.getElementById('tasks-view');
       const settingsEl = document.getElementById('settings-view');
+      const isTasks = tabName === 'tasks';
       const isSettings = tabName === 'settings';
 
       if (settingsEl) settingsEl.classList.toggle('hidden', !isSettings);
-      if (dashboardEl) dashboardEl.classList.toggle('hidden', isSettings);
+      if (tasksEl) tasksEl.classList.toggle('hidden', !isTasks);
+      if (dashboardEl) dashboardEl.classList.toggle('hidden', isTasks || isSettings);
 
       if (isSettings) {
         if (typeof loadSettingsPage === 'function') loadSettingsPage();
         showToast('Editing your workspace preferences');
+      } else if (isTasks) {
+        if (typeof loadTasksPage === 'function') loadTasksPage();
+        showToast('Reviewing all tasks');
       } else {
         showToast(`Switched view to: ${tabName.toUpperCase()}`);
       }
@@ -1005,15 +1290,19 @@
     const SETTINGS_KEY = 'checkboxNewDashboardSettings';
     const SETTING_LABELS = {
       'widget-hero': 'Focus Task',
-      'widget-chart': 'Weekly Chart',
       'widget-timer': 'Focus Timer',
       'widget-tasks': 'Daily Tasks',
+      'widget-empty-3': 'Empty Slot 1',
+      'widget-chart': 'Analytics Tracker',
+      'widget-empty-1': 'Empty Slot 2',
+      'widget-empty-2': 'Empty Slot 3',
     };
     const SETTINGS_DEFAULTS = {
       user_name: 'Alex',
       weekly_focus_hours: 40,
       daily_task_target: 8,
-      widget_order: ['widget-hero', 'widget-chart', 'widget-timer', 'widget-tasks'],
+      archive_days: 30,
+      widget_order: ['widget-hero', 'widget-timer', 'widget-tasks', 'widget-empty-3', 'widget-chart', 'widget-empty-1', 'widget-empty-2'],
     };
 
     // Applied settings cache — seeded from localStorage, overridden by the server.
@@ -1118,16 +1407,23 @@
     }
 
     // ---- Widget order helpers ----
+    const WIDGET_ROW2_IDS = ['widget-chart', 'widget-empty-1', 'widget-empty-2'];
+
     function currentWidgetOrder() {
-      return Array.from(document.querySelectorAll('#widgets-row-1 .draggable-widget')).map(el => el.id);
+      const row1 = Array.from(document.querySelectorAll('#widgets-row-1 .draggable-widget')).map(el => el.id);
+      const row2 = Array.from(document.querySelectorAll('#widgets-row-2 .draggable-widget')).map(el => el.id);
+      return row1.concat(row2);
     }
 
     function applyWidgetOrder(order) {
-      const grid = document.getElementById('widgets-row-1');
-      if (!grid || !Array.isArray(order) || !order.length) return;
+      if (!Array.isArray(order) || !order.length) return;
+      const row1 = document.getElementById('widgets-row-1');
+      const row2 = document.getElementById('widgets-row-2');
       order.forEach(id => {
         const el = document.getElementById(id);
-        if (el && el.parentNode === grid) grid.appendChild(el);
+        if (!el) return;
+        const dest = WIDGET_ROW2_IDS.indexOf(id) !== -1 ? row2 : row1;
+        if (el.parentNode === dest) dest.appendChild(el);
       });
     }
 
@@ -1157,6 +1453,8 @@
       if (weekly) weekly.value = getSetting('weekly_focus_hours');
       const daily = document.getElementById('setting-daily-target');
       if (daily) daily.value = getSetting('daily_task_target');
+      const archive = document.getElementById('setting-archive-days');
+      if (archive) archive.value = getSetting('archive_days');
       document.getElementById('setting-server').innerText = location.host || 'local';
       updateLayoutPreview();
       updateGreetingPreview();
@@ -1181,21 +1479,27 @@
     function saveTargets() {
       const weeklyEl = document.getElementById('setting-weekly-hours');
       const dailyEl = document.getElementById('setting-daily-target');
+      const archiveEl = document.getElementById('setting-archive-days');
       const weekly = Math.min(168, Math.max(1, parseInt(weeklyEl.value, 10) || SETTINGS_DEFAULTS.weekly_focus_hours));
       const daily = Math.min(50, Math.max(1, parseInt(dailyEl.value, 10) || SETTINGS_DEFAULTS.daily_task_target));
+      const archiveDays = Math.min(365, Math.max(1, parseInt(archiveEl.value, 10) || SETTINGS_DEFAULTS.archive_days));
       weeklyEl.value = weekly;
       dailyEl.value = daily;
+      archiveEl.value = archiveDays;
       settingsLocal.weekly_focus_hours = weekly;
       settingsLocal.daily_task_target = daily;
+      settingsLocal.archive_days = archiveDays;
       updateWeeklyTarget();
       updateDailyTarget();
       saveSetting('weekly_focus_hours', weekly);
-      saveSetting('daily_task_target', daily, 'Dashboard targets saved');
+      saveSetting('daily_task_target', daily);
+      saveSetting('archive_days', archiveDays, 'Dashboard targets saved');
     }
 
     function resetTargets() {
       document.getElementById('setting-weekly-hours').value = SETTINGS_DEFAULTS.weekly_focus_hours;
       document.getElementById('setting-daily-target').value = SETTINGS_DEFAULTS.daily_task_target;
+      document.getElementById('setting-archive-days').value = SETTINGS_DEFAULTS.archive_days;
       showToast('Preview reset — click Save Targets to apply');
     }
 
@@ -1456,6 +1760,7 @@
       if (res.status === 204) return null;
       return res.json();
     }
+    window.fetchJSON = fetchJSON;
 
     const state = { work: null, dashboard: null, projects: [], activeSession: null, currentTaskId: null };
     let currentFilter = "all";
@@ -1814,6 +2119,434 @@
     window.handleAddTaskSubmit = handleAddTaskSubmit;
 
     loadData();
+    window.loadData = loadData;
+  })();
+
+  /* =====================================================================
+   * Tasks manager — All Tasks view (active / recently done / archived)
+   * Lists every task (GET /api/tasks) and lets the user edit any field,
+   * move it to another project, and manage tracked sessions.
+   * ===================================================================== */
+  (function () {
+    const T = { tasks: [], projects: [], all: [], filter: "all", q: "", projectId: null, archiveDays: 30, editing: null, sessions: [] };
+
+    const $t = (s) => document.querySelector(s);
+    const $$t = (s) => [...document.querySelectorAll(s)];
+    const attr = (el, k, v) => el.setAttribute(k, v);
+
+    function esc(v) {
+      return String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+    function fmtHrs(secs) {
+      if (!secs) return "0.0h";
+      return (secs / 3600).toFixed(1) + "h";
+    }
+    function isoDate(v, fallback) { return (v || fallback || ""); }
+    function prioBadge(p) {
+      const map = { high: "bg-red-100 text-red-700", medium: "bg-amber-100 text-amber-800", low: "bg-stone-200 text-stone-600" };
+      return '<span class="text-[9px] font-bold px-2 py-0.5 rounded-full ' + (map[p] || map.medium) + '">' + esc(p) + '</span>';
+    }
+    function statusBadge(s) {
+      const map = {
+        wanted: "bg-stone-200 text-stone-600",
+        planned: "bg-amber-100 text-amber-800",
+        in_progress: "bg-[#F5C200] text-stone-900",
+        done: "bg-emerald-100 text-emerald-700",
+      };
+      return '<span class="text-[9px] font-extrabold px-2 py-0.5 rounded-full ' + (map[s] || map.wanted) + '">' + esc(s.replace(/_/g, " ")) + '</span>';
+    }
+
+    function taskBucket(t) {
+      if (t.status === "done") {
+        const doneAt = t.done_at ? new Date(t.done_at) : null;
+        const cutoff = Date.now() - T.archiveDays * 86400000;
+        if (!doneAt || isNaN(doneAt)) {
+          // No done_at recorded (pre-migration task): fall back to updated_at.
+          const up = new Date(String(t.updated_at || "").replace(" ", "T"));
+          return (!isNaN(up) && up.getTime() <= cutoff) ? "archived" : "recent";
+        }
+        return doneAt.getTime() <= cutoff ? "archived" : "recent";
+      }
+      return "open";
+    }
+
+    function bucketLabel(b) {
+      return { open: "Open", recent: "Recently Done", archived: "Archived" }[b] || b;
+    }
+    function bucketIcon(b) {
+      return { open: "🟡", recent: "🟢", archived: "⚪" }[b] || "";
+    }
+
+    function matchesFilters(t) {
+      if (T.filter !== "all" && taskBucket(t) !== T.filter) return false;
+      if (T.projectId && t.project_id !== T.projectId) return false;
+      if (T.q && !(t.title || "").toLowerCase().includes(T.q.toLowerCase())) return false;
+      return true;
+    }
+
+    function populateProjectSelect() {
+      const sel = $t("#edit-task-project");
+      if (!sel) return;
+      sel.innerHTML = T.projects.map((p) =>
+        '<option value="' + p.id + '">' + esc(p.title) + '</option>'
+      ).join("");
+      if (T.editing) sel.value = String(T.editing.project_id);
+    }
+
+    function projectRootFor(projectId) {
+      const p = T.projects.find((x) => x.id === Number(projectId));
+      if (!p) return null;
+      return (p.branch_path || p.title || "").trim().replace(/\/+$/, "");
+    }
+
+    function refreshBranchOptions() {
+      const projSel = $t("#edit-task-project");
+      const sel = $t("#edit-task-branch");
+      if (!sel) return;
+      const root = projectRootFor(projSel ? projSel.value : "");
+      const seen = new Set();
+      T.tasks.forEach((tk) => { if (tk.branch_path) seen.add(tk.branch_path.trim()); });
+      T.projects.forEach((p) => { if (p.branch_path) seen.add(p.branch_path.trim().replace(/\/+$/, "")); });
+      if (root) seen.add(root);
+      const opts = [];
+      Array.from(seen).sort().forEach((b) => {
+        if (b && (!root || b === root || b.startsWith(root + "/"))) {
+          opts.push('<option value="' + esc(b) + '">' + esc(b) + '</option>');
+        }
+      });
+      const cur = T.editing ? (T.editing.branch_path || "") : "";
+      sel.innerHTML = '<option value="">No branch</option>' + opts.join("") + '<option value="__new__">Add new branch…</option>';
+      if (cur && !Array.from(seen).includes(cur)) {
+        sel.innerHTML = '<option value="' + esc(cur) + '">' + esc(cur) + '</option>' + sel.innerHTML;
+      }
+      sel.value = cur || "";
+      taskBranchDropdownChanged();
+    }
+
+    function taskBranchDropdownChanged() {
+      const sel = $t("#edit-task-branch");
+      const wrap = $t("#edit-new-branch-wrap");
+      if (!sel || !wrap) return;
+      const isNew = sel.value === "__new__";
+      wrap.classList.toggle("hidden", !isNew);
+      if (isNew) {
+        const inp = $t("#edit-task-branch-new");
+        if (inp) inp.focus();
+      }
+    }
+
+    function renderTasksList() {
+      const listEl = $t("#tasks-list");
+      const pillEl = $t("#tasks-summary-pill");
+      if (!listEl) return;
+      const visible = T.tasks.filter(matchesFilters);
+
+      const open = T.tasks.filter((t) => taskBucket(t) === "open").length;
+      const recent = T.tasks.filter((t) => taskBucket(t) === "recent").length;
+      const archived = T.tasks.filter((t) => taskBucket(t) === "archived").length;
+      if (pillEl) pillEl.innerHTML = `<span>${open} open</span><span class="w-1.5 h-1.5 rounded-full bg-[#F5C200]"></span><span>${recent} recent</span><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span>${archived} archived</span>`;
+
+      if (!visible.length) {
+        listEl.innerHTML = '<div class="bg-stone-100/90 rounded-2xl border border-stone-200/80 p-5 text-center text-xs font-semibold text-stone-500">No tasks match this filter.</div>';
+        return;
+      }
+
+      // Group by bucket
+      const groups = {};
+      visible.forEach((t) => { const b = taskBucket(t); (groups[b] = groups[b] || []).push(t); });
+
+      listEl.innerHTML = ["open", "recent", "archived"].map((bucket) => {
+        const items = (groups[bucket] || []).sort((a, b) => (a.status === "done") - (b.status === "done") || (b.updated_at || "").localeCompare(a.updated_at || ""));
+        if (!items.length) return "";
+        return '<div class="mb-5">' +
+          '<div class="flex items-center gap-2 mb-2.5 px-1">' +
+          '<span class="text-xs font-black text-stone-800">' + bucketIcon(bucket) + ' ' + bucketLabel(bucket) + '</span>' +
+          '<span class="text-[10px] font-bold bg-stone-200 text-stone-600 px-2 py-0.5 rounded-full">' + items.length + '</span>' +
+          '</div>' +
+          '<div class="space-y-2">' + items.map(taskRowHTML).join("") + '</div>' +
+          '</div>';
+      }).join("");
+    }
+
+    function taskRowHTML(t) {
+      const proj = T.projects.find((p) => p.id === t.project_id);
+      const branch = t.branch_path || (proj ? proj.branch_path : "");
+      return '<div onclick="openEditTask(' + t.id + ')" class="task-row task-row-' + t.id + ' bg-white rounded-2xl border border-stone-200/80 shadow-sm px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2 hover:border-amber-400 hover:shadow-md transition-all cursor-pointer group">' +
+        '<div class="flex-1 min-w-[180px]">' +
+        '<div class="flex items-center gap-2">' +
+        '<span class="text-xs font-bold text-stone-900 task-title truncate">' + esc(t.title) + '</span>' +
+        statusBadge(t.status) +
+        '</div>' +
+        '<div class="text-[10px] text-stone-500 font-medium mt-1 flex items-center gap-1.5 flex-wrap">' +
+        '<span class="inline-flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>' + esc(proj ? proj.title : "Unknown project") + '</span>' +
+        (branch ? '<span class="inline-flex items-center gap-1 opacity-70">' + esc(branch) + '</span>' : '') +
+        '</div>' +
+        '</div>' +
+        '<div class="flex items-center gap-4 text-[11px] font-semibold text-stone-600">' +
+        '<span class="inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-[#F5C200]"></span>' + fmtHrs(t.total_seconds) + '</span>' +
+        '<span title="Due date">📅 ' + esc(isoDate(t.due_date, "—")) + '</span>' +
+        prioBadge(t.priority) +
+        '</div>' +
+        '</div>';
+    }
+
+    async function loadTasksPage() {
+      try {
+        const [tasks, projects, settings] = await Promise.all([
+          window.fetchJSON ? window.fetchJSON("/api/tasks") : null,
+          window.fetchJSON ? window.fetchJSON("/api/projects") : null,
+          window.fetchJSON ? window.fetchJSON("/api/settings") : null,
+        ]);
+        if (!tasks) return; // helpers not exposed; shouldn't happen
+        T.tasks = tasks;
+        T.projects = projects || [];
+        if (settings && settings.settings && settings.settings.archive_days != null) {
+          T.archiveDays = Math.max(1, Number(settings.settings.archive_days) || 30);
+        }
+        // Rebuild project filter dropdown preserving selection
+        const psel = $t("#tasks-project-filter");
+        if (psel) {
+          const cur = psel.value;
+          psel.innerHTML = '<option value="all">All Projects</option>' +
+            T.projects.map((p) => '<option value="' + p.id + '">' + esc(p.title) + '</option>').join("");
+          if (cur && [...psel.options].some((o) => o.value === cur)) psel.value = cur;
+        }
+        renderTasksList();
+      } catch (err) {
+        const listEl = $t("#tasks-list");
+        if (listEl) listEl.innerHTML = '<div class="bg-stone-100/90 rounded-2xl border border-stone-200/80 p-5 text-center text-xs font-semibold text-red-500">Failed to load tasks: ' + esc(err.message) + '</div>';
+      }
+    }
+
+    function tasksSetFilter(filter, btnEl) {
+      T.filter = filter;
+      $$t(".tasks-filter-btn").forEach((b) => {
+        b.className = "tasks-filter-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-stone-100 text-stone-700";
+      });
+      btnEl.className = "tasks-filter-btn px-3 py-1.5 rounded-full text-xs font-extrabold bg-stone-900 text-white";
+      renderTasksList();
+    }
+
+    function tasksFilterState() { return T; }
+
+    async function openEditTask(id) {
+      const task = T.tasks.find((t) => t.id === id);
+      if (!task) return;
+      T.editing = task;
+      T.sessions = [];
+      attr($t("#edit-task-title"), "value", task.title || "");
+      attr($t("#edit-task-due"), "value", isoDate(task.due_date, ""));
+      attr($t("#edit-task-begin"), "value", isoDate(task.begin_date, ""));
+      $t("#edit-task-status").value = task.status || "wanted";
+      $t("#edit-task-priority").value = task.priority || "medium";
+      $t("#edit-task-id-label").innerText = "#" + task.id;
+      attr($t("#edit-task-duration"), "value", task.duration != null ? task.duration : "");
+      populateProjectSelect();
+      const wrap = $t("#edit-new-branch-wrap");
+      if (wrap) wrap.classList.add("hidden");
+      refreshBranchOptions();
+      const sel = $t("#edit-task-branch");
+      if (sel) sel.value = task.branch_path || "";
+      $t("#edit-sessions-list").innerHTML = '<div class="text-[11px] text-stone-400 font-medium py-2 text-center">Loading sessions…</div>';
+
+      const modalEl = $t("#edit-task-modal");
+      modalEl.classList.remove("opacity-0", "pointer-events-none");
+      $t("#edit-modal-box").classList.remove("scale-95");
+
+      // Fetch sessions for time editing
+      try {
+        const data = await (window.fetchJSON ? window.fetchJSON("/api/tasks/" + id + "/sessions") : null);
+        T.sessions = (data && data.sessions) ? data.sessions.map((s) => ({ ...s })) : [];
+      } catch (_) {
+        T.sessions = [];
+        if (typeof showToast === "function") showToast("Could not load sessions");
+      }
+      renderEditSessions();
+    }
+
+    function closeEditTaskModal() {
+      const modalEl = $t("#edit-task-modal");
+      modalEl.classList.add("opacity-0", "pointer-events-none");
+      $t("#edit-modal-box").classList.add("scale-95");
+      T.editing = null;
+    }
+
+    function renderEditSessions() {
+      const listEl = $t("#edit-sessions-list");
+      const totalEl = $t("#edit-sessions-total");
+      const countEl = $t("#edit-sessions-count");
+      const total = T.sessions.reduce((s, x) => s + (x.duration_seconds || 0), 0);
+      if (totalEl) totalEl.innerText = fmtHrs(total);
+      if (countEl) countEl.innerText = String(T.sessions.length);
+      if (!T.sessions.length) {
+        listEl.innerHTML = '<div class="text-[11px] text-stone-400 font-medium py-2 text-center">No sessions logged for this task yet.</div>';
+        return;
+      }
+      listEl.innerHTML = T.sessions.map((s) =>
+        '<div class="flex flex-wrap items-center gap-2 bg-white rounded-xl border border-stone-200 px-3 py-2" data-sid="' + s.id + '">' +
+        '<div class="flex items-center gap-1.5 flex-1 min-w-[180px]">' +
+        '<label class="text-[9px] font-bold text-stone-400 uppercase tracking-wider">Start</label>' +
+        '<input data-field="started_at" type="datetime-local" value="' + esc(s.started_at ? toLocalInput(s.started_at) : "") + '" class="text-[11px] p-1.5 rounded-lg border border-stone-300 bg-white font-medium flex-1">' +
+        '</div>' +
+        '<div class="flex items-center gap-1.5 flex-1 min-w-[150px]">' +
+        '<label class="text-[9px] font-bold text-stone-400 uppercase tracking-wider">End</label>' +
+        '<input data-field="ended_at" type="datetime-local" value="' + esc(s.ended_at ? toLocalInput(s.ended_at) : "") + '" class="text-[11px] p-1.5 rounded-lg border border-stone-300 bg-white font-medium flex-1">' +
+        '</div>' +
+        '<div class="flex items-center gap-1.5 flex-1 min-w-[130px]">' +
+        '<label class="text-[9px] font-bold text-stone-400 uppercase tracking-wider">Hours</label>' +
+        '<input data-field="duration_seconds" type="number" step="0.05" min="0" value="' + ((s.duration_seconds || 0) / 3600).toFixed(2) + '" class="text-[11px] p-1.5 rounded-lg border border-stone-300 bg-white font-medium flex-1">' +
+        '</div>' +
+        '<button onclick="deleteEditSession(' + s.id + ')" title="Delete session" class="text-stone-400 hover:text-red-500 p-1 transition-colors">' +
+        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>' +
+        '</button>' +
+        '</div>'
+      ).join("");
+    }
+
+    function toLocalInput(iso) {
+      const d = new Date(String(iso).replace(" ", "T").replace("Z", ""));
+      if (isNaN(d)) return "";
+      const p = (n) => String(n).padStart(2, "0");
+      return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes());
+    }
+
+    function addEditSessionRow() {
+      const listEl = $t("#edit-sessions-list");
+      const now = toLocalInput(new Date().toISOString());
+      const html = '<div class="flex flex-wrap items-center gap-2 bg-amber-50 rounded-xl border border-amber-200 px-3 py-2" data-new="1">' +
+        '<div class="flex items-center gap-1.5 flex-1 min-w-[180px]">' +
+        '<label class="text-[9px] font-bold text-stone-400 uppercase tracking-wider">Start</label>' +
+        '<input data-field="started_at" type="datetime-local" value="' + now + '" class="text-[11px] p-1.5 rounded-lg border border-stone-300 bg-white font-medium flex-1">' +
+        '</div>' +
+        '<div class="flex items-center gap-1.5 flex-1 min-w-[150px]">' +
+        '<label class="text-[9px] font-bold text-stone-400 uppercase tracking-wider">End</label>' +
+        '<input data-field="ended_at" type="datetime-local" class="text-[11px] p-1.5 rounded-lg border border-stone-300 bg-white font-medium flex-1">' +
+        '</div>' +
+        '<div class="flex items-center gap-1.5 flex-1 min-w-[130px]">' +
+        '<label class="text-[9px] font-bold text-stone-400 uppercase tracking-wider">Hours</label>' +
+        '<input data-field="duration_seconds" type="number" step="0.05" min="0" value="1.00" class="text-[11px] p-1.5 rounded-lg border border-stone-300 bg-white font-medium flex-1">' +
+        '</div>' +
+        '<button onclick="removeNewSessionRow(this)" title="Remove row" class="text-stone-400 hover:text-red-500 p-1 transition-colors">' +
+        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>' +
+        '</button>' +
+        '</div>';
+      listEl.insertAdjacentHTML("beforeend", html);
+    }
+
+    function removeNewSessionRow(btn) {
+      const row = btn.closest("[data-new='1']");
+      if (row) row.remove();
+    }
+
+    function collectSessionPayloads() {
+      const rows = $$t("#edit-sessions-list [data-sid], #edit-sessions-list [data-new='1']");
+      return rows.map((row) => {
+        const get = (f) => row.querySelector('[data-field="' + f + '"]');
+        const startedAt = get("started_at").value;
+        const endedAt = get("ended_at").value;
+        const secs = Math.max(0, parseFloat(get("duration_seconds").value || "0") * 3600);
+        const beginISO = toUTC(startedAt);
+        const endISO = endedAt ? toUTC(endedAt) : null;
+        return { id: row.getAttribute("data-sid") ? Number(row.getAttribute("data-sid")) : null, isNew: !!row.getAttribute("data-new"), started_at: beginISO, ended_at: endISO, duration_seconds: secs };
+      });
+    }
+
+    function toUTC(local) {
+      if (!local) return null;
+      const d = new Date(local);
+      return isNaN(d) ? null : d.toISOString();
+    }
+
+    async function saveEditTask() {
+      const t = T.editing;
+      if (!t) return;
+      const due = $t("#edit-task-due").value || null;
+      const begin = $t("#edit-task-begin").value || null;
+      const branch = $t("#edit-task-branch").value.trim();
+      const dur = $t("#edit-task-duration").value;
+      const payload = {
+        title: $t("#edit-task-title").value.trim(),
+        status: $t("#edit-task-status").value,
+        priority: $t("#edit-task-priority").value,
+        project_id: Number($t("#edit-task-project").value),
+        due_date: due,
+        begin_date: begin,
+        branch_path: branch || null,
+        duration: dur !== "" ? parseFloat(dur) : null,
+      };
+      try {
+        await window.fetchJSON("/api/tasks/" + t.id, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        // Sessions: delete removed, create new, update changed.
+        const kept = new Set();
+        await Promise.all(collectSessionPayloads().map(async (s) => {
+          if (s.isNew) {
+            await window.fetchJSON("/api/tasks/" + t.id + "/sessions", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ started_at: s.started_at, ended_at: s.ended_at, duration_seconds: s.duration_seconds }),
+            });
+          } else if (s.id != null) {
+            kept.add(s.id);
+            const orig = T.sessions.find((x) => x.id === s.id);
+            const changed = !orig || orig.started_at !== s.started_at || (orig.ended_at || null) !== s.ended_at || (orig.duration_seconds || 0) !== s.duration_seconds;
+            if (changed) {
+              await window.fetchJSON("/api/sessions/" + s.id, {
+                method: "PUT", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ started_at: s.started_at, ended_at: s.ended_at, duration_seconds: s.duration_seconds }),
+              });
+            }
+          }
+        }));
+        // Deleted sessions are those not kept.
+        await Promise.all([...T.sessions].filter((s) => !kept.has(s.id)).map(async (s) => {
+          try { await window.fetchJSON("/api/sessions/" + s.id, { method: "DELETE" }); } catch (_) {}
+        }));
+        closeEditTaskModal();
+        if (typeof showToast === "function") showToast("Task updated");
+        await loadTasksPage();
+        if (typeof loadData === "function") loadData();
+      } catch (err) {
+        if (typeof showToast === "function") showToast("Error: " + err.message);
+      }
+    }
+
+    async function deleteEditSession(id) {
+      if (!confirm("Delete this session?")) return;
+      try {
+        await window.fetchJSON("/api/sessions/" + id, { method: "DELETE" });
+        if (typeof showToast === "function") showToast("Session deleted");
+        if (T.editing) await openEditTask(T.editing.id);
+        if (typeof loadTasksPage === "function") loadTasksPage();
+      } catch (err) {
+        if (typeof showToast === "function") showToast("Error: " + err.message);
+      }
+    }
+
+    async function deleteEditTask() {
+      if (!T.editing || !confirm("Delete this task permanently? Its sessions are removed too.")) return;
+      try {
+        await window.fetchJSON("/api/tasks/" + T.editing.id, { method: "DELETE" });
+        closeEditTaskModal();
+        if (typeof showToast === "function") showToast("Task deleted");
+        await loadTasksPage();
+        if (typeof loadData === "function") loadData();
+      } catch (err) {
+        if (typeof showToast === "function") showToast("Error: " + err.message);
+      }
+    }
+
+    // Expose globally for onclick handlers + switchTab
+    window.loadTasksPage = loadTasksPage;
+    window.renderTasksList = renderTasksList;
+    window.tasksSetFilter = tasksSetFilter;
+    window.openEditTask = openEditTask;
+    window.closeEditTaskModal = closeEditTaskModal;
+    window.saveEditTask = saveEditTask;
+    window.addEditSessionRow = addEditSessionRow;
+    window.deleteEditSession = deleteEditSession;
+    window.deleteEditTask = deleteEditTask;
+    window.removeNewSessionRow = removeNewSessionRow;
+    window.tasksFilterStateFunc = () => T;
+    Object.defineProperty(window, "tasksFilterState", { get: () => T });
   })();
 
   </script>

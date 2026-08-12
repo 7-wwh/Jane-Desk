@@ -37,6 +37,7 @@ class Task(Base):
     begin_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)  # hours
     branch_path: Mapped[str] = mapped_column(String(300), default="")  # full path, e.g. "work/2026/Q3 report"
+    done_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=NOW)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=NOW, onupdate=NOW)
 
