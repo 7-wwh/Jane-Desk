@@ -115,7 +115,7 @@ life-at-a-glance/
 │   ├── core.css                    ← design system + shared components (CHECK BOX light theme)
 │   ├── core.js                     ← shared logic: state, fetch, helpers, data loading, dispatch
 │   ├── main.js                     ← boot: App.boot() injects widgets, binds, renders, refreshes
-│   └── widgets/                    ← one folder per widget (html/css/js edited together)
+│   ├── widgets/                    ← one folder per widget (html/css/js edited together)
 │       ├── mind-map/               ←   pan/zoom/collapse mind map (index.html, widget.css, widget.js)
 │       ├── current-task/           ←   hero card + flip clock
 │       ├── tasks/                  ←   flat task rows + Deadline/A-Z/Priority sort
@@ -124,6 +124,12 @@ life-at-a-glance/
 │       ├── settings/               ←   Display + System cards
 │       ├── quick-add/              ←   the "+" composer modal
 │       └── sessions/               ←   session history modal
+│   ├── new-dashboard.html          ← alternate standalone dashboard (in-progress v2 redesign)
+│   └── dashboard/                  ← new-dashboard.html's split-out assets (see §8.8)
+│       ├── new-dashboard.css       ←   extracted <style> (Tailwind config + brand colors)
+│       ├── analytics-chart.js      ←   analytics-tracker chart widget (self-contained IIFE)
+│       ├── interactions.js         ←   drag-drop, tabs, settings, timer, accordion, modal, toast
+│       └── app.js                  ←   API wiring: fetches /api/* and re-renders the views
 │
 ├── bin/                            ← OPERATIONS scripts (run manually / by agents)
 │   ├── post.sh                     ← one-command helper for agents to add entries
@@ -455,6 +461,31 @@ reflection of `state`.
 All user/agent-provided text is passed through `esc()` before being written into HTML,
 preventing XSS from anything an agent posts. This is a non-negotiable practice whenever a page
 renders third-party input.
+
+### 8.8 Alternate standalone dashboard (`/new-dashboard.html`)
+
+In addition to the modular `index.html` shell (widgets fetched + injected by `core.js`), the repo
+ships a second, self-contained dashboard at **`static/new-dashboard.html`**, served at
+`/new-dashboard.html`. It is a single HTML page using the Tailwind CDN, with no widget injection
+and no build step — a parallel, in-progress redesign of the same CHECK BOX data.
+
+To keep the markup readable, its inline `<style>` and three inline `<script>` blocks have been split
+out into plain assets under **`static/dashboard/`** (loaded in this order, so later scripts can rely
+on globals declared earlier):
+
+| Asset | Replaces | Responsibility |
+| :--- | :--- | :--- |
+| `dashboard/new-dashboard.css` | inline `<style>` | Tailwind theme config + custom rules (scrollbar pills, striped patterns) |
+| `dashboard/analytics-chart.js` | inline analytics script | self-contained IIFE: renders the bar chart, tab switches, tooltip |
+| `dashboard/interactions.js` | inline "INTERACTIVE JAVASCRIPT LOGIC" | drag-and-drop, tab/view switching, settings persistence, pomodoro timer, accordion, modal, toast |
+| `dashboard/app.js` | inline backend-wiring IIFE | fetches `/api/work`, `/api/dashboard`, `/api/projects`, `/api/sessions/active` and re-renders every view |
+
+The HTML file itself still holds all the markup (topbar, dashboard/tasks/settings views, modals,
+toast). The two heavy scripts are **load-bearing on each other**: `app.js` reuses `interactions.js`
+helpers (`showToast`, `switchTab`, `toggleAccordion`, `formatTimerDisplay`, …) and re-assigns a few
+of them to API-backed versions. Because `app.js` always won, the old hardcoded copies of those
+functions that lived in `interactions.js` were removed to avoid dead duplication — the handlers
+called by `onclick`/`onsubmit` attributes now resolve to the API-backed versions in `app.js`.
 
 ---
 

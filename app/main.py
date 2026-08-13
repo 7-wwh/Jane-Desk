@@ -89,10 +89,17 @@ def list_projects(
     return query.order_by(models.Project.created_at.desc()).all()
 
 
+def _clean_str(value: Any) -> str:
+    """Coerce empty/None string fields that map to NOT NULL columns."""
+    return (value or "").strip() if value is not None else ""
+
+
 @app.post("/api/projects", response_model=schemas.ProjectOut, status_code=201)
 def create_project(data: schemas.ProjectCreate, db: Session = Depends(get_db)):
     validate_project(data)
-    project = models.Project(**data.model_dump())
+    data_dict = data.model_dump()
+    data_dict["branch_path"] = _clean_str(data_dict.get("branch_path"))
+    project = models.Project(**data_dict)
     db.add(project)
     db.commit()
     db.refresh(project)
@@ -114,7 +121,7 @@ def update_project(project_id: int, data: schemas.ProjectUpdate, db: Session = D
     if not project:
         raise HTTPException(404, "project not found")
     for key, value in data.model_dump(exclude_unset=True).items():
-        setattr(project, key, value)
+        setattr(project, key, _clean_str(value) if key == "branch_path" else value)
     db.commit()
     db.refresh(project)
     return project
@@ -208,7 +215,9 @@ def create_task(project_id: int, data: schemas.TaskCreate, db: Session = Depends
     if not db.get(models.Project, project_id):
         raise HTTPException(404, "project not found")
     validate_task(data)
-    task = models.Task(project_id=project_id, **data.model_dump())
+    data_dict = data.model_dump()
+    data_dict["branch_path"] = _clean_str(data_dict.get("branch_path"))
+    task = models.Task(project_id=project_id, **data_dict)
     sync_done_at(task)
     db.add(task)
     db.commit()
@@ -256,6 +265,8 @@ def update_task(task_id: int, data: schemas.TaskUpdate, db: Session = Depends(ge
     validate_task(data)
     payload = data.model_dump(exclude_unset=True)
     project_id = payload.pop("project_id", None)
+    if "branch_path" in payload:
+        payload["branch_path"] = _clean_str(payload["branch_path"])
     if project_id is not None:
         if not db.get(models.Project, project_id):
             raise HTTPException(404, "project not found")
@@ -1000,6 +1011,187 @@ def dashboard(db: Session = Depends(get_db)):
             for pid, tasks in tasks_by_project.items()
         },
     }
+
+
+@app.get("/api/daily-stats", response_model=list[schemas.DailyStatOut])
+def daily_stats(
+    days: int = Query(default=2, ge=1, le=31),
+    db: Session = Depends(get_db),
+):
+    """Per-day counters (UTC) for the header trend metrics. Computes deterministically
+    from source data and upserts a snapshot row per day, so history stays accurate."""
+    now = datetime.utcnow()
+    today = now.date()
+    out = []
+    for offset in range(days - 1, -1, -1):
+        d = today - timedelta(days=offset)
+        day_start = datetime.combine(d, datetime.min.time())
+        next_day = day_start + timedelta(days=1)
+
+        # Active projects: currently-active whose start (begin_date, else created_at) is <= d.
+        active_projects = 0
+        for p in db.query(models.Project).all():
+            if p.status != "active":
+                continue
+            start = p.begin_date or (p.created_at.date() if p.created_at else date.max)
+            if start <= d:
+                active_projects += 1
+
+        # Tasks due on d that weren't already finished before d.
+        tasks_due = 0
+        for t in db.query(models.Task).all():
+            if t.due_date != d:
+                continue
+            if t.status == "done" and t.done_at and t.done_at.date() < d:
+                continue
+            tasks_due += 1
+
+        # Work seconds clipped to the UTC day (sessions may span midnight).
+        # Running (unended) sessions are excluded here — the frontend adds live elapsed.
+        work_seconds = 0.0
+        for s in db.query(models.TaskSession).filter(models.TaskSession.started_at < next_day).all():
+            if s.ended_at is None:
+                continue
+            if s.ended_at <= day_start or s.started_at >= next_day:
+                continue
+            lo = max(day_start, s.started_at)
+            hi = min(next_day, s.ended_at)
+            work_seconds += max(0.0, (hi - lo).total_seconds())
+
+        row = db.get(models.DailySnapshot, d)
+        if row is None:
+            row = models.DailySnapshot(
+                date=d,
+                active_projects=active_projects,
+                tasks_due=tasks_due,
+                work_seconds=work_seconds,
+            )
+            db.add(row)
+        else:
+            row.active_projects = active_projects
+            row.tasks_due = tasks_due
+            row.work_seconds = work_seconds
+
+        out.append(
+            schemas.DailyStatOut(
+                date=d,
+                active_projects=active_projects,
+                tasks_due=tasks_due,
+                work_seconds=round(work_seconds, 2),
+            )
+        )
+    db.commit()
+    return out
+
+
+ANALYTICS_RANGES = {"daily", "weekly", "monthly"}
+
+
+def _bucket_session_seconds(sessions: list[models.TaskSession], day_start: datetime, next_day: datetime) -> float:
+    """Sum session seconds clipped to [day_start, next_day). Running (unended) sessions excluded."""
+    total = 0.0
+    for s in sessions:
+        if s.ended_at is None:
+            continue
+        if s.ended_at <= day_start or s.started_at >= next_day:
+            continue
+        lo = max(day_start, s.started_at)
+        hi = min(next_day, s.ended_at)
+        total += max(0.0, (hi - lo).total_seconds())
+    return total
+
+
+def _analytics_bucket(
+    day_start: datetime,
+    next_day: datetime,
+    bucket_days: int,
+    label_fmt: str,
+    waking_hours: int,
+    tasks: list[models.Task],
+    sessions: list[models.TaskSession],
+) -> schemas.AnalyticsBucket:
+    """Aggregate one bucket of the analytics chart (tasks created/done, focus score)."""
+    created = 0
+    completed = 0
+    for t in tasks:
+        if t.created_at and day_start <= t.created_at < next_day:
+            created += 1
+        if t.done_at and day_start <= t.done_at < next_day:
+            completed += 1
+    work_secs = _bucket_session_seconds(sessions, day_start, next_day)
+    wake_secs = waking_hours * 3600 * max(1, bucket_days)
+    focus = min(100.0, round((work_secs / wake_secs) * 100, 2)) if wake_secs else 0.0
+    return schemas.AnalyticsBucket(
+        start=day_start.date(),
+        label=day_start.date().strftime(label_fmt),
+        tasks_created=created,
+        tasks_completed=completed,
+        work_seconds=round(work_secs, 2),
+        focus_score=focus,
+    )
+
+
+@app.get("/api/analytics", response_model=schemas.AnalyticsOut)
+def analytics(
+    prange: str = Query(default="daily", alias="range"),
+    db: Session = Depends(get_db),
+):
+    """Bucketed task/focus analytics for the chart widget. Buckets cover the time range
+    up to today: last 19 days (daily), last 12 weeks (weekly), last 12 months (monthly)."""
+    if prange not in ANALYTICS_RANGES:
+        raise HTTPException(400, f"range must be one of {sorted(ANALYTICS_RANGES)}")
+
+    try:
+        waking_hours = int(_read_settings(db).get("waking_hours") or 16)
+    except (TypeError, ValueError):
+        waking_hours = 16
+    waking_hours = max(1, min(24, waking_hours))
+
+    tasks = db.query(models.Task).all()
+    sessions = db.query(models.TaskSession).all()
+    today = datetime.utcnow().date()
+
+    buckets: list[schemas.AnalyticsBucket] = []
+    if prange == "daily":
+        for offset in range(18, -1, -1):
+            d = today - timedelta(days=offset)
+            day_start = datetime.combine(d, datetime.min.time())
+            buckets.append(
+                _analytics_bucket(day_start, day_start + timedelta(days=1), 1, "%b %d", waking_hours, tasks, sessions)
+            )
+    elif prange == "weekly":
+        monday = today - timedelta(days=today.weekday())  # weeks start Monday
+        for w in range(11, -1, -1):
+            d = monday - timedelta(weeks=w)
+            day_start = datetime.combine(d, datetime.min.time())
+            bucket_days = max(1, min(7, (today - d).days + 1))
+            buckets.append(
+                _analytics_bucket(day_start, day_start + timedelta(days=7), bucket_days, "%b %d", waking_hours, tasks, sessions)
+            )
+    else:  # monthly
+        months: list[tuple[int, int]] = []
+        y, m = today.year, today.month
+        for _ in range(12):
+            months.append((y, m))
+            m -= 1
+            if m == 0:
+                m = 12
+                y -= 1
+        for idx, (y, m) in enumerate(reversed(months)):
+            day_start = datetime(y, m, 1)
+            if m == 12:
+                next_month = datetime(y + 1, 1, 1)
+            else:
+                next_month = datetime(y, m + 1, 1)
+            if idx == 11:  # current (partial) month
+                bucket_days = max(1, (today - day_start.date()).days + 1)
+            else:
+                bucket_days = (next_month.date() - day_start.date()).days
+            buckets.append(
+                _analytics_bucket(day_start, next_month, bucket_days, "%b %Y", waking_hours, tasks, sessions)
+            )
+
+    return schemas.AnalyticsOut(range=prange, waking_hours=waking_hours, buckets=buckets)
 
 
 @app.get("/api/tree", response_model=schemas.TreeOut)

@@ -106,6 +106,10 @@ and cascade-delete with their task.
 ### Aggregates
 - `GET /api/dashboard` — everything the home screen needs in one call
 - `GET /api/timeline?limit=` — merged chronological feed (learnings + projects + journal)
+- `GET /api/analytics?range=daily|weekly|monthly` — per-bucket task/focus analytics for the
+  Analytics Tracker widget: `{range, waking_hours, buckets[{start,label,tasks_created,
+  tasks_completed,work_seconds,focus_score}]}`. Buckets cover up to today (19 days / 12 weeks /
+  12 months); `focus_score` = clipped session-seconds ÷ (waking_hours × hours × days in bucket).
 
 ## Example curl
 
@@ -120,3 +124,13 @@ curl -s -X POST http://127.0.0.1:8000/api/learnings \
 - Use `bin/post.sh` or the API only.
 - Keep descriptions under ~200 characters.
 - If an entry already exists, prefer updating it (PUT) over creating duplicates.
+
+## Frontend reference (read-only context for agents)
+
+The API is consumed by the browser UI, not written by agents. If you need to reason about where
+data renders:
+
+- `static/index.html` is the live dashboard at `/` — a thin shell that `core.js` fills by fetching each widget's markup from `static/widgets/<name>/index.html` and wiring the API.
+- `static/new-dashboard.html` is an alternate, self-contained dashboard served at `/new-dashboard.html` (a standalone v2 redesign). Its CSS and JS live in `static/dashboard/` (`new-dashboard.css`, `analytics-chart.js`, `interactions.js`, `app.js`). It fetches the same `/api/*` endpoints but owns its own render loop.
+
+Agents write data; they do not edit these UI files unless a task explicitly requires it. See `README.md` §8 and `DESIGN.md` for full layout details.

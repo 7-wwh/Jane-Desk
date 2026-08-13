@@ -98,3 +98,15 @@ class Setting(Base):
     key: Mapped[str] = mapped_column(String(100), primary_key=True)
     value: Mapped[str] = mapped_column(Text, default="")  # JSON-serialized value
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=NOW, onupdate=NOW)
+
+
+class DailySnapshot(Base):
+    """End-of-day counters per calendar date — powers the header trend metrics."""
+
+    __tablename__ = "daily_snapshots"
+
+    date: Mapped[date] = mapped_column(Date, primary_key=True)
+    active_projects: Mapped[int] = mapped_column(Integer, default=0)
+    tasks_due: Mapped[int] = mapped_column(Integer, default=0)
+    work_seconds: Mapped[float] = mapped_column(Float, default=0.0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=NOW, onupdate=NOW)

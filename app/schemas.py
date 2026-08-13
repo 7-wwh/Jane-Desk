@@ -254,6 +254,28 @@ class TimelineItem(BaseModel):
     entity_id: int
 
 
+class DailyStatOut(BaseModel):
+    date: date
+    active_projects: int = 0
+    tasks_due: int = 0
+    work_seconds: float = 0.0
+
+
+class AnalyticsBucket(BaseModel):
+    start: date
+    label: str
+    tasks_created: int = 0
+    tasks_completed: int = 0
+    work_seconds: float = 0.0
+    focus_score: float = 0.0
+
+
+class AnalyticsOut(BaseModel):
+    range: str
+    waking_hours: int
+    buckets: list[AnalyticsBucket] = []
+
+
 class SettingsUpdate(BaseModel):
     # Any JSON-encodable value is allowed per key.
     settings: dict[str, Any] = Field(default_factory=dict)

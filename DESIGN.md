@@ -510,7 +510,18 @@ static/
   core.js                 ← state, helpers, data loading, global dispatch, App registry + boot()
   main.js                 ← App.boot()
   widgets/<name>/         ← one folder per widget: index.html + widget.css + widget.js
+  new-dashboard.html      ← alternate standalone dashboard (Tailwind CDN, no build step)
+  dashboard/              ← new-dashboard.html's split-out assets (see README §8.8)
+    new-dashboard.css     ←   extracted styles
+    analytics-chart.js    ←   analytics chart widget (IIFE)
+    interactions.js       ←   drag-drop, tabs, settings, timer, accordion, modal, toast
+    app.js                ←   API wiring + render pipeline
 ```
+
+The `index.html` view is assembled from small widget partials in `widgets/` by `App.boot()`
+(see §8.1). The `new-dashboard.html` view is a parallel, self-contained single page: its markup stays
+inline while its CSS and JS were split into `static/dashboard/` for maintainability (it fetches the
+same `/api/*` endpoints but owns its own Tailwind-based render loop in `app.js`).
 
 **Boot sequence:** `main.js` → `App.boot()` → `bindCore()` → `injectParts()` → `renderSettings()` → `updateClock()` → `startTicker()` → `refreshAll()`.
 

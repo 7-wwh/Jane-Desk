@@ -5,7 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/ubuntu/Personal Projects/life-at-a-glance
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Personal Projects/Jane-Desk
 ExecStart=/usr/bin/python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 Restart=on-failure
 RestartSec=3

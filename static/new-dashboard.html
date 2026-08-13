@@ -32,59 +32,7 @@
       }
     }
   </script>
-  <style>
-    body {
-      background: radial-gradient(circle at 85% 15%, rgba(245, 194, 0, 0.18) 0%, rgba(243, 239, 230, 0.95) 50%, #ECE7DB 100%);
-      font-family: 'Inter', sans-serif;
-    }
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 4px;
-      height: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #D4D4D8;
-      border-radius: 9999px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    .no-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
-    .no-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
-    .bar-transition {
-      transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease;
-    }
-    .striped-pattern {
-      background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.25), rgba(255,255,255,0.25) 8px, transparent 8px, transparent 16px);
-    }
-
-    /* Summary task-hour pills: expand to show full title on hover */
-    #summary-pills .task-hours-pill {
-      overflow: hidden;
-      transition: flex-grow 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    #summary-pills .task-hours-pill span.truncate {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      transition: max-width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-      max-width: 100%;
-    }
-    #summary-pills .task-hours-pill:hover {
-      flex-grow: 3 !important;
-      flex-shrink: 0;
-      min-width: 0;
-      z-index: 10;
-    }
-    #summary-pills .task-hours-pill:hover span.truncate {
-      max-width: 100%;
-      text-overflow: clip;
-    }
-  </style>
+  <link rel="stylesheet" href="dashboard/new-dashboard.css">
 </head>
 <body class="min-h-screen text-stone-800 p-3 sm:p-6 md:p-8 antialiased flex flex-col justify-center items-center">
 
@@ -146,36 +94,72 @@
       </div>
 
       <!-- Key Personal Metrics -->
-      <div class="flex items-center gap-6 sm:gap-8 border-t lg:border-t-0 pt-4 lg:pt-0 border-stone-200">
-        <!-- Metric 1 -->
-        <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-full bg-amber-200/60 border border-amber-300/60 flex items-center justify-center text-amber-900 font-extrabold text-sm shadow-sm">
-            ✓
+      <div class="bg-[#F6F4ED] rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 max-w-lg w-full relative">
+        <!-- ITEM 1: Today's Tasks -->
+        <div class="status-item flex items-center gap-3.5 group w-full sm:w-auto">
+          <div class="relative shrink-0">
+            <div class="w-12 h-12 rounded-full bg-stone-200/70 border border-stone-300/50 flex items-center justify-center text-stone-800 group-hover:scale-105 transition-transform">
+              <svg class="w-5 h-5 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <span id="trend-arrow-today" class="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm flex items-center justify-center hidden" title="">
+              <svg class="w-2.5 h-2.5 trend-arrow" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+            </span>
           </div>
-          <div>
-            <div id="stat-due-today" class="text-2xl font-black text-stone-900 leading-none">8</div>
-            <div class="text-[11px] text-stone-500 font-semibold mt-0.5">Today's Tasks</div>
-            <div id="daily-target-label" class="hidden text-[9px] text-amber-700 font-bold mt-0.5">Target: 8/day</div>
+          <div class="flex flex-col">
+            <div class="flex items-baseline gap-1.5">
+              <span id="stat-due-today" class="text-3xl font-black text-stone-900 tracking-tight leading-none">0</span>
+              <span id="trend-pill-today" class="inline-flex items-center text-[10px] font-extrabold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded-md hidden">—</span>
+            </div>
+            <span class="text-xs font-semibold text-stone-600 mt-0.5">Today's Tasks</span>
           </div>
         </div>
-        <!-- Metric 2 -->
-        <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-full bg-stone-200/80 border border-stone-300/60 flex items-center justify-center text-stone-700 font-extrabold text-sm shadow-sm">
-            📁
+
+        <div class="hidden sm:block w-px h-10 bg-stone-300/60"></div>
+
+        <!-- ITEM 2: Projects -->
+        <div class="status-item flex items-center gap-3.5 group w-full sm:w-auto">
+          <div class="relative shrink-0">
+            <div class="w-12 h-12 rounded-full bg-stone-200/70 border border-stone-300/50 flex items-center justify-center text-amber-500 group-hover:scale-105 transition-transform">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path>
+              </svg>
+            </div>
+            <span id="trend-arrow-projects" class="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm flex items-center justify-center hidden" title="">
+              <svg class="w-2.5 h-2.5 trend-arrow" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+            </span>
           </div>
-          <div>
-            <div id="stat-projects" class="text-2xl font-black text-stone-900 leading-none">0</div>
-            <div class="text-[11px] text-stone-500 font-semibold mt-0.5">Projects</div>
+          <div class="flex flex-col">
+            <div class="flex items-baseline gap-1.5">
+              <span id="stat-projects" class="text-3xl font-black text-stone-900 tracking-tight leading-none">0</span>
+              <span id="trend-pill-projects" class="inline-flex items-center text-[10px] font-extrabold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded-md hidden">—</span>
+            </div>
+            <span class="text-xs font-semibold text-stone-600 mt-0.5">Projects</span>
           </div>
         </div>
-        <!-- Metric 3 -->
-        <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-full bg-stone-200/80 border border-stone-300/60 flex items-center justify-center text-stone-700 font-extrabold text-sm shadow-sm">
-            ⚡
+
+        <div class="hidden sm:block w-px h-10 bg-stone-300/60"></div>
+
+        <!-- ITEM 3: Focus Score -->
+        <div class="status-item flex items-center gap-3.5 group w-full sm:w-auto">
+          <div class="relative shrink-0">
+            <div class="w-12 h-12 rounded-full bg-stone-200/70 border border-stone-300/50 flex items-center justify-center text-orange-500 group-hover:scale-105 transition-transform">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.381z" clip-rule="evenodd"></path>
+              </svg>
+            </div>
+            <span id="trend-arrow-focus" class="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm flex items-center justify-center hidden" title="">
+              <svg class="w-2.5 h-2.5 trend-arrow" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+            </span>
           </div>
-          <div>
-            <div id="stat-focus" class="text-2xl font-black text-stone-900 leading-none">0%</div>
-            <div class="text-[11px] text-stone-500 font-semibold mt-0.5">Focus Score</div>
+          <div class="flex flex-col">
+            <div class="flex items-baseline gap-1.5">
+              <span id="stat-focus" class="text-3xl font-black text-stone-900 tracking-tight leading-none">0%</span>
+              <span id="trend-pill-focus" class="inline-flex items-center text-[10px] font-extrabold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded-md hidden">—</span>
+            </div>
+            <span class="text-xs font-semibold text-stone-600 mt-0.5">Focus Score</span>
+            <span id="stat-focus-sub" class="text-[11px] font-bold text-stone-400 mt-0.5">0.0h deep work</span>
           </div>
         </div>
       </div>
@@ -439,18 +423,19 @@
           </div>
           <div class="flex items-center gap-6 sm:gap-10">
             <div class="flex items-baseline gap-2">
-              <span class="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight" id="metric1-val">09.45</span>
-              <span class="text-[10px] font-bold text-stone-400 uppercase">AM</span>
-              <span class="inline-flex items-center gap-0.5 bg-[#F5C200]/90 text-stone-900 text-[11px] font-extrabold px-2 py-0.5 rounded-full shadow-sm">
-                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 15l7-7 7 7"/></svg>
-                30min
+              <span class="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight" id="metric1-val">0</span>
+              <span class="text-[10px] font-bold text-stone-400 uppercase">done</span>
+              <span class="inline-flex items-center gap-0.5 bg-[#F5C200]/90 text-stone-900 text-[11px] font-extrabold px-2 py-0.5 rounded-full shadow-sm whitespace-nowrap">
+                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                <span id="metric1-badge">of 0 created</span>
               </span>
             </div>
             <div class="flex items-baseline gap-2">
-              <span class="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight" id="metric2-val">98.57°</span>
-              <span class="inline-flex items-center gap-0.5 bg-[#F5C200]/90 text-stone-900 text-[11px] font-extrabold px-2 py-0.5 rounded-full shadow-sm">
-                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
-                0.7%
+              <span class="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight" id="metric2-val">0</span>
+              <span class="text-[10px] font-bold text-stone-400 uppercase">%</span>
+              <span class="inline-flex items-center gap-0.5 bg-[#F5C200]/90 text-stone-900 text-[11px] font-extrabold px-2 py-0.5 rounded-full shadow-sm whitespace-nowrap">
+                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 8v13m0-13l-4 4m4-4l4 4"/></svg>
+                <span id="metric2-badge">0h deep work</span>
               </span>
             </div>
           </div>
@@ -467,28 +452,37 @@
 
           <div class="flex items-end gap-3 h-24 relative px-1">
             <div class="flex flex-col justify-between h-full text-[10px] font-semibold text-stone-400 pr-2 select-none py-1">
-              <span>1.0%</span>
-              <span>0.5%</span>
-              <span>0.0%</span>
+              <span>100%</span>
+              <span>50%</span>
+              <span>0%</span>
             </div>
             <div id="bars-container" class="flex-1 flex items-end justify-between h-full pt-4 relative"></div>
           </div>
 
-          <div class="flex justify-between pl-8 pr-1 mt-1 text-[11px] font-semibold text-stone-400 select-none">
-            <span>Jan</span>
-            <span>Mar</span>
-            <span>May</span>
-            <span>Jul</span>
-          </div>
+          <div class="flex justify-between pl-8 pr-1 mt-1 text-[11px] font-semibold text-stone-400 select-none" id="chart-xaxis"></div>
         </div>
 
-        <div class="mt-2 pt-2 border-t border-stone-200/60 overflow-x-auto no-scrollbar">
-          <div class="flex items-center gap-2 min-w-max" id="tabs-nav">
-            <button class="tab-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 bg-[#F5C200] text-stone-900 shadow-sm" data-tab="Tracker">Tracker</button>
-            <button class="tab-btn px-4 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-200/50 transition-all duration-200" data-tab="MedicalAnalytics">MedicalAnalytics</button>
-            <button class="tab-btn px-4 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-200/50 transition-all duration-200" data-tab="FitnessMetrics">FitnessMetrics</button>
-            <button class="tab-btn px-4 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-200/50 transition-all duration-200" data-tab="PatientInsights">PatientInsights</button>
-            <button class="tab-btn px-4 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-200/50 transition-all duration-200" data-tab="AI Healthcare">AI Healthcare</button>
+        <div class="relative mt-2">
+          <button type="button" id="tabs-scroll-left" aria-label="Scroll tabs left" title="Scroll tabs left" class="tabs-scroll-btn">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <button type="button" id="tabs-scroll-right" aria-label="Scroll tabs right" title="Scroll tabs right" class="tabs-scroll-btn">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 6l6 6-6 6"/></svg>
+          </button>
+          <div class="pt-2 border-t border-stone-200/60 overflow-x-auto no-scrollbar" id="tabs-scroller">
+            <div class="flex items-center gap-2 min-w-max" id="tabs-nav">
+              <div class="flex items-center gap-1 bg-stone-200/70 rounded-full p-1 mr-1 shrink-0" id="range-nav">
+                <button class="range-btn w-8 py-1 rounded-full text-xs font-bold transition-all duration-200 bg-[#F5C200] text-stone-900 shadow-sm" data-range="daily" title="Daily">D</button>
+                <button class="range-btn w-8 py-1 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 transition-all duration-200" data-range="weekly" title="Weekly">W</button>
+                <button class="range-btn w-8 py-1 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 transition-all duration-200" data-range="monthly" title="Monthly">M</button>
+              </div>
+              <span class="w-px h-4 bg-stone-300/70 shrink-0"></span>
+              <button class="tab-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 bg-[#F5C200] text-stone-900 shadow-sm" data-tab="Tracker">Tracker</button>
+              <button class="tab-btn px-4 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-200/50 transition-all duration-200" data-tab="MedicalAnalytics">MedicalAnalytics</button>
+              <button class="tab-btn px-4 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-200/50 transition-all duration-200" data-tab="FitnessMetrics">FitnessMetrics</button>
+              <button class="tab-btn px-4 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-200/50 transition-all duration-200" data-tab="PatientInsights">PatientInsights</button>
+              <button class="tab-btn px-4 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-200/50 transition-all duration-200" data-tab="AI Healthcare">AI Healthcare</button>
+            </div>
           </div>
         </div>
 
@@ -521,108 +515,7 @@
     </div>
 
     <!-- ANALYTICS TRACKER WIDGET SCRIPT -->
-    <script>
-      (function () {
-        const defaultChartData = [
-          { heightPct: 30, highlight: false, value: "0.30%" },
-          { heightPct: 35, highlight: false, value: "0.35%" },
-          { heightPct: 38, highlight: false, value: "0.38%" },
-          { heightPct: 50, highlight: false, value: "0.50%" },
-          { heightPct: 65, highlight: false, value: "0.65%" },
-          { heightPct: 92, highlight: true, value: "3.62%" },
-          { heightPct: 98, highlight: false, value: "0.98%" },
-          { heightPct: 65, highlight: false, value: "0.65%" },
-          { heightPct: 45, highlight: false, value: "0.45%" },
-          { heightPct: 38, highlight: false, value: "0.38%" },
-          { heightPct: 35, highlight: false, value: "0.35%" },
-          { heightPct: 32, highlight: false, value: "0.32%" },
-          { heightPct: 30, highlight: false, value: "0.30%" },
-          { heightPct: 32, highlight: false, value: "0.32%" },
-          { heightPct: 35, highlight: false, value: "0.35%" },
-          { heightPct: 38, highlight: false, value: "0.38%" },
-          { heightPct: 36, highlight: false, value: "0.36%" },
-          { heightPct: 52, highlight: true, value: "0.52%" },
-          { heightPct: 88, highlight: false, value: "0.88%" }
-        ];
-
-        let currentScale = 1;
-        const barsContainer = document.getElementById('bars-container');
-        const chartWrapper = document.getElementById('chart-wrapper');
-        const chartTooltip = document.getElementById('chart-tooltip');
-        const tooltipText = document.getElementById('tooltip-text');
-        const tooltipDot = document.getElementById('tooltip-dot');
-
-        if (!barsContainer) return;
-
-        function renderBars(data) {
-          barsContainer.innerHTML = '';
-          data.forEach((bar) => {
-            const barWrapper = document.createElement('div');
-            barWrapper.className = 'flex-1 h-full flex items-end justify-center group cursor-pointer px-0.5 relative';
-            const adjustedHeight = Math.min(100, Math.max(10, bar.heightPct * currentScale));
-            const barEl = document.createElement('div');
-            const isHighlight = bar.highlight;
-            const bgClass = isHighlight ? 'bg-brandYellow shadow-sm' : 'bg-stone-800 hover:bg-stone-700';
-            barEl.className = 'w-full max-w-[14px] sm:max-w-[18px] rounded-full bar-transition ' + bgClass;
-            barEl.style.height = adjustedHeight + '%';
-            barWrapper.appendChild(barEl);
-
-            barWrapper.addEventListener('mouseenter', () => {
-              tooltipText.textContent = bar.value;
-              tooltipDot.className = 'w-2 h-2 rounded-full ' + (isHighlight ? 'bg-stone-900' : 'bg-brandYellow');
-              const barRect = barEl.getBoundingClientRect();
-              const wrapperRect = chartWrapper.getBoundingClientRect();
-              const leftOffset = (barRect.left - wrapperRect.left) + (barRect.width / 2);
-              const topOffset = barRect.top - wrapperRect.top;
-              chartTooltip.style.left = leftOffset + 'px';
-              chartTooltip.style.top = topOffset + 'px';
-              chartTooltip.classList.remove('hidden', 'opacity-0');
-              chartTooltip.classList.add('opacity-100');
-            });
-            barWrapper.addEventListener('mouseleave', () => {
-              chartTooltip.classList.add('opacity-0');
-              chartTooltip.classList.remove('opacity-100');
-            });
-            barsContainer.appendChild(barWrapper);
-          });
-        }
-
-        function chartToast(text) {
-          const toast = document.getElementById('widget-toast-msg');
-          if (!toast) return;
-          toast.textContent = text;
-          toast.classList.remove('opacity-0', 'translate-y-2', 'pointer-events-none');
-          toast.classList.add('opacity-100', 'translate-y-0');
-          setTimeout(() => {
-            toast.classList.add('opacity-0', 'translate-y-2', 'pointer-events-none');
-            toast.classList.remove('opacity-100', 'translate-y-0');
-          }, 2000);
-        }
-
-        const chartEl = document.getElementById('widget-chart');
-        const tabBtns = chartEl ? chartEl.querySelectorAll('.tab-btn') : [];
-        tabBtns.forEach((btn) => {
-          btn.addEventListener('click', () => {
-            tabBtns.forEach((b) => {
-              b.className = 'tab-btn px-4 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-200/50 transition-all duration-200';
-            });
-            btn.className = 'tab-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 bg-brandYellow text-stone-900 shadow-sm';
-            chartToast('Switched to ' + btn.dataset.tab);
-            const modifiedData = defaultChartData.map(d => ({
-              ...d,
-              heightPct: Math.min(100, Math.max(15, d.heightPct + (Math.floor(Math.random() * 16) - 8)))
-            }));
-            renderBars(modifiedData);
-          });
-        });
-
-        renderBars(defaultChartData);
-
-        window.addEventListener('resize', () => {
-          chartTooltip.classList.add('opacity-0');
-        });
-      })();
-    </script>
+    <script src="dashboard/analytics-chart.js"></script>
 
     <!-- LOWER GRID ROW: ACCORDION SIDEBAR & CALENDAR TIMETABLE -->
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-5">
@@ -935,6 +828,13 @@
           </div>
 
           <div>
+            <label for="setting-waking-hours" class="block text-xs font-bold text-stone-700 mb-1.5">Waking Hours / Day</label>
+            <input id="setting-waking-hours" type="number" min="1" max="24" inputmode="numeric"
+              class="w-full text-sm p-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 font-semibold text-stone-900 bg-white">
+            <p class="text-[10.5px] text-stone-500 font-medium mt-1.5">Baseline used to compute your Focus Score (% of waking hours worked).</p>
+          </div>
+
+          <div>
             <label for="setting-archive-days" class="block text-xs font-bold text-stone-700 mb-1.5">Archive Done Tasks After (days)</label>
             <input id="setting-archive-days" type="number" min="1" max="365" inputmode="numeric"
               class="w-full text-sm p-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 font-semibold text-stone-900 bg-white">
@@ -1104,11 +1004,15 @@
           </div>
           <div>
             <label class="block text-xs font-bold text-stone-700 mb-1">Due Date</label>
-            <input id="edit-task-due" type="date" class="w-full text-xs p-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium">
+            <div class="pkr-wrap">
+              <input id="edit-task-due" type="hidden" class="pkr-value">
+            </div>
           </div>
           <div>
             <label class="block text-xs font-bold text-stone-700 mb-1">Start Date</label>
-            <input id="edit-task-begin" type="date" class="w-full text-xs p-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium">
+            <div class="pkr-wrap">
+              <input id="edit-task-begin" type="hidden" class="pkr-value">
+            </div>
           </div>
           <div>
             <label class="block text-xs font-bold text-stone-700 mb-1">Branch Path</label>
@@ -1159,1396 +1063,9 @@
   </div>
 
   <!-- INTERACTIVE JAVASCRIPT LOGIC -->
-  <script>
-    // Drag and drop handler state
-    let draggedElement = null;
-    let isRearrangeMode = false;
+  <script src="dashboard/time-picker.js"></script>
+  <script src="dashboard/interactions.js"></script>
 
-    function toggleRearrangeMode() {
-      isRearrangeMode = !isRearrangeMode;
-      const btn = document.getElementById('btn-rearrange');
-      const label = document.getElementById('rearrange-label');
-      const handles = document.querySelectorAll('.drag-handle');
-
-      if (isRearrangeMode) {
-        btn.classList.remove('bg-stone-200', 'text-stone-800');
-        btn.classList.add('bg-stone-900', 'text-white');
-        label.innerText = 'Lock Layout';
-        handles.forEach(h => h.classList.remove('opacity-0'));
-        showToast('Rearrange mode active: Drag widgets to reorder');
-      } else {
-        btn.classList.remove('bg-stone-900', 'text-white');
-        btn.classList.add('bg-stone-200', 'text-stone-800');
-        label.innerText = 'Rearrange';
-        handles.forEach(h => h.classList.add('opacity-0'));
-        showToast('Layout locked');
-      }
-    }
-
-    function handleDragStart(e) {
-      draggedElement = e.currentTarget;
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/html', draggedElement.innerHTML);
-      draggedElement.classList.add('opacity-40', 'scale-95');
-    }
-
-    function handleDragOver(e) {
-      if (e.preventDefault) e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      return false;
-    }
-
-    function handleDragEnter(e) {
-      const target = e.currentTarget;
-      if (target !== draggedElement) {
-        target.classList.add('ring-2', 'ring-amber-400', 'ring-offset-2');
-      }
-    }
-
-    function handleDragLeave(e) {
-      e.currentTarget.classList.remove('ring-2', 'ring-amber-400', 'ring-offset-2');
-    }
-
-    function handleDrop(e) {
-      if (e.stopPropagation) e.stopPropagation();
-      const target = e.currentTarget;
-
-      if (draggedElement && target !== draggedElement && target.parentNode === draggedElement.parentNode) {
-        const container = target.parentNode;
-        const children = Array.from(container.children);
-        const draggedIdx = children.indexOf(draggedElement);
-        const targetIdx = children.indexOf(target);
-
-        if (draggedIdx < targetIdx) {
-          container.insertBefore(draggedElement, target.nextSibling);
-        } else {
-          container.insertBefore(draggedElement, target);
-        }
-        showToast('Widget positions updated!');
-        if (typeof saveSetting === 'function') saveSetting('widget_order', currentWidgetOrder());
-      }
-      return false;
-    }
-
-    function handleDragEnd(e) {
-      document.querySelectorAll('.draggable-widget').forEach(widget => {
-        widget.classList.remove('opacity-40', 'scale-95', 'ring-2', 'ring-amber-400', 'ring-offset-2');
-      });
-      draggedElement = null;
-    }
-
-    // Live Dynamic Greeting
-    function updateGreeting() {
-      const hour = new Date().getHours();
-      const name = getDisplayName();
-      const greetingEl = document.getElementById('greeting-text');
-      const nameEl = document.getElementById('greeting-name');
-      if (hour < 12) {
-        if (greetingEl) greetingEl.innerText = 'Good morning';
-        if (nameEl) nameEl.innerText = `${name} ☀️`;
-      } else if (hour < 18) {
-        if (greetingEl) greetingEl.innerText = 'Good afternoon';
-        if (nameEl) nameEl.innerText = `${name} 🌤️`;
-      } else {
-        if (greetingEl) greetingEl.innerText = 'Good evening';
-        if (nameEl) nameEl.innerText = `${name} 🌙`;
-      }
-      updateAvatarInitials(name);
-    }
-
-    // Navigation Tab Switching (dashboard <-> settings views)
-    function switchTab(tabName, btnElement) {
-      document.querySelectorAll('.nav-btn').forEach(btn => {
-        if (btn.id !== 'btn-rearrange') {
-          btn.className = "nav-btn px-4 py-2 rounded-full text-xs sm:text-sm font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-300/40 transition-all duration-200";
-        }
-      });
-      btnElement.className = "nav-btn px-4 py-2 rounded-full text-xs sm:text-sm font-semibold bg-stone-900 text-white shadow-sm transition-all duration-200";
-
-      const dashboardEl = document.getElementById('dashboard-view');
-      const tasksEl = document.getElementById('tasks-view');
-      const settingsEl = document.getElementById('settings-view');
-      const isTasks = tabName === 'tasks';
-      const isSettings = tabName === 'settings';
-
-      if (settingsEl) settingsEl.classList.toggle('hidden', !isSettings);
-      if (tasksEl) tasksEl.classList.toggle('hidden', !isTasks);
-      if (dashboardEl) dashboardEl.classList.toggle('hidden', isTasks || isSettings);
-
-      if (isSettings) {
-        if (typeof loadSettingsPage === 'function') loadSettingsPage();
-        showToast('Editing your workspace preferences');
-      } else if (isTasks) {
-        if (typeof loadTasksPage === 'function') loadTasksPage();
-        showToast('Reviewing all tasks');
-      } else {
-        showToast(`Switched view to: ${tabName.toUpperCase()}`);
-      }
-    }
-
-    // ---- Settings (server-backed via /api/settings, localStorage fallback) ----
-    const SETTINGS_KEY = 'checkboxNewDashboardSettings';
-    const SETTING_LABELS = {
-      'widget-hero': 'Focus Task',
-      'widget-timer': 'Focus Timer',
-      'widget-tasks': 'Daily Tasks',
-      'widget-empty-3': 'Empty Slot 1',
-      'widget-chart': 'Analytics Tracker',
-      'widget-empty-1': 'Empty Slot 2',
-      'widget-empty-2': 'Empty Slot 3',
-    };
-    const SETTINGS_DEFAULTS = {
-      user_name: 'Alex',
-      weekly_focus_hours: 40,
-      daily_task_target: 8,
-      archive_days: 30,
-      widget_order: ['widget-hero', 'widget-timer', 'widget-tasks', 'widget-empty-3', 'widget-chart', 'widget-empty-1', 'widget-empty-2'],
-    };
-
-    // Applied settings cache — seeded from localStorage, overridden by the server.
-    let settingsLocal = { ...SETTINGS_DEFAULTS };
-    try {
-      settingsLocal = { ...SETTINGS_DEFAULTS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') };
-    } catch (_) {}
-
-    function persistLocalSettings() {
-      try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settingsLocal)); } catch (_) {}
-    }
-
-    function getSetting(key) {
-      return settingsLocal[key] !== undefined ? settingsLocal[key] : SETTINGS_DEFAULTS[key];
-    }
-
-    function getDisplayName() {
-      return String(getSetting('user_name') || SETTINGS_DEFAULTS.user_name).trim() || SETTINGS_DEFAULTS.user_name;
-    }
-
-    // Persist one setting: apply locally first, then mirror to the server when reachable.
-    async function saveSetting(key, value, toastMsg) {
-      settingsLocal[key] = value;
-      persistLocalSettings();
-      applySettingToDashboard(key);
-      updateLayoutPreview();
-      try {
-        const res = await fetch('/api/settings', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ settings: { [key]: value } }),
-        });
-        if (!res.ok) throw new Error('server rejected');
-        if (toastMsg) showToast(toastMsg);
-      } catch (_) {
-        if (toastMsg) showToast('Offline — saved in this browser only');
-      }
-    }
-
-    function applySettingToDashboard(key) {
-      if (key === 'user_name') {
-        updateGreeting();
-      } else if (key === 'weekly_focus_hours') {
-        updateWeeklyTarget();
-      } else if (key === 'daily_task_target') {
-        updateDailyTarget();
-      } else if (key === 'widget_order') {
-        applyWidgetOrder(getSetting('widget_order'));
-      }
-    }
-
-    function applySettingsToDashboard() {
-      applyWidgetOrder(getSetting('widget_order'));
-      updateWeeklyTarget();
-      updateDailyTarget();
-      updateGreeting();
-    }
-
-    async function loadSettingsFromServer() {
-      try {
-        const res = await fetch('/api/settings');
-        if (!res.ok) return;
-        const data = await res.json();
-        const server = (data && data.settings) || {};
-        settingsLocal = { ...settingsLocal, ...server };
-        persistLocalSettings();
-        applySettingsToDashboard();
-      } catch (_) {}
-    }
-
-    function updateAvatarInitials(name) {
-      const els = document.querySelectorAll('.avatar-initials, #setting-avatar-preview');
-      const initials = name.split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'AX';
-      els.forEach(el => { if (el) el.innerText = initials; });
-    }
-
-    function updateWeeklyTarget() {
-      const el = document.getElementById('weekly-target-pill');
-      if (!el) return;
-      el.classList.remove('hidden');
-      el.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Weekly target: ' + getSetting('weekly_focus_hours') + 'h';
-    }
-
-    function updateDailyTarget() {
-      const el = document.getElementById('daily-target-label');
-      if (!el) return;
-      el.classList.remove('hidden');
-      el.innerText = 'Target: ' + getSetting('daily_task_target') + '/day';
-    }
-
-    function updateGreetingPreview() {
-      const name = (document.getElementById('setting-username').value.trim() || SETTINGS_DEFAULTS.user_name);
-      document.getElementById('setting-avatar-preview').innerText =
-        name.split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'AX';
-
-      const hour = new Date().getHours();
-      const emoji = hour < 12 ? '☀️' : (hour < 18 ? '🌤️' : '🌙');
-      const prefix = hour < 12 ? 'Good morning' : (hour < 18 ? 'Good afternoon' : 'Good evening');
-      document.getElementById('setting-greeting-preview-main').innerText = prefix;
-      document.getElementById('setting-greeting-preview').innerText = `${name} ${emoji}`;
-      document.getElementById('setting-date-preview').innerText = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-    }
-
-    // ---- Widget order helpers ----
-    const WIDGET_ROW2_IDS = ['widget-chart', 'widget-empty-1', 'widget-empty-2'];
-
-    function currentWidgetOrder() {
-      const row1 = Array.from(document.querySelectorAll('#widgets-row-1 .draggable-widget')).map(el => el.id);
-      const row2 = Array.from(document.querySelectorAll('#widgets-row-2 .draggable-widget')).map(el => el.id);
-      return row1.concat(row2);
-    }
-
-    function applyWidgetOrder(order) {
-      if (!Array.isArray(order) || !order.length) return;
-      const row1 = document.getElementById('widgets-row-1');
-      const row2 = document.getElementById('widgets-row-2');
-      order.forEach(id => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        const dest = WIDGET_ROW2_IDS.indexOf(id) !== -1 ? row2 : row1;
-        if (el.parentNode === dest) dest.appendChild(el);
-      });
-    }
-
-    function updateLayoutPreview() {
-      const box = document.getElementById('setting-layout-preview');
-      if (!box) return;
-      const order = currentWidgetOrder();
-      box.innerHTML = order.length
-        ? order.map(id => '<span class="text-[10px] font-bold bg-stone-200 text-stone-700 px-2.5 py-1 rounded-full">' + (SETTING_LABELS[id] || id) + '</span>').join('')
-        : '<span class="text-[10px] font-bold bg-stone-200 text-stone-700 px-2.5 py-1 rounded-full">—</span>';
-    }
-
-    function saveLayout() {
-      saveSetting('widget_order', currentWidgetOrder(), 'Widget layout saved');
-    }
-
-    function resetLayout() {
-      applyWidgetOrder(SETTINGS_DEFAULTS.widget_order);
-      saveSetting('widget_order', currentWidgetOrder(), 'Widget layout reset to default');
-    }
-
-    // ---- Settings page population & actions ----
-    function loadSettingsPage() {
-      const input = document.getElementById('setting-username');
-      if (input) input.value = getDisplayName();
-      const weekly = document.getElementById('setting-weekly-hours');
-      if (weekly) weekly.value = getSetting('weekly_focus_hours');
-      const daily = document.getElementById('setting-daily-target');
-      if (daily) daily.value = getSetting('daily_task_target');
-      const archive = document.getElementById('setting-archive-days');
-      if (archive) archive.value = getSetting('archive_days');
-      document.getElementById('setting-server').innerText = location.host || 'local';
-      updateLayoutPreview();
-      updateGreetingPreview();
-      checkApiHealth();
-    }
-
-    function saveUserSettings() {
-      const name = document.getElementById('setting-username').value.trim() || SETTINGS_DEFAULTS.user_name;
-      saveSetting('user_name', name, `Saved — welcome back, ${name}`);
-      updateGreetingPreview();
-      const dashBtn = document.querySelector('.nav-btn');
-      if (dashBtn) switchTab('dashboard', dashBtn);
-    }
-
-    function resetUserSettings() {
-      const input = document.getElementById('setting-username');
-      if (input) input.value = SETTINGS_DEFAULTS.user_name;
-      updateGreetingPreview();
-      showToast('Preview reset — click Save to apply');
-    }
-
-    function saveTargets() {
-      const weeklyEl = document.getElementById('setting-weekly-hours');
-      const dailyEl = document.getElementById('setting-daily-target');
-      const archiveEl = document.getElementById('setting-archive-days');
-      const weekly = Math.min(168, Math.max(1, parseInt(weeklyEl.value, 10) || SETTINGS_DEFAULTS.weekly_focus_hours));
-      const daily = Math.min(50, Math.max(1, parseInt(dailyEl.value, 10) || SETTINGS_DEFAULTS.daily_task_target));
-      const archiveDays = Math.min(365, Math.max(1, parseInt(archiveEl.value, 10) || SETTINGS_DEFAULTS.archive_days));
-      weeklyEl.value = weekly;
-      dailyEl.value = daily;
-      archiveEl.value = archiveDays;
-      settingsLocal.weekly_focus_hours = weekly;
-      settingsLocal.daily_task_target = daily;
-      settingsLocal.archive_days = archiveDays;
-      updateWeeklyTarget();
-      updateDailyTarget();
-      saveSetting('weekly_focus_hours', weekly);
-      saveSetting('daily_task_target', daily);
-      saveSetting('archive_days', archiveDays, 'Dashboard targets saved');
-    }
-
-    function resetTargets() {
-      document.getElementById('setting-weekly-hours').value = SETTINGS_DEFAULTS.weekly_focus_hours;
-      document.getElementById('setting-daily-target').value = SETTINGS_DEFAULTS.daily_task_target;
-      document.getElementById('setting-archive-days').value = SETTINGS_DEFAULTS.archive_days;
-      showToast('Preview reset — click Save Targets to apply');
-    }
-
-    async function checkApiHealth() {
-      const el = document.getElementById('setting-api-status');
-      if (!el) return;
-      try {
-        const res = await fetch('/api/health');
-        const ok = res.ok;
-        el.className = 'inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap flex-shrink-0 ' + (ok ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700');
-        el.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-current"></span>' + (ok ? 'Online' : 'Degraded');
-      } catch (_) {
-        el.className = 'inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap flex-shrink-0 bg-red-100 text-red-700';
-        el.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-current"></span>Offline';
-      }
-    }
-
-    // Initialize: apply locally-cached settings, then merge in any server-side values.
-    applySettingsToDashboard();
-    updateLayoutPreview();
-    loadSettingsFromServer();
-
-    // Pomodoro Timer Logic
-    let timerInterval = null;
-    let timerSeconds = 1500; // 25 mins default
-    let totalSecondsMode = 1500;
-    let isTimerRunning = false;
-
-    function formatTimerDisplay(secs) {
-      const mins = Math.floor(secs / 60);
-      const remaining = secs % 60;
-      return `${String(mins).padStart(2, '0')}:${String(remaining).padStart(2, '0')}`;
-    }
-
-    function updateTimerArc() {
-      const arc = document.getElementById('timer-arc');
-      const percentage = (timerSeconds / totalSecondsMode) * 100;
-      arc.setAttribute('stroke-dasharray', `${percentage}, 100`);
-    }
-
-    function toggleTimer() {
-      const playIcon = document.getElementById('play-icon');
-      if (isTimerRunning) {
-        pauseTimer();
-      } else {
-        isTimerRunning = true;
-        showToast("Focus Timer started");
-        playIcon.innerHTML = `<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5 0a1 1 0 012 0v4a1 1 0 11-2 0V8z" clip-rule="evenodd"/>`;
-        timerInterval = setInterval(() => {
-          if (timerSeconds > 0) {
-            timerSeconds--;
-            document.getElementById('timer-display').innerText = formatTimerDisplay(timerSeconds);
-            updateTimerArc();
-          } else {
-            pauseTimer();
-            showToast("🎉 Focus session complete! Take a break.");
-          }
-        }, 1000);
-      }
-    }
-
-    function pauseTimer() {
-      isTimerRunning = false;
-      clearInterval(timerInterval);
-      const playIcon = document.getElementById('play-icon');
-      playIcon.innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>`;
-    }
-
-    function resetTimer() {
-      pauseTimer();
-      timerSeconds = totalSecondsMode;
-      document.getElementById('timer-display').innerText = formatTimerDisplay(timerSeconds);
-      updateTimerArc();
-      showToast("Timer reset");
-    }
-
-    function setTimerMode(mode, btnEl) {
-      pauseTimer();
-      document.querySelectorAll('.timer-mode-btn').forEach(b => {
-        b.className = "timer-mode-btn bg-stone-200/80 text-stone-700 text-[10px] font-semibold px-2 py-0.5 rounded-full hover:bg-stone-300 transition-all";
-      });
-      btnEl.className = "timer-mode-btn bg-stone-900 text-white text-[10px] font-bold px-2 py-0.5 rounded-full transition-all";
-
-      if (mode === 'focus') {
-        totalSecondsMode = 1500;
-        document.getElementById('timer-status-label').innerText = "Deep Work";
-      } else {
-        totalSecondsMode = 300;
-        document.getElementById('timer-status-label').innerText = "Rest Break";
-      }
-      timerSeconds = totalSecondsMode;
-      document.getElementById('timer-display').innerText = formatTimerDisplay(timerSeconds);
-      updateTimerArc();
-    }
-
-    // Hero Focus Task Actions
-    function completeHeroTask() {
-      showToast("🎉 Focus Task completed! Great job.");
-      document.getElementById('hero-task-title').innerHTML = "<span class='line-through text-stone-500'>Finalize Dashboard UI Kit</span>";
-    }
-
-    // Task Checklist Handlers & Dynamic Counters
-    function toggleTask(element) {
-      const checkCircle = element.querySelector('.task-check');
-      const textTitle = element.querySelector('.task-text');
-      const isChecked = checkCircle.classList.contains('bg-[#F5C200]');
-
-      if (isChecked) {
-        checkCircle.className = 'task-check w-4 h-4 rounded-full bg-stone-800 border border-stone-600 flex items-center justify-center';
-        checkCircle.innerHTML = '';
-        textTitle.classList.remove('line-through', 'text-stone-400');
-        textTitle.classList.add('text-stone-100');
-      } else {
-        checkCircle.className = 'task-check w-4 h-4 rounded-full bg-[#F5C200] flex items-center justify-center text-stone-900';
-        checkCircle.innerHTML = '<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
-        textTitle.classList.add('line-through', 'text-stone-400');
-        textTitle.classList.remove('text-stone-100');
-      }
-
-      updateTaskProgressCounters();
-    }
-
-    function updateTaskProgressCounters() {
-      const totalTasks = document.querySelectorAll('#task-list .task-item').length;
-      const completedTasks = document.querySelectorAll('#task-list .bg-\\[\\#F5C200\\]').length;
-      document.getElementById('task-counter').innerText = `${completedTasks}/${totalTasks}`;
-      
-      const pct = Math.round((completedTasks / totalTasks) * 100) || 0;
-      document.getElementById('pill-completed-pct').innerText = `${pct}%`;
-      document.getElementById('pill-todo-count').innerText = `${totalTasks - completedTasks}`;
-    }
-
-    function filterTasks(cat, btnEl) {
-      document.querySelectorAll('.task-filter-btn').forEach(b => {
-        b.className = "task-filter-btn px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-stone-200 text-stone-700 hover:bg-stone-300";
-      });
-      btnEl.className = "task-filter-btn px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-stone-900 text-white";
-
-      document.querySelectorAll('#task-list .task-item').forEach(item => {
-        if (cat === 'all' || item.getAttribute('data-category') === cat) {
-          item.style.display = 'flex';
-        } else {
-          item.style.display = 'none';
-        }
-      });
-    }
-
-    // Modal Control Functions
-    function openNewTaskModal() {
-      const modal = document.getElementById('new-task-modal');
-      const box = document.getElementById('modal-box');
-      modal.classList.remove('opacity-0', 'pointer-events-none');
-      box.classList.remove('scale-95');
-      box.classList.add('scale-100');
-    }
-
-    function closeNewTaskModal() {
-      const modal = document.getElementById('new-task-modal');
-      const box = document.getElementById('modal-box');
-      modal.classList.add('opacity-0', 'pointer-events-none');
-      box.classList.remove('scale-100');
-      box.classList.add('scale-95');
-    }
-
-    function handleAddTaskSubmit(e) {
-      e.preventDefault();
-      const title = document.getElementById('input-task-title').value;
-      const category = document.getElementById('input-task-category').value;
-      const time = document.getElementById('input-task-time').value;
-
-      const taskList = document.getElementById('task-list');
-      const newItem = document.createElement('div');
-      newItem.setAttribute('data-category', category);
-      newItem.onclick = function() { toggleTask(this); };
-      newItem.className = 'task-item group flex items-center justify-between p-1.5 rounded-lg hover:bg-white/5 cursor-pointer transition-colors';
-      newItem.innerHTML = `
-        <div class="flex items-center gap-2.5">
-          <div class="w-5 h-5 rounded-full bg-stone-800 flex items-center justify-center text-stone-400 group-hover:text-white">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-          </div>
-          <div>
-            <div class="text-xs font-semibold text-stone-100 task-text">${title}</div>
-            <div class="text-[9px] text-stone-400">${time} · #${category}</div>
-          </div>
-        </div>
-        <div class="task-check w-4 h-4 rounded-full bg-stone-800 border border-stone-600 flex items-center justify-center"></div>
-      `;
-
-      taskList.prepend(newItem);
-      updateTaskProgressCounters();
-      closeNewTaskModal();
-      document.getElementById('input-task-title').value = '';
-      showToast(`Added new task: "${title}"`);
-    }
-
-    // Habit Tracker Toggle
-    function toggleHabit(el) {
-      const badge = el.querySelector('.habit-badge');
-      if (badge.innerText.includes('Done')) {
-        badge.innerText = 'Pending';
-        badge.className = 'habit-badge text-[10px] font-semibold bg-stone-100 text-stone-500 px-2 py-0.5 rounded-full';
-      } else {
-        badge.innerText = '✓ Done';
-        badge.className = 'habit-badge text-[10px] font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full';
-        showToast('Habit completed! +10 XP');
-      }
-    }
-
-    // Accordion Expansion Handler
-    function toggleAccordion(id) {
-      const content = document.getElementById(id);
-      const icon = document.getElementById(`icon-${id}`);
-      if (!content) return;
-
-      const isHidden = content.classList.contains('hidden');
-      if (isHidden) {
-        content.classList.remove('hidden');
-        if (icon) icon.classList.add('rotate-180');
-      } else {
-        content.classList.add('hidden');
-        if (icon) icon.classList.remove('rotate-180');
-      }
-    }
-
-    // Toast Banner Handler
-    function showToast(message) {
-      const toast = document.getElementById('toast');
-      const toastMsg = document.getElementById('toast-msg');
-      toastMsg.innerText = message;
-      toast.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
-      
-      setTimeout(() => {
-        toast.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
-      }, 2500);
-    }
-  </script>
-
-  <script>
-  /* =====================================================================
-   * Check Box — New Dashboard · wired to the FastAPI backend
-   * Fetches /api/work, /api/dashboard, /api/projects, /api/sessions/active
-   * and re-renders the hero, task checklist, projects, stats and modal.
-   * ===================================================================== */
-  (function () {
-    const $ = (s) => document.querySelector(s);
-    const $$ = (s) => [...document.querySelectorAll(s)];
-
-    async function fetchJSON(url, options) {
-      const res = await fetch(url, options);
-      if (!res.ok) {
-        let msg = res.statusText || "Request failed";
-        try {
-          const body = await res.json();
-          if (body.detail) msg = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
-        } catch (_) {}
-        throw new Error(msg);
-      }
-      if (res.status === 204) return null;
-      return res.json();
-    }
-    window.fetchJSON = fetchJSON;
-
-    const state = { work: null, dashboard: null, projects: [], activeSession: null, currentTaskId: null };
-    let currentFilter = "all";
-
-    function esc(v) {
-      return String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-    }
-    function todayISO() {
-      const d = new Date();
-      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-    }
-    function fmtDate(iso) {
-      if (!iso) return "";
-      const d = new Date(String(iso).slice(0, 10) + "T00:00:00");
-      return isNaN(d) ? "" : d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-    }
-    function fmtHrs(secs) {
-      if (!secs) return "0.0h";
-      return (secs / 3600).toFixed(1) + "h";
-    }
-    function prioLabel(p) {
-      return { high: "P0", medium: "P1", low: "P2" }[p] || "P1";
-    }
-
-    async function loadData() {
-      try {
-        const [work, dashboard, projects, activeSession] = await Promise.all([
-          fetchJSON("/api/work"),
-          fetchJSON("/api/dashboard"),
-          fetchJSON("/api/projects"),
-          fetchJSON("/api/sessions/active"),
-        ]);
-        state.work = work;
-        state.dashboard = dashboard;
-        state.projects = projects;
-        state.activeSession = activeSession;
-        renderAll();
-      } catch (err) {
-        if (typeof showToast === "function") showToast("Failed to load data: " + err.message);
-      }
-    }
-
-    function renderAll() {
-      renderGreeting();
-      renderHeaderStats();
-      renderTaskHoursPills();
-      renderHero();
-      renderTasks();
-      renderProjectsAccordion();
-      renderCategorySelect();
-      renderHabitsPct();
-    }
-
-    function renderGreeting() {
-      const d = $("#current-date-str");
-      if (d) d.innerText = fmtDate((state.work && state.work.today) || todayISO());
-    }
-
-    function countDoneTotal() {
-      const ap = (state.work && state.work.active_projects) || [];
-      let done = 0, total = 0;
-      ap.forEach((p) => { done += p.done || 0; total += p.total || 0; });
-      return { done, total };
-    }
-
-    function allTasks() {
-      const map = new Map();
-      const add = (t) => { if (t && t.id != null && !map.has(t.id)) map.set(t.id, t); };
-      if (state.work && state.work.current) add(state.work.current);
-      ((state.work && state.work.upcoming) || []).forEach(add);
-      ((state.work && state.work.active_projects) || []).forEach((p) => (p.open_tasks || []).forEach(add));
-      return [...map.values()];
-    }
-
-    function renderHeaderStats() {
-      // due today
-      let dueToday = 0;
-      const today = (state.work && state.work.today) || todayISO();
-      const tasks = (state.dashboard && state.dashboard.tasks_by_project) || {};
-      Object.values(tasks).forEach((arr) =>
-        arr.forEach((t) => { if (t.status !== "done" && t.due_date === today) dueToday++; })
-      );
-      const dueEl = $("#stat-due-today");
-      if (dueEl) dueEl.innerText = String(dueToday);
-
-      // active projects
-      const projEl = $("#stat-projects");
-      if (projEl) projEl.innerText = String(((state.work && state.work.active_projects) || []).length);
-
-      // focus score mirrors completed %
-      const { done, total } = countDoneTotal();
-      const focusEl = $("#stat-focus");
-      if (focusEl) focusEl.innerText = (total ? Math.round((done / total) * 100) : 0) + "%";
-
-      // deep work: live running session elapsed, else current task tracked time
-      function renderDeepWork() {
-        let secs = 0;
-        if (state.activeSession && state.activeSession.session) {
-          const st = new Date(state.activeSession.session.started_at);
-          secs = Math.max(0, (Date.now() - st.getTime()) / 1000);
-        } else if (state.work && state.work.current) {
-          secs = state.work.current.total_seconds || 0;
-        }
-        const el = $("#pill-deepwork");
-        if (el) el.innerText = fmtHrs(secs);
-      }
-      renderDeepWork();
-      if (state.activeSession && state.activeSession.session) {
-        setInterval(renderDeepWork, 1000);
-      }
-    }
-
-    function renderHero() {
-      const cur = (state.work && state.work.current) || null;
-      state.currentTaskId = cur ? cur.id : null;
-      const titleEl = $("#hero-task-title");
-      if (!cur) {
-        if (titleEl) titleEl.innerText = "No current task — you're all caught up!";
-        const p = $(".hero-priority"); if (p) p.innerText = "—";
-        const tag = $(".hero-tag"); if (tag) tag.innerText = "#idle";
-        const desc = $(".hero-desc"); if (desc) desc.innerText = "Pick a task from the list to start a focus session.";
-        const est = $(".hero-est"); if (est) est.innerText = "0h tracked";
-        return;
-      }
-      if (titleEl) titleEl.innerText = cur.title;
-      const prio = $(".hero-priority"); if (prio) prio.innerText = "Priority " + prioLabel(cur.priority);
-      const tag = $(".hero-tag"); if (tag) tag.innerText = "#" + esc(cur.project_title || "task");
-      const desc = $(".hero-desc");
-      if (desc) desc.innerText = (cur.project_title ? "Project: " + cur.project_title : "No project") + (cur.due_date ? " · Due " + cur.due_date : "");
-      const est = $(".hero-est"); if (est) est.innerText = fmtHrs(cur.total_seconds || 0) + " tracked";
-    }
-
-    function renderTasks() {
-      const list = $("#task-list");
-      if (!list) return;
-      const tasks = allTasks();
-      list.innerHTML = "";
-      if (!tasks.length) {
-        list.innerHTML = '<div class="text-xs text-stone-500 p-1.5">No open tasks yet.</div>';
-      }
-
-      // dynamic category filter buttons
-      const ft = $(".task-filters");
-      if (ft) {
-        const cats = [...new Set(tasks.map((t) => t.project_title || "task").filter(Boolean))];
-        ft.innerHTML = `<button class="task-filter-btn px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-stone-900 text-white">All</button>` +
-          cats.map((c) => `<button class="task-filter-btn px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-stone-200 text-stone-700 hover:bg-stone-300">#${esc(c)}</button>`).join("");
-        $$(".task-filter-btn", ft).forEach((btn) => {
-          btn.dataset.cat = btn.innerText === "All" ? "all" : btn.innerText.slice(1);
-          if (currentFilter !== "all" && btn.dataset.cat === currentFilter) {
-            btn.className = "task-filter-btn px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-stone-900 text-white";
-          }
-          btn.addEventListener("click", () => filterTasks(btn.dataset.cat, btn));
-        });
-      }
-
-      tasks.forEach((t) => {
-        const done = t.status === "done";
-        const time = t.due_date || "";
-        const item = document.createElement("div");
-        item.className = "task-item group flex items-center justify-between p-1.5 rounded-lg hover:bg-white/5 cursor-pointer transition-colors";
-        item.dataset.id = String(t.id);
-        item.dataset.category = t.project_title || "task";
-        item.dataset.status = t.status;
-        item.onclick = () => toggleTask(item);
-        item.innerHTML =
-          '<div class="flex items-center gap-2.5">' +
-            '<div class="w-5 h-5 rounded-full bg-stone-800 flex items-center justify-center text-stone-400 group-hover:text-white">' +
-              '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="' +
-              (done ? "M9 12l2 2 4-4" : "M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707") +
-              '"/></svg></div>' +
-            '<div>' +
-              '<div class="text-xs ' + (done ? "font-medium line-through text-stone-400" : "font-semibold text-stone-100") + ' task-text">' + esc(t.title) + "</div>" +
-              '<div class="text-[9px] ' + (done ? "text-stone-500" : "text-stone-400") + '">' + (time ? time + " · " : "") + "#" + esc(t.project_title || "task") + "</div>" +
-            "</div>" +
-          "</div>" +
-          '<div class="task-check w-4 h-4 rounded-full ' +
-            (done ? "bg-[#F5C200] flex items-center justify-center text-stone-900" : "bg-stone-800 border border-stone-600") +
-            '">' + (done ? '<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>' : "") + "</div>";
-        if (currentFilter !== "all" && item.dataset.category !== currentFilter) item.style.display = "none";
-        list.appendChild(item);
-      });
-      updateTaskProgressCounters();
-    }
-
-    function renderProjectsAccordion() {
-      const box = $("#acc-projects");
-      if (!box) return;
-      const ap = (state.work && state.work.active_projects) || [];
-      box.innerHTML = "";
-      if (!ap.length) {
-        box.innerHTML = '<div class="text-xs text-stone-500 p-1">No active projects.</div>';
-        return;
-      }
-      ap.forEach((p) => {
-        const pct = p.total ? Math.round(((p.done || 0) / p.total) * 100) : 0;
-        const div = document.createElement("div");
-        div.className = "p-2.5 rounded-xl bg-white border border-stone-200/80 shadow-sm";
-        div.innerHTML =
-          '<div class="flex items-center justify-between text-xs font-bold text-stone-900 mb-1">' +
-            "<span>" + esc(p.project.title) + "</span>" +
-            '<span class="' + (pct >= 100 ? "text-green-600" : "text-amber-600") + '">' + pct + "%</span>" +
-          "</div>" +
-          '<div class="w-full h-1.5 bg-stone-200 rounded-full overflow-hidden">' +
-            '<div class="h-full ' + (pct >= 100 ? "bg-green-500" : "bg-[#F5C200]") + ' rounded-full" style="width:' + pct + '%"></div>' +
-          "</div>";
-        box.appendChild(div);
-      });
-    }
-
-    function renderCategorySelect() {
-      const sel = $("#input-task-category");
-      if (!sel) return;
-      const opts = (state.projects || [])
-        .map((p) => '<option value="' + p.id + '">' + esc(p.title) + "</option>")
-        .join("");
-      sel.innerHTML = opts || '<option value="">No projects yet</option>';
-    }
-
-    function renderHabitsPct() {
-      const badges = $$("#acc-habits .habit-badge");
-      const done = badges.filter((b) => b.innerText.trim().startsWith("✓")).length;
-      const el = $("#pill-habits-pct");
-      if (el) el.innerText = (badges.length ? Math.round((done / badges.length) * 100) : 0) + "%";
-    }
-
-    // Show total hours worked on each active task in the summary pills row,
-    // color-coded by relative workload (red = overworked, green = underworked).
-    function renderTaskHoursPills() {
-      const box = $("#summary-pills");
-      if (!box) return;
-      const tasks = allTasks();
-      if (!tasks.length) {
-        box.innerHTML = '<div class="flex-1 min-w-[90px] bg-stone-200/70 border border-stone-300 text-stone-700 py-2 px-2 rounded-full flex items-center justify-between text-[10px] font-semibold"><span>Active Tasks</span><span class="bg-stone-300/80 px-1.5 py-0.5 rounded-full text-[9px] font-bold">0h</span></div>';
-        return;
-      }
-      const hours = tasks.map((t) => (t.total_seconds || 0) / 3600);
-      const maxH = Math.max.apply(null, hours) || 0;
-
-      // Theme-aligned palette: warm stone neutrals + brand amber/yellow.
-      // Depth of the brand color signals intensity (darkest = overworked).
-      const palette = {
-        none: { pill: "bg-stone-100/80 border border-stone-200 text-stone-500",       badge: "bg-stone-300 text-stone-600", note: "not started" },
-        low:  { pill: "bg-amber-100/60 border border-amber-200 text-stone-700",        badge: "bg-amber-300 text-stone-700", note: "light effort" },
-        mid:  { pill: "bg-amber-200/70 border border-amber-300 text-stone-800",        badge: "bg-amber-400 text-stone-900", note: "balanced" },
-        over: { pill: "bg-stone-900    border border-stone-800 text-white",            badge: "bg-[#F5C200] text-stone-900", note: "overworked" },
-      };
-
-      // Width proportional to time spent — busier tasks get longer pills.
-      function growFor(hrs) {
-        if (maxH <= 0) return 1;
-        return Math.max(hrs / maxH, 0.35);
-      }
-
-      function levelFor(hrs) {
-        if (hrs <= 0) return "none";
-        const ratio = maxH > 0 ? hrs / maxH : 0;
-        if (ratio > 0.7) return "over";   // >= 70% of the busiest task
-        if (ratio > 0.35) return "mid";   // moderate relative effort
-        return "low";                     // light effort compared to peers
-      }
-
-      function pillHTML(t, hrs) {
-        const lvl = palette[levelFor(hrs)];
-        return '<div class="task-hours-pill ' + lvl.pill + ' min-w-[60px] py-2 px-2 rounded-full flex items-center justify-between text-[10px] font-semibold shadow-sm" style="flex:' + growFor(hrs).toFixed(2) + '" title="' +
-          esc(t.title) + ' — ' + hrs.toFixed(1) + 'h (' + lvl.note + ')">' +
-          '<span class="w-1.5 h-1.5 rounded-full ' + lvl.badge + ' flex-shrink-0"></span>' +
-          '<span class="truncate mx-1.5">' + esc(t.title) + '</span>' +
-          '<span class="' + lvl.badge + ' px-1.5 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap">' + hrs.toFixed(1) + 'h</span>' +
-        '</div>';
-      }
-
-      // Always exactly 2 rows: split tasks evenly into two full-width flex rows,
-      // each pill keeping its duration-proportional length.
-      const half = Math.ceil(tasks.length / 2);
-      const rows = [tasks.slice(0, half), tasks.slice(half)];
-
-      box.innerHTML = rows.map((rowTasks) =>
-        '<div class="flex items-center gap-1.5 w-full">' +
-        rowTasks.map((t) => pillHTML(t, (t.total_seconds || 0) / 3600)).join("") +
-        '</div>'
-      ).join("");
-
-    }
-
-    function updateTaskProgressCounters() {
-      const { done, total } = countDoneTotal();
-      const counter = $("#task-counter");
-      if (counter) counter.innerText = done + "/" + total;
-      const pct = total ? Math.round((done / total) * 100) : 0;
-      const p = $("#pill-completed-pct");
-      if (p) p.innerText = pct + "%";
-      const todo = $("#pill-todo-count");
-      if (todo) todo.innerText = String(total - done);
-    }
-
-    function toggleTask(element) {
-      const id = element.dataset.id;
-      const toDone = element.dataset.status !== "done";
-      fetchJSON("/api/tasks/" + id + "/status?status=" + (toDone ? "done" : "wanted"), { method: "PATCH" })
-        .then(loadData)
-        .catch((e) => { if (typeof showToast === "function") showToast("Error: " + e.message); });
-    }
-
-    function filterTasks(cat, btnEl) {
-      currentFilter = cat;
-      $$(".task-filter-btn").forEach((b) => {
-        b.className = "task-filter-btn px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-stone-200 text-stone-700 hover:bg-stone-300";
-      });
-      btnEl.className = "task-filter-btn px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-stone-900 text-white";
-      $$("#task-list .task-item").forEach((item) => {
-        item.style.display = cat === "all" || item.dataset.category === cat ? "flex" : "none";
-      });
-    }
-
-    function completeHeroTask() {
-      if (!state.currentTaskId) {
-        if (typeof showToast === "function") showToast("No current task to complete");
-        return;
-      }
-      fetchJSON("/api/tasks/" + state.currentTaskId + "/status?status=done", { method: "PATCH" })
-        .then(() => {
-          if (typeof showToast === "function") showToast("🎉 Focus task completed! Great job.");
-          return loadData();
-        })
-        .catch((e) => { if (typeof showToast === "function") showToast("Error: " + e.message); });
-    }
-
-    function handleAddTaskSubmit(e) {
-      if (e && e.preventDefault) e.preventDefault();
-      const title = $("#input-task-title");
-      const pidEl = $("#input-task-category");
-      const titleVal = title ? title.value.trim() : "";
-      const pid = pidEl ? pidEl.value : "";
-      if (!titleVal) { if (typeof showToast === "function") showToast("Enter a task title"); return; }
-      if (!pid) { if (typeof showToast === "function") showToast("Select a project"); return; }
-      fetchJSON("/api/projects/" + pid + "/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: titleVal, status: "wanted", priority: "medium" }),
-      })
-        .then(() => {
-          if (typeof closeNewTaskModal === "function") closeNewTaskModal();
-          if (title) title.value = "";
-          if (typeof showToast === "function") showToast('Added task: "' + titleVal + '"');
-          return loadData();
-        })
-        .catch((err) => { if (typeof showToast === "function") showToast("Error: " + err.message); });
-    }
-
-    // Override the prototype's hardcoded handlers with API-backed versions.
-    window.completeHeroTask = completeHeroTask;
-    window.toggleTask = toggleTask;
-    window.filterTasks = filterTasks;
-    window.updateTaskProgressCounters = updateTaskProgressCounters;
-    window.handleAddTaskSubmit = handleAddTaskSubmit;
-
-    loadData();
-    window.loadData = loadData;
-  })();
-
-  /* =====================================================================
-   * Tasks manager — All Tasks view (active / recently done / archived)
-   * Lists every task (GET /api/tasks) and lets the user edit any field,
-   * move it to another project, and manage tracked sessions.
-   * ===================================================================== */
-  (function () {
-    const T = { tasks: [], projects: [], all: [], filter: "all", q: "", projectId: null, archiveDays: 30, editing: null, sessions: [] };
-
-    const $t = (s) => document.querySelector(s);
-    const $$t = (s) => [...document.querySelectorAll(s)];
-    const attr = (el, k, v) => el.setAttribute(k, v);
-
-    function esc(v) {
-      return String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-    }
-    function fmtHrs(secs) {
-      if (!secs) return "0.0h";
-      return (secs / 3600).toFixed(1) + "h";
-    }
-    function isoDate(v, fallback) { return (v || fallback || ""); }
-    function prioBadge(p) {
-      const map = { high: "bg-red-100 text-red-700", medium: "bg-amber-100 text-amber-800", low: "bg-stone-200 text-stone-600" };
-      return '<span class="text-[9px] font-bold px-2 py-0.5 rounded-full ' + (map[p] || map.medium) + '">' + esc(p) + '</span>';
-    }
-    function statusBadge(s) {
-      const map = {
-        wanted: "bg-stone-200 text-stone-600",
-        planned: "bg-amber-100 text-amber-800",
-        in_progress: "bg-[#F5C200] text-stone-900",
-        done: "bg-emerald-100 text-emerald-700",
-      };
-      return '<span class="text-[9px] font-extrabold px-2 py-0.5 rounded-full ' + (map[s] || map.wanted) + '">' + esc(s.replace(/_/g, " ")) + '</span>';
-    }
-
-    function taskBucket(t) {
-      if (t.status === "done") {
-        const doneAt = t.done_at ? new Date(t.done_at) : null;
-        const cutoff = Date.now() - T.archiveDays * 86400000;
-        if (!doneAt || isNaN(doneAt)) {
-          // No done_at recorded (pre-migration task): fall back to updated_at.
-          const up = new Date(String(t.updated_at || "").replace(" ", "T"));
-          return (!isNaN(up) && up.getTime() <= cutoff) ? "archived" : "recent";
-        }
-        return doneAt.getTime() <= cutoff ? "archived" : "recent";
-      }
-      return "open";
-    }
-
-    function bucketLabel(b) {
-      return { open: "Open", recent: "Recently Done", archived: "Archived" }[b] || b;
-    }
-    function bucketIcon(b) {
-      return { open: "🟡", recent: "🟢", archived: "⚪" }[b] || "";
-    }
-
-    function matchesFilters(t) {
-      if (T.filter !== "all" && taskBucket(t) !== T.filter) return false;
-      if (T.projectId && t.project_id !== T.projectId) return false;
-      if (T.q && !(t.title || "").toLowerCase().includes(T.q.toLowerCase())) return false;
-      return true;
-    }
-
-    function populateProjectSelect() {
-      const sel = $t("#edit-task-project");
-      if (!sel) return;
-      sel.innerHTML = T.projects.map((p) =>
-        '<option value="' + p.id + '">' + esc(p.title) + '</option>'
-      ).join("");
-      if (T.editing) sel.value = String(T.editing.project_id);
-    }
-
-    function projectRootFor(projectId) {
-      const p = T.projects.find((x) => x.id === Number(projectId));
-      if (!p) return null;
-      return (p.branch_path || p.title || "").trim().replace(/\/+$/, "");
-    }
-
-    function refreshBranchOptions() {
-      const projSel = $t("#edit-task-project");
-      const sel = $t("#edit-task-branch");
-      if (!sel) return;
-      const root = projectRootFor(projSel ? projSel.value : "");
-      const seen = new Set();
-      T.tasks.forEach((tk) => { if (tk.branch_path) seen.add(tk.branch_path.trim()); });
-      T.projects.forEach((p) => { if (p.branch_path) seen.add(p.branch_path.trim().replace(/\/+$/, "")); });
-      if (root) seen.add(root);
-      const opts = [];
-      Array.from(seen).sort().forEach((b) => {
-        if (b && (!root || b === root || b.startsWith(root + "/"))) {
-          opts.push('<option value="' + esc(b) + '">' + esc(b) + '</option>');
-        }
-      });
-      const cur = T.editing ? (T.editing.branch_path || "") : "";
-      sel.innerHTML = '<option value="">No branch</option>' + opts.join("") + '<option value="__new__">Add new branch…</option>';
-      if (cur && !Array.from(seen).includes(cur)) {
-        sel.innerHTML = '<option value="' + esc(cur) + '">' + esc(cur) + '</option>' + sel.innerHTML;
-      }
-      sel.value = cur || "";
-      taskBranchDropdownChanged();
-    }
-
-    function taskBranchDropdownChanged() {
-      const sel = $t("#edit-task-branch");
-      const wrap = $t("#edit-new-branch-wrap");
-      if (!sel || !wrap) return;
-      const isNew = sel.value === "__new__";
-      wrap.classList.toggle("hidden", !isNew);
-      if (isNew) {
-        const inp = $t("#edit-task-branch-new");
-        if (inp) inp.focus();
-      }
-    }
-
-    function renderTasksList() {
-      const listEl = $t("#tasks-list");
-      const pillEl = $t("#tasks-summary-pill");
-      if (!listEl) return;
-      const visible = T.tasks.filter(matchesFilters);
-
-      const open = T.tasks.filter((t) => taskBucket(t) === "open").length;
-      const recent = T.tasks.filter((t) => taskBucket(t) === "recent").length;
-      const archived = T.tasks.filter((t) => taskBucket(t) === "archived").length;
-      if (pillEl) pillEl.innerHTML = `<span>${open} open</span><span class="w-1.5 h-1.5 rounded-full bg-[#F5C200]"></span><span>${recent} recent</span><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span>${archived} archived</span>`;
-
-      if (!visible.length) {
-        listEl.innerHTML = '<div class="bg-stone-100/90 rounded-2xl border border-stone-200/80 p-5 text-center text-xs font-semibold text-stone-500">No tasks match this filter.</div>';
-        return;
-      }
-
-      // Group by bucket
-      const groups = {};
-      visible.forEach((t) => { const b = taskBucket(t); (groups[b] = groups[b] || []).push(t); });
-
-      listEl.innerHTML = ["open", "recent", "archived"].map((bucket) => {
-        const items = (groups[bucket] || []).sort((a, b) => (a.status === "done") - (b.status === "done") || (b.updated_at || "").localeCompare(a.updated_at || ""));
-        if (!items.length) return "";
-        return '<div class="mb-5">' +
-          '<div class="flex items-center gap-2 mb-2.5 px-1">' +
-          '<span class="text-xs font-black text-stone-800">' + bucketIcon(bucket) + ' ' + bucketLabel(bucket) + '</span>' +
-          '<span class="text-[10px] font-bold bg-stone-200 text-stone-600 px-2 py-0.5 rounded-full">' + items.length + '</span>' +
-          '</div>' +
-          '<div class="space-y-2">' + items.map(taskRowHTML).join("") + '</div>' +
-          '</div>';
-      }).join("");
-    }
-
-    function taskRowHTML(t) {
-      const proj = T.projects.find((p) => p.id === t.project_id);
-      const branch = t.branch_path || (proj ? proj.branch_path : "");
-      return '<div onclick="openEditTask(' + t.id + ')" class="task-row task-row-' + t.id + ' bg-white rounded-2xl border border-stone-200/80 shadow-sm px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2 hover:border-amber-400 hover:shadow-md transition-all cursor-pointer group">' +
-        '<div class="flex-1 min-w-[180px]">' +
-        '<div class="flex items-center gap-2">' +
-        '<span class="text-xs font-bold text-stone-900 task-title truncate">' + esc(t.title) + '</span>' +
-        statusBadge(t.status) +
-        '</div>' +
-        '<div class="text-[10px] text-stone-500 font-medium mt-1 flex items-center gap-1.5 flex-wrap">' +
-        '<span class="inline-flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>' + esc(proj ? proj.title : "Unknown project") + '</span>' +
-        (branch ? '<span class="inline-flex items-center gap-1 opacity-70">' + esc(branch) + '</span>' : '') +
-        '</div>' +
-        '</div>' +
-        '<div class="flex items-center gap-4 text-[11px] font-semibold text-stone-600">' +
-        '<span class="inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-[#F5C200]"></span>' + fmtHrs(t.total_seconds) + '</span>' +
-        '<span title="Due date">📅 ' + esc(isoDate(t.due_date, "—")) + '</span>' +
-        prioBadge(t.priority) +
-        '</div>' +
-        '</div>';
-    }
-
-    async function loadTasksPage() {
-      try {
-        const [tasks, projects, settings] = await Promise.all([
-          window.fetchJSON ? window.fetchJSON("/api/tasks") : null,
-          window.fetchJSON ? window.fetchJSON("/api/projects") : null,
-          window.fetchJSON ? window.fetchJSON("/api/settings") : null,
-        ]);
-        if (!tasks) return; // helpers not exposed; shouldn't happen
-        T.tasks = tasks;
-        T.projects = projects || [];
-        if (settings && settings.settings && settings.settings.archive_days != null) {
-          T.archiveDays = Math.max(1, Number(settings.settings.archive_days) || 30);
-        }
-        // Rebuild project filter dropdown preserving selection
-        const psel = $t("#tasks-project-filter");
-        if (psel) {
-          const cur = psel.value;
-          psel.innerHTML = '<option value="all">All Projects</option>' +
-            T.projects.map((p) => '<option value="' + p.id + '">' + esc(p.title) + '</option>').join("");
-          if (cur && [...psel.options].some((o) => o.value === cur)) psel.value = cur;
-        }
-        renderTasksList();
-      } catch (err) {
-        const listEl = $t("#tasks-list");
-        if (listEl) listEl.innerHTML = '<div class="bg-stone-100/90 rounded-2xl border border-stone-200/80 p-5 text-center text-xs font-semibold text-red-500">Failed to load tasks: ' + esc(err.message) + '</div>';
-      }
-    }
-
-    function tasksSetFilter(filter, btnEl) {
-      T.filter = filter;
-      $$t(".tasks-filter-btn").forEach((b) => {
-        b.className = "tasks-filter-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-stone-100 text-stone-700";
-      });
-      btnEl.className = "tasks-filter-btn px-3 py-1.5 rounded-full text-xs font-extrabold bg-stone-900 text-white";
-      renderTasksList();
-    }
-
-    function tasksFilterState() { return T; }
-
-    async function openEditTask(id) {
-      const task = T.tasks.find((t) => t.id === id);
-      if (!task) return;
-      T.editing = task;
-      T.sessions = [];
-      attr($t("#edit-task-title"), "value", task.title || "");
-      attr($t("#edit-task-due"), "value", isoDate(task.due_date, ""));
-      attr($t("#edit-task-begin"), "value", isoDate(task.begin_date, ""));
-      $t("#edit-task-status").value = task.status || "wanted";
-      $t("#edit-task-priority").value = task.priority || "medium";
-      $t("#edit-task-id-label").innerText = "#" + task.id;
-      attr($t("#edit-task-duration"), "value", task.duration != null ? task.duration : "");
-      populateProjectSelect();
-      const wrap = $t("#edit-new-branch-wrap");
-      if (wrap) wrap.classList.add("hidden");
-      refreshBranchOptions();
-      const sel = $t("#edit-task-branch");
-      if (sel) sel.value = task.branch_path || "";
-      $t("#edit-sessions-list").innerHTML = '<div class="text-[11px] text-stone-400 font-medium py-2 text-center">Loading sessions…</div>';
-
-      const modalEl = $t("#edit-task-modal");
-      modalEl.classList.remove("opacity-0", "pointer-events-none");
-      $t("#edit-modal-box").classList.remove("scale-95");
-
-      // Fetch sessions for time editing
-      try {
-        const data = await (window.fetchJSON ? window.fetchJSON("/api/tasks/" + id + "/sessions") : null);
-        T.sessions = (data && data.sessions) ? data.sessions.map((s) => ({ ...s })) : [];
-      } catch (_) {
-        T.sessions = [];
-        if (typeof showToast === "function") showToast("Could not load sessions");
-      }
-      renderEditSessions();
-    }
-
-    function closeEditTaskModal() {
-      const modalEl = $t("#edit-task-modal");
-      modalEl.classList.add("opacity-0", "pointer-events-none");
-      $t("#edit-modal-box").classList.add("scale-95");
-      T.editing = null;
-    }
-
-    function renderEditSessions() {
-      const listEl = $t("#edit-sessions-list");
-      const totalEl = $t("#edit-sessions-total");
-      const countEl = $t("#edit-sessions-count");
-      const total = T.sessions.reduce((s, x) => s + (x.duration_seconds || 0), 0);
-      if (totalEl) totalEl.innerText = fmtHrs(total);
-      if (countEl) countEl.innerText = String(T.sessions.length);
-      if (!T.sessions.length) {
-        listEl.innerHTML = '<div class="text-[11px] text-stone-400 font-medium py-2 text-center">No sessions logged for this task yet.</div>';
-        return;
-      }
-      listEl.innerHTML = T.sessions.map((s) =>
-        '<div class="flex flex-wrap items-center gap-2 bg-white rounded-xl border border-stone-200 px-3 py-2" data-sid="' + s.id + '">' +
-        '<div class="flex items-center gap-1.5 flex-1 min-w-[180px]">' +
-        '<label class="text-[9px] font-bold text-stone-400 uppercase tracking-wider">Start</label>' +
-        '<input data-field="started_at" type="datetime-local" value="' + esc(s.started_at ? toLocalInput(s.started_at) : "") + '" class="text-[11px] p-1.5 rounded-lg border border-stone-300 bg-white font-medium flex-1">' +
-        '</div>' +
-        '<div class="flex items-center gap-1.5 flex-1 min-w-[150px]">' +
-        '<label class="text-[9px] font-bold text-stone-400 uppercase tracking-wider">End</label>' +
-        '<input data-field="ended_at" type="datetime-local" value="' + esc(s.ended_at ? toLocalInput(s.ended_at) : "") + '" class="text-[11px] p-1.5 rounded-lg border border-stone-300 bg-white font-medium flex-1">' +
-        '</div>' +
-        '<div class="flex items-center gap-1.5 flex-1 min-w-[130px]">' +
-        '<label class="text-[9px] font-bold text-stone-400 uppercase tracking-wider">Hours</label>' +
-        '<input data-field="duration_seconds" type="number" step="0.05" min="0" value="' + ((s.duration_seconds || 0) / 3600).toFixed(2) + '" class="text-[11px] p-1.5 rounded-lg border border-stone-300 bg-white font-medium flex-1">' +
-        '</div>' +
-        '<button onclick="deleteEditSession(' + s.id + ')" title="Delete session" class="text-stone-400 hover:text-red-500 p-1 transition-colors">' +
-        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>' +
-        '</button>' +
-        '</div>'
-      ).join("");
-    }
-
-    function toLocalInput(iso) {
-      const d = new Date(String(iso).replace(" ", "T").replace("Z", ""));
-      if (isNaN(d)) return "";
-      const p = (n) => String(n).padStart(2, "0");
-      return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes());
-    }
-
-    function addEditSessionRow() {
-      const listEl = $t("#edit-sessions-list");
-      const now = toLocalInput(new Date().toISOString());
-      const html = '<div class="flex flex-wrap items-center gap-2 bg-amber-50 rounded-xl border border-amber-200 px-3 py-2" data-new="1">' +
-        '<div class="flex items-center gap-1.5 flex-1 min-w-[180px]">' +
-        '<label class="text-[9px] font-bold text-stone-400 uppercase tracking-wider">Start</label>' +
-        '<input data-field="started_at" type="datetime-local" value="' + now + '" class="text-[11px] p-1.5 rounded-lg border border-stone-300 bg-white font-medium flex-1">' +
-        '</div>' +
-        '<div class="flex items-center gap-1.5 flex-1 min-w-[150px]">' +
-        '<label class="text-[9px] font-bold text-stone-400 uppercase tracking-wider">End</label>' +
-        '<input data-field="ended_at" type="datetime-local" class="text-[11px] p-1.5 rounded-lg border border-stone-300 bg-white font-medium flex-1">' +
-        '</div>' +
-        '<div class="flex items-center gap-1.5 flex-1 min-w-[130px]">' +
-        '<label class="text-[9px] font-bold text-stone-400 uppercase tracking-wider">Hours</label>' +
-        '<input data-field="duration_seconds" type="number" step="0.05" min="0" value="1.00" class="text-[11px] p-1.5 rounded-lg border border-stone-300 bg-white font-medium flex-1">' +
-        '</div>' +
-        '<button onclick="removeNewSessionRow(this)" title="Remove row" class="text-stone-400 hover:text-red-500 p-1 transition-colors">' +
-        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>' +
-        '</button>' +
-        '</div>';
-      listEl.insertAdjacentHTML("beforeend", html);
-    }
-
-    function removeNewSessionRow(btn) {
-      const row = btn.closest("[data-new='1']");
-      if (row) row.remove();
-    }
-
-    function collectSessionPayloads() {
-      const rows = $$t("#edit-sessions-list [data-sid], #edit-sessions-list [data-new='1']");
-      return rows.map((row) => {
-        const get = (f) => row.querySelector('[data-field="' + f + '"]');
-        const startedAt = get("started_at").value;
-        const endedAt = get("ended_at").value;
-        const secs = Math.max(0, parseFloat(get("duration_seconds").value || "0") * 3600);
-        const beginISO = toUTC(startedAt);
-        const endISO = endedAt ? toUTC(endedAt) : null;
-        return { id: row.getAttribute("data-sid") ? Number(row.getAttribute("data-sid")) : null, isNew: !!row.getAttribute("data-new"), started_at: beginISO, ended_at: endISO, duration_seconds: secs };
-      });
-    }
-
-    function toUTC(local) {
-      if (!local) return null;
-      const d = new Date(local);
-      return isNaN(d) ? null : d.toISOString();
-    }
-
-    async function saveEditTask() {
-      const t = T.editing;
-      if (!t) return;
-      const due = $t("#edit-task-due").value || null;
-      const begin = $t("#edit-task-begin").value || null;
-      const branch = $t("#edit-task-branch").value.trim();
-      const dur = $t("#edit-task-duration").value;
-      const payload = {
-        title: $t("#edit-task-title").value.trim(),
-        status: $t("#edit-task-status").value,
-        priority: $t("#edit-task-priority").value,
-        project_id: Number($t("#edit-task-project").value),
-        due_date: due,
-        begin_date: begin,
-        branch_path: branch || null,
-        duration: dur !== "" ? parseFloat(dur) : null,
-      };
-      try {
-        await window.fetchJSON("/api/tasks/" + t.id, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-        // Sessions: delete removed, create new, update changed.
-        const kept = new Set();
-        await Promise.all(collectSessionPayloads().map(async (s) => {
-          if (s.isNew) {
-            await window.fetchJSON("/api/tasks/" + t.id + "/sessions", {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ started_at: s.started_at, ended_at: s.ended_at, duration_seconds: s.duration_seconds }),
-            });
-          } else if (s.id != null) {
-            kept.add(s.id);
-            const orig = T.sessions.find((x) => x.id === s.id);
-            const changed = !orig || orig.started_at !== s.started_at || (orig.ended_at || null) !== s.ended_at || (orig.duration_seconds || 0) !== s.duration_seconds;
-            if (changed) {
-              await window.fetchJSON("/api/sessions/" + s.id, {
-                method: "PUT", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ started_at: s.started_at, ended_at: s.ended_at, duration_seconds: s.duration_seconds }),
-              });
-            }
-          }
-        }));
-        // Deleted sessions are those not kept.
-        await Promise.all([...T.sessions].filter((s) => !kept.has(s.id)).map(async (s) => {
-          try { await window.fetchJSON("/api/sessions/" + s.id, { method: "DELETE" }); } catch (_) {}
-        }));
-        closeEditTaskModal();
-        if (typeof showToast === "function") showToast("Task updated");
-        await loadTasksPage();
-        if (typeof loadData === "function") loadData();
-      } catch (err) {
-        if (typeof showToast === "function") showToast("Error: " + err.message);
-      }
-    }
-
-    async function deleteEditSession(id) {
-      if (!confirm("Delete this session?")) return;
-      try {
-        await window.fetchJSON("/api/sessions/" + id, { method: "DELETE" });
-        if (typeof showToast === "function") showToast("Session deleted");
-        if (T.editing) await openEditTask(T.editing.id);
-        if (typeof loadTasksPage === "function") loadTasksPage();
-      } catch (err) {
-        if (typeof showToast === "function") showToast("Error: " + err.message);
-      }
-    }
-
-    async function deleteEditTask() {
-      if (!T.editing || !confirm("Delete this task permanently? Its sessions are removed too.")) return;
-      try {
-        await window.fetchJSON("/api/tasks/" + T.editing.id, { method: "DELETE" });
-        closeEditTaskModal();
-        if (typeof showToast === "function") showToast("Task deleted");
-        await loadTasksPage();
-        if (typeof loadData === "function") loadData();
-      } catch (err) {
-        if (typeof showToast === "function") showToast("Error: " + err.message);
-      }
-    }
-
-    // Expose globally for onclick handlers + switchTab
-    window.loadTasksPage = loadTasksPage;
-    window.renderTasksList = renderTasksList;
-    window.tasksSetFilter = tasksSetFilter;
-    window.openEditTask = openEditTask;
-    window.closeEditTaskModal = closeEditTaskModal;
-    window.saveEditTask = saveEditTask;
-    window.addEditSessionRow = addEditSessionRow;
-    window.deleteEditSession = deleteEditSession;
-    window.deleteEditTask = deleteEditTask;
-    window.removeNewSessionRow = removeNewSessionRow;
-    window.tasksFilterStateFunc = () => T;
-    Object.defineProperty(window, "tasksFilterState", { get: () => T });
-  })();
-
-  </script>
+  <script src="dashboard/app.js"></script>
 </body>
 </html>
