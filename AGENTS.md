@@ -131,6 +131,6 @@ The API is consumed by the browser UI, not written by agents. If you need to rea
 data renders:
 
 - `static/index.html` is the live dashboard at `/` — a thin shell that `core.js` fills by fetching each widget's markup from `static/widgets/<name>/index.html` and wiring the API.
-- `static/new-dashboard.html` is an alternate, self-contained dashboard served at `/new-dashboard.html` (a standalone v2 redesign). Its CSS and JS live in `static/dashboard/` (`new-dashboard.css`, `analytics-chart.js`, `interactions.js`, `app.js`). It fetches the same `/api/*` endpoints but owns its own render loop.
+- `static/new-dashboard.html` is an alternate, self-contained dashboard served at `/new-dashboard.html` (a standalone v2 redesign). Its shared CSS/JS live in `static/dashboard/` (`new-dashboard.css`, `time-picker.js`, `analytics-chart.js`, `interactions.js`, `app.js`), and it fetches the same `/api/*` endpoints but owns its own render loop. Its widget cards (hero, timer, task-list, chart, empty-slot) are saved as markup under `static/widgets/<name>/index.html`; `static/dashboard/widget-loader.js` injects them into the `data-dashboard-widget` mounts and then boots `interactions.js`, `analytics-chart.js`, and `app.js` in order once all widgets are in the DOM.
 
 Agents write data; they do not edit these UI files unless a task explicitly requires it. See `README.md` §8 and `DESIGN.md` for full layout details.

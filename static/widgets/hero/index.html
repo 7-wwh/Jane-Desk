@@ -1,0 +1,36 @@
+<div class="draggable-widget relative h-[290px] rounded-3xl overflow-hidden shadow-md group bg-stone-900 border border-stone-800 p-5 flex flex-col justify-between text-white transition-all duration-200" draggable="true" ondragend="handleDragEnd(event)" ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)" ondragover="handleDragOver(event)" ondragstart="handleDragStart(event)" ondrop="handleDrop(event)">
+<div class="drag-handle absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-stone-800/80 p-1 rounded-md cursor-grab active:cursor-grabbing z-20" title="Drag to rearrange">
+<svg class="w-4 h-4 text-stone-300" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 8h16M4 16h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<!-- Visual Background Glow -->
+<div class="absolute -right-10 -bottom-10 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl pointer-events-none"></div>
+<div class="absolute -left-10 -top-10 w-40 h-40 bg-stone-700/30 rounded-full blur-2xl pointer-events-none"></div>
+<!-- Top Status Pill -->
+<div class="flex items-center justify-between relative z-10 pr-6">
+<span class="inline-flex items-center gap-1.5 bg-[#F5C200] text-stone-900 text-[10px] uppercase font-black px-3 py-1 rounded-full shadow-sm tracking-wide">
+<span class="w-1.5 h-1.5 rounded-full bg-stone-900 animate-pulse"></span>
+            Current Focus
+          </span>
+<span class="hero-tag text-xs text-stone-400 font-medium border border-stone-700 px-2.5 py-0.5 rounded-full">#task</span>
+</div>
+<!-- Main Task Title -->
+<div class="my-auto relative z-10 pt-2">
+<div class="hero-priority text-xs text-amber-400 font-semibold uppercase tracking-wider mb-1">Priority 01</div>
+<h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight leading-snug" id="hero-task-title">
+            Finalize Dashboard UI Kit &amp; Component Demos
+          </h2>
+<p class="hero-desc text-xs text-stone-400 font-medium mt-2 line-clamp-2">
+            Loading current task…
+          </p>
+</div>
+<!-- Bottom Action Bar -->
+<div class="flex items-center justify-between pt-3 border-t border-stone-800 relative z-10">
+<div class="flex items-center gap-2">
+<span class="text-xs text-stone-400">Est: <strong class="hero-est text-stone-200">0h tracked</strong></span>
+</div>
+<button class="bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs font-bold px-3.5 py-2 rounded-full border border-white/20 transition-all flex items-center gap-1.5" onclick="completeHeroTask()">
+<svg class="w-3.5 h-3.5 text-[#F5C200]" fill="none" stroke="currentColor" stroke-width="3" viewbox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            Done
+          </button>
+</div>
+</div>
