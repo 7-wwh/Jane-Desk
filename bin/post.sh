@@ -6,13 +6,15 @@ BASE="${LIFE_DASH_URL:-http://127.0.0.1:8000}"
 if [ "$#" -lt 2 ]; then
   echo "Usage: $0 <project|task|goal|learning|journal> '<json>'"
   echo "       $0 task <project_id> '<json>'"
-  echo "       $0 list <project|goal|learning|journal> [filters]"
+  echo "       $0 update <project|task|goal|learning|journal> <id> '<json>'"
+  echo "       $0 list <project|task|goal|learning|journal> [filters]"
   echo "       $0 delete <project|task|goal|learning|journal> <id>"
   echo ""
   echo "Examples:"
   echo "  $0 learning '{\"title\":\"Learned X\",\"content\":\"...\",\"tags\":\"python\"}'"
   echo "  $0 project '{\"title\":\"Build site\",\"status\":\"backlog\",\"priority\":\"high\"}'"
   echo "  $0 task 1 '{\"title\":\"Wire up API\",\"status\":\"planned\",\"priority\":\"high\"}'"
+  echo "  $0 update task 3 '{\"status\":\"in_progress\",\"priority\":\"high\"}'"
   echo "  $0 goal '{\"area\":\"health\",\"title\":\"Run 5km\",\"progress\":40}'"
   echo "  $0 journal '{\"type\":\"milestone\",\"content\":\"Shipped it\"}'"
   echo "  $0 list projects"
@@ -47,12 +49,32 @@ case "$cmd" in
   list)
     case "$1" in
       project|projects) ENDPOINT="projects" ;;
+      task|tasks) ENDPOINT="tasks" ;;
       goal|goals) ENDPOINT="goals" ;;
       learning|learnings) ENDPOINT="learnings" ;;
       journal|journals) ENDPOINT="journal" ;;
       *) echo "Unknown entity: $1" >&2; exit 1 ;;
     esac
-    curl -s "$BASE/api/$ENDPOINT" | python3 -m json.tool
+    shift
+    [ "$#" -ge 1 ] && QS="$*" || QS=""
+    curl -s "$BASE/api/$ENDPOINT$QS" | python3 -m json.tool
+    exit 0
+    ;;
+  update)
+    [ "$#" -ge 3 ] || { echo "Usage: $0 update <entity> <id> '<json>'" >&2; exit 1; }
+    case "$1" in
+      project|projects) ENDPOINT="projects" ;;
+      task|tasks) ENDPOINT="tasks" ;;
+      goal|goals) ENDPOINT="goals" ;;
+      learning|learnings) ENDPOINT="learnings" ;;
+      journal|journals) ENDPOINT="journal" ;;
+      *) echo "Unknown entity: $1" >&2; exit 1 ;;
+    esac
+    ID="$2"
+    shift 2
+    curl -s -X PUT "$BASE/api/$ENDPOINT/$ID" \
+      -H "Content-Type: application/json" \
+      -d "$1" | python3 -m json.tool
     exit 0
     ;;
   delete)

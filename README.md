@@ -37,7 +37,7 @@ Two audiences use it:
 
 | Audience | Uses |
 | :--- | :--- |
-| **Agents** (opencode, codex, claude…) | `POST` JSON to the API to log learnings, update project status, add goals, journal moments. They also load a packaged set of **skills** (`SKILL.md` → `skills/`) that teach them *how* to use the dashboard. |
+| **Agents** (opencode, codex, claude…) | `POST` JSON to the API to log learnings, update project status, add goals, journal moments. They also load a packaged set of **skills** (`skills/main-skill.md` → `skills/*`) that teach them *how* to use the dashboard. |
 | **Human** (phone/laptop, anywhere) | Read the rendered dashboard over Tailscale. |
 
 This repo is two products in one: the **dashboard app** (backend + frontend) and the **agent skill package** (instructions that make agents productive with it).
@@ -93,12 +93,11 @@ FastAPI does double duty: it exposes the **JSON API** under `/api/*` *and* **ser
 life-at-a-glance/
 ├── README.md                       ← you are here; the learning guide
 ├── AGENTS.md                       ← instructions for AI agents on how to write data
-├── SKILL.md                        ← entry point to the agent skill package
 ├── DESIGN.md                       ← the CHECK BOX design specification (palette, layout, cards)
 ├── QUESTION.md                     ← open design questions + confirmed decisions
 ├── skills/                         ← agent skills (loaded by agents to work with the dashboard)
 │   ├── main-skill.md               ←   dispatcher/router: classifies a message → routes to a sub-skill
-│   └── task-master.md              ←   extracts structured tasks from prose; resolves branch destination; pushes to the API; its "Appendix: Eval suite" verifies the extraction layer (run by a spawned subagent)
+│   └── task-master.md              ←   fills task/project/goal forms from prose, confirms with the user before logging; its "Appendix: Eval suite" verifies the flow (run by a spawned subagent)
 ├── requirements.txt                ← Python dependencies (declared, installable)
 ├── .gitignore                      ← what NOT to commit (database, cache files, screenshots)
 │
@@ -221,7 +220,7 @@ This project deliberately follows standard practice for a **FastAPI + SQLAlchemy
 | **Config & secrets hygiene** | No secrets in code; DB is gitignored; no auth is a *documented* MVP trade-off. |
 | **Deployment via init system** | systemd user service + `loginctl enable-linger` = survive reboots, no login required. |
 | **Agent-friendly interface** | `AGENTS.md` + `bin/post.sh` are a machine-readable contract, like an SDK for LLMs. |
-| **Skill package** | `SKILL.md` → `skills/*` split procedural guidance by task, so agents load only what they need. |
+| **Skill package** | `skills/main-skill.md` → `skills/*` split procedural guidance by task, so agents load only what they need. |
 | **Task hierarchy** | Tasks are a child table of projects (FK + `ON DELETE CASCADE`) — the same pattern as "issues under a board" in GitHub. |
 
 ### What a bigger production project would add
@@ -528,13 +527,12 @@ Every agent that opens this repo reads `AGENTS.md` — it states the rules expli
 
 This is a *documented contract between humans and machines* — the same idea as writing an SDK reference.
 
-### The skill package (`SKILL.md` + `skills/`)
+### The skill package (`skills/`)
 
 Beyond the API, the repo ships **agent skills** — Markdown instructions agents can load to do dashboard work well:
 
-- **`SKILL.md`** (root) — the entry point. Tells an agent the package exists and where each part lives.
-- **`skills/main-skill.md`** — the **dispatcher/router**. Agents that arrive with a message read this first, classify the intent, and are routed to the right sub-skill (today: `task-master.md`).
-- **`skills/task-master.md`** — turns a natural-language message into a **JSON array of structured tasks** (`taskName`, `taskDescription`, `importance`, `beginDate`, `deadline`, `duration`, `branch`, `confidence`, `flags`). It guards against weird input (a `noTask` marker instead of fabricating, low confidence + `flags` on contradictions, date/duration sanity), **resolves the branch destination** by reading existing projects from the API, and documents how to push each task via `bin/post.sh`. Duration always converts to **hours** (24h day / 168h week, 8760h cap). Its **"Appendix: Eval suite"** is the extraction eval registry — a main agent reads it and **spawns a subagent** to run the fixtures (normal + pathological inputs) and return a pass/fail table. Complements `bin/run_api_evals.py`, which deterministically checks the server-side guards.
+- **`skills/main-skill.md`** — the **dispatcher/router**. Agents that arrive with a message read this first, classify the intent, and are routed to the right sub-skill (today: `task-master.md`). It enforces the human-in-the-loop rule: no database writes without explicit user approval.
+- **`skills/task-master.md`** — turns a natural-language message into **fill-in-the-blank forms** for tasks, projects, and goals. Each box shows its exact JSON key and allowed values (`title`, `status`, `priority`, `begin_date`/`due_date`/`target_date`, `duration` in hours, `branch_path`, goal `area`/`progress`), so blanks stay blank and nothing is invented. It classifies the intent (create vs. update — "I finished X", "push the deadline", "set progress to 50%"), matches existing records (`matched_to`), shows the filled form as a confirmation preview, and only writes to the API after explicit user approval. Every payload is self-checked box-by-box before logging; `data/life.db` is never edited directly. Its **"Appendix: Eval suite"** (Layers A–C: extraction, format conformance, confirmation gate) is run by a **spawned subagent** that verifies each fixture and returns a pass/fail table. Complements `bin/run_api_evals.py`, which deterministically checks the server-side guards.
 
 The split mirrors how agents actually think: a general "how do I work on this repo" instruction plus focused playbooks for specific tasks. Health status rules are intentionally *external to the UI* — the dashboard shows what's happening; the rules for judging it live in the skills.
 
