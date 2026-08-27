@@ -5,34 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>JANE-DESK — bare backend view</title>
 <style>
-  :root { color-scheme: light; }
+  :root { --bg: #ffffff; --fg: #000000; color-scheme: light; }
+  body.dark { --bg: #0d0d0d; --fg: #e8e8e8; color-scheme: dark; }
   * { box-sizing: border-box; }
   body {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    background: #fff; color: #000; margin: 0 auto; max-width: 1100px;
+    background: var(--bg); color: var(--fg); margin: 0 auto; max-width: 1100px;
     padding: 16px; font-size: 13px; line-height: 1.45;
   }
-  h1 { font-size: 16px; letter-spacing: 2px; margin: 0 0 8px; border-bottom: 3px solid #000; padding-bottom: 6px; }
-  h2 { font-size: 14px; letter-spacing: 1px; margin: 28px 0 8px; border-bottom: 1px solid #000; padding-bottom: 4px; }
+  h1 { font-size: 16px; letter-spacing: 2px; margin: 0 0 8px; border-bottom: 3px solid var(--fg); padding-bottom: 6px; }
+  h2 { font-size: 14px; letter-spacing: 1px; margin: 28px 0 8px; border-bottom: 1px solid var(--fg); padding-bottom: 4px; }
   h2 small { float: right; font-weight: normal; opacity: .6; }
   table { border-collapse: collapse; width: 100%; margin: 6px 0; }
-  th, td { border: 1px solid #000; padding: 3px 7px; text-align: left; vertical-align: top; }
-  th { background: #000; color: #fff; }
+  th, td { border: 1px solid var(--fg); padding: 3px 7px; text-align: left; vertical-align: top; }
+  th { background: var(--fg); color: var(--bg); }
   button, input, select {
-    font: inherit; border: 1px solid #000; background: #fff; color: #000;
+    font: inherit; border: 1px solid var(--fg); background: var(--bg); color: var(--fg);
     padding: 2px 8px; margin: 1px 0;
   }
   button { cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
-  button:hover, input:focus, select:focus { outline: 2px solid #000; outline-offset: -1px; }
-  form.add { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; border: 1px dashed #000; padding: 6px; margin: 6px 0; }
-  .pill { display: inline-block; border: 1px solid #000; padding: 0 5px; margin-right: 4px; }
+  button:hover, input:focus, select:focus { outline: 2px solid var(--fg); outline-offset: -1px; }
+  form.add { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; border: 1px dashed var(--fg); padding: 6px; margin: 6px 0; }
+  .pill { display: inline-block; border: 1px solid var(--fg); padding: 0 5px; margin-right: 4px; }
   .muted { opacity: .55; }
   details { margin: 4px 0; }
   summary { cursor: pointer; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; user-select: none; }
-  pre.json { border: 1px solid #000; padding: 8px; overflow: auto; max-height: 320px; font-size: 12px; }
+  pre.json { border: 1px solid var(--fg); padding: 8px; overflow: auto; max-height: 320px; font-size: 12px; }
   ul.plain { list-style: none; padding-left: 0; margin: 6px 0; }
-  ul.plain li { border-bottom: 1px dotted #000; padding: 3px 0; }
-  #banner { border: 1px solid #000; padding: 6px 10px; margin: 10px 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  ul.plain li { border-bottom: 1px dotted var(--fg); padding: 3px 0; }
+  #banner { border: 1px solid var(--fg); padding: 6px 10px; margin: 10px 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   #smoke-log { min-height: 20px; white-space: pre-wrap; }
 </style>
 </head>
@@ -44,6 +45,7 @@
   <strong id="health">HEALTH: …</strong>
   <span id="active-session" class="pill">no active session</span>
   <button data-act="refresh">refresh</button>
+  <button data-act="theme" id="theme-btn">dark mode</button>
   <button data-act="smoke">run smoke test</button>
   <span class="muted">auto-refresh every 30s</span>
 </div>
@@ -172,6 +174,22 @@ async function api(path, opts = {}) {
 const state = {};
 
 function log(msg) { $("#smoke-log").textContent += msg + "\n"; }
+
+// ---------- theme toggle ----------
+function applyTheme(dark) {
+  document.body.classList.toggle("dark", dark);
+  const btn = $("#theme-btn");
+  if (btn) btn.textContent = dark ? "light mode" : "dark mode";
+  try { localStorage.setItem("bare-theme", dark ? "dark" : "light"); } catch { /* private mode */ }
+}
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem("bare-theme"); } catch { /* private mode */ }
+  if (!saved && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    saved = "dark";
+  }
+  applyTheme(saved === "dark");
+}
 
 async function stepLog(label, fn) {
   try {
@@ -407,6 +425,10 @@ document.addEventListener("click", async (e) => {
   if (!btn) return;
   const act = btn.dataset.act, id = btn.dataset.id;
   if (act === "refresh") return refresh();
+  if (act === "theme") {
+    applyTheme(!document.body.classList.contains("dark"));
+    return;
+  }
 
   if (act === "proj-del") {
     if (!confirm("Delete project " + id + " (and its tasks)?")) return;
@@ -555,6 +577,7 @@ async function runSmokeTest() {
 }
 
 // ---------- boot ----------
+initTheme();
 refresh();
 setInterval(refresh, 30000);
 </script>
