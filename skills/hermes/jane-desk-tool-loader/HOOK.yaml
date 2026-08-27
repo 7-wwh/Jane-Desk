@@ -1,0 +1,8 @@
+name: jane-desk-tool-loader
+description: >
+  Refreshes the Life-at-a-Glance (Jane-Desk) skill/tool catalog in SOUL.md so the
+  agent always knows which tools are available at every new conversation and never
+  hallucinates missing tools.
+events:
+  - session:start
+  - session:reset

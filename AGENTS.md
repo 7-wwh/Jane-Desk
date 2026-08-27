@@ -1,4 +1,4 @@
-# Life-at-a-Glance — Agent Instructions
+# Jane-Desk — Agent Instructions
 
 You are contributing to the user's personal life dashboard. Agents (opencode, codex,
 claude, cline, etc.) keep this dashboard up to date by POSTing JSON to a local FastAPI
@@ -175,9 +175,9 @@ data renders:
 
 - `static/index.html` is the live dashboard at `/` — a thin shell that `core.js` fills by fetching each widget's markup from `static/widgets/<name>/index.html` and wiring the API.
 - `static/new-dashboard.html` is an alternate, self-contained dashboard served at `/new-dashboard.html` (a standalone v2 redesign). Its shared CSS/JS live in `static/dashboard/` (`new-dashboard.css`, `time-picker.js`, `analytics-chart.js`, `interactions.js`, `app.js`), and it fetches the same `/api/*` endpoints but owns its own render loop. Its widget cards (hero, timer, task-list, chart, empty-slot) are saved as markup under `static/widgets/<name>/index.html`; `static/dashboard/widget-loader.js` injects them into the `data-dashboard-widget` mounts and then boots `interactions.js`, `analytics-chart.js`, and `app.js` in order once all widgets are in the DOM.
-- `static/core.css` holds the design-system tokens (`--color-amber`, `--color-bg`, etc.); the full "CHECK BOX DAYLIGHT" spec is in `DESIGN.md`.
+- `static/core.css` holds the design-system tokens (`--color-amber`, `--color-bg`, etc.).
 
-Agents write data; they do not edit these UI files unless a task explicitly requires it. See `README.md` §8 and `DESIGN.md` for full layout details.
+Agents write data; they do not edit these UI files unless a task explicitly requires it. See `README.md` §8 for full layout details.
 
 ## Gotchas
 
