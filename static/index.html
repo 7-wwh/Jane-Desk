@@ -1,0 +1,562 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JANE-DESK — bare backend view</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: #fff; color: #000; margin: 0 auto; max-width: 1100px;
+    padding: 16px; font-size: 13px; line-height: 1.45;
+  }
+  h1 { font-size: 16px; letter-spacing: 2px; margin: 0 0 8px; border-bottom: 3px solid #000; padding-bottom: 6px; }
+  h2 { font-size: 14px; letter-spacing: 1px; margin: 28px 0 8px; border-bottom: 1px solid #000; padding-bottom: 4px; }
+  h2 small { float: right; font-weight: normal; opacity: .6; }
+  table { border-collapse: collapse; width: 100%; margin: 6px 0; }
+  th, td { border: 1px solid #000; padding: 3px 7px; text-align: left; vertical-align: top; }
+  th { background: #000; color: #fff; }
+  button, input, select {
+    font: inherit; border: 1px solid #000; background: #fff; color: #000;
+    padding: 2px 8px; margin: 1px 0;
+  }
+  button { cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
+  button:hover, input:focus, select:focus { outline: 2px solid #000; outline-offset: -1px; }
+  form.add { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; border: 1px dashed #000; padding: 6px; margin: 6px 0; }
+  .pill { display: inline-block; border: 1px solid #000; padding: 0 5px; margin-right: 4px; }
+  .muted { opacity: .55; }
+  details { margin: 4px 0; }
+  summary { cursor: pointer; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; user-select: none; }
+  pre.json { border: 1px solid #000; padding: 8px; overflow: auto; max-height: 320px; font-size: 12px; }
+  ul.plain { list-style: none; padding-left: 0; margin: 6px 0; }
+  ul.plain li { border-bottom: 1px dotted #000; padding: 3px 0; }
+  #banner { border: 1px solid #000; padding: 6px 10px; margin: 10px 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  #smoke-log { min-height: 20px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+
+<h1>JANE-DESK — BARE BACKEND VIEW</h1>
+
+<div id="banner">
+  <strong id="health">HEALTH: …</strong>
+  <span id="active-session" class="pill">no active session</span>
+  <button data-act="refresh">refresh</button>
+  <button data-act="smoke">run smoke test</button>
+  <span class="muted">auto-refresh every 30s</span>
+</div>
+
+<pre id="smoke-log"></pre>
+<nav id="counts"></nav>
+
+<section>
+  <h2>WORK FEED <small>GET /api/work</small></h2>
+  <div id="work"></div>
+  <details><summary>raw json</summary><pre class="json" id="json-work"></pre></details>
+</section>
+
+<section>
+  <h2>PROJECTS <small>/api/projects</small></h2>
+  <form class="add" id="form-project">
+    <input name="title" placeholder="title *" required size="18">
+    <select name="status"><option>active</option><option>backlog</option><option>done</option><option>paused</option></select>
+    <select name="priority"><option value="">priority?</option><option>high</option><option selected>medium</option><option>low</option></select>
+    <input name="target_date" type="date">
+    <input name="tags" placeholder="tags" size="8">
+    <button type="submit">POST project</button>
+  </form>
+  <div id="projects"></div>
+  <details><summary>raw json</summary><pre class="json" id="json-projects"></pre></details>
+</section>
+
+<section>
+  <h2>TASKS <small>/api/tasks</small></h2>
+  <form class="add" id="form-task">
+    <select name="project_id" required></select>
+    <input name="title" placeholder="title *" required size="18">
+    <select name="status"><option>wanted</option><option selected>planned</option><option>in_progress</option><option>done</option></select>
+    <select name="priority"><option value="">priority?</option><option>high</option><option selected>medium</option><option>low</option></select>
+    <input name="due_date" type="date">
+    <button type="submit">POST task</button>
+  </form>
+  <div id="tasks"></div>
+  <details><summary>raw json</summary><pre class="json" id="json-tasks"></pre></details>
+</section>
+
+<section>
+  <h2>GOALS <small>/api/goals</small></h2>
+  <form class="add" id="form-goal">
+    <select name="area"><option>career</option><option>health</option><option>family</option><option>learning</option><option>finance</option><option selected>other</option></select>
+    <input name="title" placeholder="title *" required size="18">
+    <input name="progress" type="number" min="0" max="100" placeholder="%" style="width:64px">
+    <button type="submit">POST goal</button>
+  </form>
+  <div id="goals"></div>
+  <details><summary>raw json</summary><pre class="json" id="json-goals"></pre></details>
+</section>
+
+<section>
+  <h2>LEARNINGS <small>/api/learnings</small></h2>
+  <form class="add" id="form-learning">
+    <input name="title" placeholder="title *" required size="18">
+    <input name="content" placeholder="content" size="30">
+    <input name="tags" placeholder="tags" size="8">
+    <button type="submit">POST learning</button>
+  </form>
+  <div id="learnings"></div>
+  <details><summary>raw json</summary><pre class="json" id="json-learnings"></pre></details>
+</section>
+
+<section>
+  <h2>JOURNAL <small>/api/journal</small></h2>
+  <form class="add" id="form-journal">
+    <select name="type"><option>milestone</option><option selected>note</option><option>reflection</option></select>
+    <input name="content" placeholder="content *" required size="40">
+    <button type="submit">POST journal</button>
+  </form>
+  <div id="journal"></div>
+  <details><summary>raw json</summary><pre class="json" id="json-journal"></pre></details>
+</section>
+
+<section>
+  <h2>TIMELINE <small>GET /api/timeline?limit=25</small></h2>
+  <ul class="plain" id="timeline"></ul>
+</section>
+
+<section>
+  <h2>SETTINGS <small>/api/settings</small></h2>
+  <form class="add" id="form-setting">
+    <input name="key" placeholder="key *" required size="10">
+    <input name="value" placeholder='value ("true", "42", "text")' required size="24">
+    <button type="submit">PATCH upsert key</button>
+  </form>
+  <div id="settings"></div>
+  <details><summary>raw json</summary><pre class="json" id="json-settings"></pre></details>
+</section>
+
+<section>
+  <h2>AGGREGATES <small>tree / stats / daily-stats / analytics</small></h2>
+  <details><summary>GET /api/tree</summary><pre class="json" id="json-tree"></pre></details>
+  <details><summary>GET /api/stats</summary><pre class="json" id="json-stats"></pre></details>
+  <details><summary>GET /api/daily-stats?days=14</summary><pre class="json" id="json-daily-stats"></pre></details>
+  <details><summary>GET /api/analytics?range=daily</summary><pre class="json" id="json-analytics"></pre></details>
+</section>
+
+<script>
+"use strict";
+// ---------- helpers ----------
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
+  (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtSecs = (s) => {
+  s = Math.floor(Number(s) || 0);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h ? h + "h " + m + "m" : m ? m + "m" : s + "s";
+};
+
+async function api(path, opts = {}) {
+  const res = await fetch("/api" + path, {
+    method: opts.method || "GET",
+    headers: { "Content-Type": "application/json" },
+    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+  });
+  const text = await res.text();
+  let data = null;
+  if (text) { try { data = JSON.parse(text); } catch { data = text; } }
+  if (!res.ok && !opts.quiet) log("FAIL " + (opts.method || "GET") + " " + path + " -> " + res.status);
+  return { ok: res.ok, status: res.status, data };
+}
+
+const state = {};
+
+function log(msg) { $("#smoke-log").textContent += msg + "\n"; }
+
+async function stepLog(label, fn) {
+  try {
+    const r = await fn();
+    log(label + " -> " + r.status + (r.ok ? " OK" : " FAIL " + JSON.stringify(r.data)));
+    return r;
+  } catch (err) {
+    log(label + " -> ERROR " + err.message);
+    return { ok: false };
+  }
+}
+
+// ---------- rendering ----------
+const TASK_STATUSES = ["wanted", "planned", "in_progress", "done"];
+const PROJECT_STATUSES = ["active", "backlog", "done", "paused"];
+
+function rowBtn(act, id, label) {
+  return '<button data-act="' + act + '" data-id="' + id + '">' + label + "</button>";
+}
+
+function renderProjects(items) {
+  if (!items.length) return '<p class="muted">(none in DB)</p>';
+  let html = "<table><tr><th>id</th><th>title</th><th>status</th><th>prio</th><th>target</th><th>actions</th></tr>";
+  for (const p of items) {
+    html += "<tr><td>" + p.id + "</td>"
+      + "<td>" + esc(p.title) + (p.tags ? ' <span class="muted">[' + esc(p.tags) + "]</span>" : "") + "</td>"
+      + '<td><select data-act="proj-status" data-id="' + p.id + '">'
+      + PROJECT_STATUSES.map((s) => "<option" + (s === p.status ? " selected" : "") + ">" + s + "</option>").join("")
+      + "</select></td>"
+      + "<td>" + esc(p.priority || "") + "</td>"
+      + "<td>" + esc(p.target_date || "-") + "</td>"
+      + "<td>" + rowBtn("proj-start", p.id, "start") + " " + rowBtn("proj-del", p.id, "del") + "</td></tr>";
+  }
+  return html + "</table>";
+}
+function renderTasks(tasks, workMap) {
+  if (!tasks.length) return '<p class="muted">(none in DB)</p>';
+  let html = "<table><tr><th>id</th><th>project</th><th>title</th><th>status</th><th>prio</th><th>due</th><th>time</th><th>actions</th></tr>";
+  for (const t of tasks) {
+    const w = workMap[t.id];
+    const running = w && w.running_session_id != null;
+    html += "<tr><td>" + t.id + "</td>"
+      + "<td>" + esc(t.project_title ?? ("#" + t.project_id)) + "</td>"
+      + "<td>" + esc(t.title) + "</td>"
+      + '<td><select data-act="task-status" data-id="' + t.id + '">'
+      + TASK_STATUSES.map((s) => "<option" + (s === t.status ? " selected" : "") + ">" + s + "</option>").join("")
+      + "</select></td>"
+      + "<td>" + esc(t.priority || "") + "</td>"
+      + "<td>" + esc(t.due_date || "-") + "</td>"
+      + "<td>" + fmtSecs(w ? w.total_seconds : t.total_seconds) + (running ? " ●RUN" : "") + "</td>"
+      + "<td>"
+      + (running ? rowBtn("task-stop", w.running_session_id, "stop") : rowBtn("task-start", t.id, "start"))
+      + " " + rowBtn("task-del", t.id, "del")
+      + "</td></tr>";
+  }
+  return html + "</table>";
+}
+
+function renderGoals(items) {
+  if (!items.length) return '<p class="muted">(none in DB)</p>';
+  let html = "<table><tr><th>id</th><th>area</th><th>title</th><th>progress</th><th>target</th><th>actions</th></tr>";
+  for (const g of items) {
+    html += "<tr><td>" + g.id + "</td><td>" + esc(g.area) + "</td><td>" + esc(g.title) + "</td>"
+      + "<td>" + Number(g.progress).toFixed(0) + "%</td>"
+      + "<td>" + esc(g.target_date || "-") + "</td>"
+      + "<td>" + rowBtn("goal-del", g.id, "del") + "</td></tr>";
+  }
+  return html + "</table>";
+}
+
+function renderLearnings(items) {
+  if (!items.length) return '<p class="muted">(none in DB)</p>';
+  let html = "<table><tr><th>id</th><th>date</th><th>title</th><th>content</th><th>tags</th><th>actions</th></tr>";
+  for (const l of items.slice().reverse()) {
+    html += "<tr><td>" + l.id + "</td><td>" + esc(l.date) + "</td><td>" + esc(l.title) + "</td>"
+      + "<td>" + esc(l.content).slice(0, 120) + "</td>"
+      + "<td>" + esc(l.tags || "") + "</td>"
+      + "<td>" + rowBtn("learning-del", l.id, "del") + "</td></tr>";
+  }
+  return html + "</table>";
+}
+
+function renderJournal(items) {
+  if (!items.length) return '<p class="muted">(none in DB)</p>';
+  let html = "<table><tr><th>id</th><th>date</th><th>type</th><th>content</th><th>actions</th></tr>";
+  for (const j of items.slice().reverse()) {
+    html += "<tr><td>" + j.id + "</td><td>" + esc(j.date) + "</td><td>" + esc(j.type) + "</td>"
+      + "<td>" + esc(j.content).slice(0, 140) + "</td>"
+      + "<td>" + rowBtn("journal-del", j.id, "del") + "</td></tr>";
+  }
+  return html + "</table>";
+}
+function renderWork(work) {
+  if (!work) return "";
+  let html = '<ul class="plain">';
+  html += "<li><b>today:</b> " + esc(work.today) + "</li>";
+  if (work.current)
+    html += "<li><b>current task:</b> [" + work.current.id + "] " + esc(work.current.title)
+      + " — project: " + esc(work.current.project_title)
+      + ", status: " + esc(work.current.status)
+      + ", time logged: " + fmtSecs(work.current.total_seconds) + "</li>";
+  else
+    html += '<li class="muted"><b>current task:</b> none (needs_start=' + work.needs_start + ")</li>";
+  if (work.last_started)
+    html += "<li><b>last started:</b> [" + work.last_started.id + "] " + esc(work.last_started.title) + "</li>";
+  html += "<li><b>upcoming:</b> "
+    + (work.upcoming.length
+        ? work.upcoming.map((t) => "[" + t.id + "] " + esc(t.title) + " (" + esc(t.due_date || "?") + ")").join(" · ")
+        : "(empty)") + "</li>";
+  html += "<li><b>active projects:</b> "
+    + (work.active_projects.length
+        ? work.active_projects.map((a) =>
+            esc(a.project.title) + " " + a.done + "/" + a.total + " tasks" + (a.overdue ? " OVERDUE" : "")
+          ).join(" · ")
+        : "(empty)") + "</li>";
+  html += "<li><b>ideas (backlog):</b> "
+    + (work.ideas.length
+        ? work.ideas.map((i) => esc(i.project.title)).join(" · ")
+        : "(empty)") + "</li>";
+  return html + "</ul>";
+}
+
+function renderTimeline(items) {
+  if (!items || !items.length) return '<p class="muted">(empty)</p>';
+  return '<ul class="plain">' + items.map((t) =>
+    "<li>[" + esc(t.kind) + " #" + t.entity_id + "] " + esc(t.date) + " — <b>" + esc(t.title) + "</b> "
+    + '<span class="muted">' + esc(t.body).slice(0, 100) + "</span></li>"
+  ).join("") + "</ul>";
+}
+
+function fillSelect(sel, options, firstLabel) {
+  sel.innerHTML = (firstLabel ? '<option value="">' + firstLabel + "</option>" : "")
+    + options.map((o) => '<option value="' + o.v + '">' + esc(o.t) + "</option>").join("");
+}
+
+function setJSON(id, data) { $(id).textContent = JSON.stringify(data, null, 2); }
+
+// ---------- active session badge (ticking clock) ----------
+function tickSession() {
+  const el = $("#active-session");
+  if (!state.sessionStartedAt) { el.textContent = "no active session"; return; }
+  const elapsed = (Date.now() - new Date(state.sessionStartedAt).getTime()) / 1000;
+  el.textContent = "RUNNING session since " + state.sessionStartedAt.replace("T", " ").slice(0, 19)
+    + " (" + fmtSecs(elapsed) + ")";
+}
+setInterval(tickSession, 1000);
+// ---------- load & refresh ----------
+async function refresh() {
+  const [health, projectsR, tasksR, goalsR, learningsR, journalR] = await Promise.all([
+    api("/health"), api("/projects"), api("/tasks"), api("/goals"),
+    api("/learnings"), api("/journal"),
+  ]);
+  const [settingsR, workR, timelineR, treeR, statsR, dailyR, analyticsR, activeR] = await Promise.all([
+    api("/settings"), api("/work"), api("/timeline?limit=25"),
+    api("/tree", { quiet: true }), api("/stats", { quiet: true }),
+    api("/daily-stats?days=14", { quiet: true }), api("/analytics?range=daily", { quiet: true }),
+    api("/sessions/active", { quiet: true }),
+  ]);
+
+  const allOk = health.ok && health.data && health.data.status === "ok";
+  $("#health").textContent = "HEALTH: " + (allOk ? "OK ✓" : "FAIL ✗");
+
+  const counts = [
+    "projects " + (projectsR.ok ? projectsR.data.length : "?"),
+    "tasks " + (tasksR.ok ? tasksR.data.length : "?"),
+    "goals " + (goalsR.ok ? goalsR.data.length : "?"),
+    "learnings " + (learningsR.ok ? learningsR.data.length : "?"),
+    "journal " + (journalR.ok ? journalR.data.length : "?"),
+  ];
+  $("#counts").innerHTML = counts.map((c) => '<span class="pill">' + c + "</span>").join("");
+
+  state.projects = projectsR.ok ? projectsR.data : [];
+  state.tasks = tasksR.ok ? tasksR.data : [];
+  const workData = workR.ok ? workR.data : null;
+
+  // merge per-task time info from /api/work into /api/tasks rows
+  const byTaskId = {};
+  if (workData) {
+    const collect = (arr) => (arr || []).forEach((t) => { if (t && t.id != null) byTaskId[t.id] = t; });
+    if (workData.current) collect([workData.current]);
+    collect(workData.upcoming);
+    if (workData.last_started) collect([workData.last_started]);
+    workData.active_projects.forEach((a) => collect(a.open_tasks));
+    // active session may not be on any work list — flag it directly
+    if (activeR.ok && activeR.data && activeR.data.session) {
+      let owner = Object.values(byTaskId).find((t) => t.running_session_id === activeR.data.session.id);
+      if (!owner) {
+        const raw = state.tasks.find((t) => t.id === activeR.data.session.task_id);
+        if (raw) byTaskId[raw.id] = Object.assign({}, byTaskId[raw.id] || raw,
+          { running_session_id: activeR.data.session.id, total_seconds: byTaskId[raw.id]?.total_seconds || 0 });
+      }
+    }
+  }
+
+  $("#projects").innerHTML = renderProjects(state.projects);
+  $("#tasks").innerHTML = renderTasks(state.tasks, byTaskId);
+  $("#goals").innerHTML = renderGoals(goalsR.ok ? goalsR.data : []);
+  $("#learnings").innerHTML = renderLearnings(learningsR.ok ? learningsR.data : []);
+  $("#journal").innerHTML = renderJournal(journalR.ok ? journalR.data : []);
+  $("#work").innerHTML = renderWork(workData);
+  $("#timeline").innerHTML = renderTimeline(timelineR.ok ? timelineR.data : []);
+
+  const st = settingsR.ok ? settingsR.data.settings : {};
+  $("#settings").innerHTML = Object.keys(st).length
+    ? '<ul class="plain">' + Object.entries(st).map(([k, v]) =>
+        "<li><b>" + esc(k) + "</b> = " + esc(JSON.stringify(v)) + " "
+        + '<button data-act="setting-del" data-id="' + esc(k) + '">del</button></li>').join("") + "</ul>"
+    : '<p class="muted">(no settings in DB)</p>';
+
+  setJSON("#json-work", workData);
+  setJSON("#json-projects", state.projects);
+  setJSON("#json-tasks", state.tasks);
+  setJSON("#json-goals", goalsR.data);
+  setJSON("#json-learnings", learningsR.data);
+  setJSON("#json-journal", journalR.data);
+  setJSON("#json-settings", settingsR.data);
+  setJSON("#json-tree", treeR.data);
+  setJSON("#json-stats", statsR.data);
+  setJSON("#json-daily-stats", dailyR.data);
+  setJSON("#json-analytics", analyticsR.data);
+
+  fillSelect($("#form-task").elements.project_id,
+    state.projects.map((p) => ({ v: p.id, t: p.id + ": " + p.title })),
+    "-- pick project --");
+
+  state.sessionStartedAt = (activeR.ok && activeR.data && activeR.data.session)
+    ? activeR.data.session.started_at : null;
+  tickSession();
+}
+// ---------- actions (event delegation) ----------
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-act]");
+  if (!btn) return;
+  const act = btn.dataset.act, id = btn.dataset.id;
+  if (act === "refresh") return refresh();
+
+  if (act === "proj-del") {
+    if (!confirm("Delete project " + id + " (and its tasks)?")) return;
+    await stepLog("DELETE /projects/" + id, () => api("/projects/" + id, { method: "DELETE" }));
+  } else if (act === "proj-start") {
+    await stepLog("POST /projects/" + id + "/start", () => api("/projects/" + id + "/start", { method: "POST" }));
+  } else if (act === "task-start") {
+    await stepLog("POST /tasks/" + id + "/sessions/start",
+      () => api("/tasks/" + id + "/sessions/start", { method: "POST", body: {} }));
+  } else if (act === "task-stop") {
+    await stepLog("POST /sessions/" + id + "/stop",
+      () => api("/sessions/" + id + "/stop", { method: "POST", body: {} }));
+  } else if (act === "task-del") {
+    if (!confirm("Delete task " + id + "?")) return;
+    await stepLog("DELETE /tasks/" + id, () => api("/tasks/" + id, { method: "DELETE" }));
+  } else if (act === "goal-del") {
+    if (!confirm("Delete goal " + id + "?")) return;
+    await stepLog("DELETE /goals/" + id, () => api("/goals/" + id, { method: "DELETE" }));
+  } else if (act === "learning-del") {
+    if (!confirm("Delete learning " + id + "?")) return;
+    await stepLog("DELETE /learnings/" + id, () => api("/learnings/" + id, { method: "DELETE" }));
+  } else if (act === "journal-del") {
+    if (!confirm("Delete journal entry " + id + "?")) return;
+    await stepLog("DELETE /journal/" + id, () => api("/journal/" + id, { method: "DELETE" }));
+  } else if (act === "setting-del") {
+    await stepLog("DELETE /settings/" + id,
+      () => api("/settings/" + encodeURIComponent(id), { method: "DELETE" }));
+  } else if (act === "smoke") {
+    return runSmokeTest();
+  }
+  await refresh();
+});
+
+document.addEventListener("change", async (e) => {
+  const sel = e.target.closest("select[data-act]");
+  if (!sel) return;
+  const id = sel.dataset.id;
+  if (sel.dataset.act === "proj-status") {
+    await stepLog("PUT /projects/" + id + ' {status:"' + sel.value + '"}',
+      () => api("/projects/" + id, { method: "PUT", body: { status: sel.value } }));
+  } else if (sel.dataset.act === "task-status") {
+    await stepLog("PATCH /tasks/" + id + '/status -> ' + sel.value,
+      () => api("/tasks/" + id + "/status?status=" + encodeURIComponent(sel.value), { method: "PATCH" }));
+  }
+  await refresh();
+});
+// ---------- forms ----------
+document.getElementById("form-project").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target.elements;
+  const body = { title: f.title.value, status: f.status.value, tags: f.tags.value };
+  if (f.priority.value) body.priority = f.priority.value;
+  if (f.target_date.value) body.target_date = f.target_date.value;
+  await stepLog("POST /projects", () => api("/projects", { method: "POST", body }));
+  e.target.reset(); await refresh();
+});
+
+document.getElementById("form-task").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target.elements;
+  if (!f.project_id.value) { alert("pick a project first"); return; }
+  const body = { title: f.title.value, status: f.status.value };
+  if (f.priority.value) body.priority = f.priority.value;
+  if (f.due_date.value) body.due_date = f.due_date.value;
+  await stepLog("POST /projects/" + f.project_id.value + "/tasks",
+    () => api("/projects/" + f.project_id.value + "/tasks", { method: "POST", body }));
+  e.target.reset(); await refresh();
+});
+
+document.getElementById("form-goal").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target.elements;
+  const body = { area: f.area.value, title: f.title.value };
+  if (f.progress.value !== "") body.progress = Number(f.progress.value);
+  await stepLog("POST /goals", () => api("/goals", { method: "POST", body }));
+  e.target.reset(); await refresh();
+});
+
+document.getElementById("form-learning").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target.elements;
+  await stepLog("POST /learnings", () =>
+    api("/learnings", { method: "POST", body: { title: f.title.value, content: f.content.value, tags: f.tags.value } }));
+  e.target.reset(); await refresh();
+});
+
+document.getElementById("form-journal").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target.elements;
+  await stepLog("POST /journal", () =>
+    api("/journal", { method: "POST", body: { type: f.type.value, content: f.content.value } }));
+  e.target.reset(); await refresh();
+});
+
+document.getElementById("form-setting").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target.elements;
+  let value = f.value.value;
+  try { value = JSON.parse(value); } catch { /* keep as string */ }
+  await stepLog("PATCH /settings/" + f.key.value,
+    () => api("/settings/" + encodeURIComponent(f.key.value), { method: "PATCH", body: value }));
+  e.target.reset(); await refresh();
+});
+
+// ---------- smoke test: full write-path lifecycle, self-cleaning ----------
+let smokeRunning = false;
+async function runSmokeTest() {
+  if (smokeRunning) { log("smoke test already running"); return; }
+  smokeRunning = true;
+  const out = [];
+  const S = async (label, fn) => {
+    try {
+      const r = await fn();
+      out.push(label + " -> " + r.status + (r.ok ? " OK" : " FAIL"));
+      return r;
+    } catch (err) { out.push(label + " -> ERROR " + err.message); return { ok: false }; }
+  };
+  log("=== smoke test start ===");
+
+  const proj = await S("1. POST /projects", () =>
+    api("/projects", { method: "POST", body: { title: "__SMOKE__ delete me", tags: "smoke-test" } }));
+  const pid = proj.ok && proj.data ? proj.data.id : null;
+  if (!pid) { log(out.join("\n")); log("=== ABORTED: could not create project ==="); smokeRunning = false; return; }
+
+  const task = await S("2. POST /projects/" + pid + "/tasks", () =>
+    api("/projects/" + pid + "/tasks", { method: "POST", body: { title: "__SMOKE__ task" } }));
+  const tid = task.ok && task.data ? task.data.id : null;
+
+  if (tid) {
+    const sess = await S("3. POST /tasks/" + tid + "/sessions/start", () =>
+      api("/tasks/" + tid + "/sessions/start", { method: "POST", body: {} }));
+    const sid = sess.ok && sess.data ? sess.data.id : null;
+    if (sid)
+      await S("   POST /sessions/" + sid + "/stop",
+        () => api("/sessions/" + sid + "/stop", { method: "POST", body: {} }));
+    await S("4. PATCH /tasks/" + tid + "/status -> done",
+      () => api("/tasks/" + tid + "/status?status=done", { method: "PATCH" }));
+    await S("5. DELETE /tasks/" + tid, () => api("/tasks/" + tid, { method: "DELETE" }));
+  }
+  await S("6. DELETE /projects/" + pid, () => api("/projects/" + pid, { method: "DELETE" }));
+
+  log(out.join("\n"));
+  log("=== smoke test done: write path exercised and cleaned up ===");
+  smokeRunning = false;
+  await refresh();
+}
+
+// ---------- boot ----------
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>

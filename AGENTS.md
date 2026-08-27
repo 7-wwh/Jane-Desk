@@ -173,11 +173,15 @@ curl -s -X POST http://127.0.0.1:8000/api/learnings \
 The API is consumed by the browser UI, not written by agents. If you need to reason about where
 data renders:
 
-- `static/index.html` is the live dashboard at `/` — a thin shell that `core.js` fills by fetching each widget's markup from `static/widgets/<name>/index.html` and wiring the API.
-- `static/new-dashboard.html` is an alternate, self-contained dashboard served at `/new-dashboard.html` (a standalone v2 redesign). Its shared CSS/JS live in `static/dashboard/` (`new-dashboard.css`, `time-picker.js`, `analytics-chart.js`, `interactions.js`, `app.js`), and it fetches the same `/api/*` endpoints but owns its own render loop. Its widget cards (hero, timer, task-list, chart, empty-slot) are saved as markup under `static/widgets/<name>/index.html`; `static/dashboard/widget-loader.js` injects them into the `data-dashboard-widget` mounts and then boots `interactions.js`, `analytics-chart.js`, and `app.js` in order once all widgets are in the DOM.
-- `static/core.css` holds the design-system tokens (`--color-amber`, `--color-bg`, etc.).
+- `static/index.html` is the ONLY frontend file. It is a deliberately bare, black-and-white,
+  dependency-free single page served at `/` that proves the backend works: it renders live
+  rows from `data/life.db` for every entity, exposes minimal add/status/start-session/delete
+  controls per row, and includes a self-cleaning "run smoke test" button (create project →
+  task → session → stop → done → delete both). The polished UI was stripped on purpose;
+  the pre-strip design lives in git history (branch `pre-strip-ui`, commit e98b8e2) and can
+  be restored with `git checkout pre-strip-ui -- static/`.
 
-Agents write data; they do not edit these UI files unless a task explicitly requires it. See `README.md` §8 for full layout details.
+Agents write data; they do not edit these UI files unless a task explicitly requires it.
 
 ## Gotchas
 
