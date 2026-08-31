@@ -3,3 +3,4 @@ uvicorn
 SQLAlchemy
 pydantic
 pydantic-settings
+alembic
