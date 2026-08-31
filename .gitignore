@@ -1,5 +1,2 @@
-data/life.db
+data/life.db*
 __pycache__/
-*.pyc
-.screenshots/
-static.backup-*/
