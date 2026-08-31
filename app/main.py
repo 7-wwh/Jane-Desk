@@ -666,6 +666,63 @@ def delete_journal(journal_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
+# ---------- Notes ----------
+
+@app.get("/api/notes", response_model=list[schemas.NoteOut])
+def list_notes(
+    tag: str | None = None,
+    q: str | None = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(models.Note)
+    if tag:
+        query = query.filter(models.Note.tags.ilike(f"%{tag}%"))
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            or_(models.Note.title.ilike(like), models.Note.content.ilike(like))
+        )
+    return query.order_by(models.Note.updated_at.desc()).all()
+
+
+@app.post("/api/notes", response_model=schemas.NoteOut, status_code=201)
+def create_note(data: schemas.NoteCreate, db: Session = Depends(get_db)):
+    note = models.Note(**data.model_dump())
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+    return note
+
+
+@app.get("/api/notes/{note_id}", response_model=schemas.NoteOut)
+def get_note(note_id: int, db: Session = Depends(get_db)):
+    note = db.get(models.Note, note_id)
+    if not note:
+        raise HTTPException(404, "note not found")
+    return note
+
+
+@app.put("/api/notes/{note_id}", response_model=schemas.NoteOut)
+def update_note(note_id: int, data: schemas.NoteUpdate, db: Session = Depends(get_db)):
+    note = db.get(models.Note, note_id)
+    if not note:
+        raise HTTPException(404, "note not found")
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(note, key, value)
+    db.commit()
+    db.refresh(note)
+    return note
+
+
+@app.delete("/api/notes/{note_id}", status_code=204)
+def delete_note(note_id: int, db: Session = Depends(get_db)):
+    note = db.get(models.Note, note_id)
+    if not note:
+        raise HTTPException(404, "note not found")
+    db.delete(note)
+    db.commit()
+
+
 # ---------- Settings (key-value) ----------
 
 
@@ -995,6 +1052,12 @@ def dashboard(db: Session = Depends(get_db)):
         .limit(15)
         .all()
     )
+    notes = (
+        db.query(models.Note)
+        .order_by(models.Note.updated_at.desc())
+        .limit(15)
+        .all()
+    )
     tasks = db.query(models.Task).all()
     tasks_by_project: dict[int, list] = {}
     for t in tasks:
@@ -1006,6 +1069,7 @@ def dashboard(db: Session = Depends(get_db)):
         "recent_learnings": [schemas.LearningOut.model_validate(l) for l in learnings],
         "goals": [schemas.GoalOut.model_validate(g) for g in goals],
         "journal": [schemas.JournalOut.model_validate(j) for j in journal],
+        "recent_notes": [schemas.NoteOut.model_validate(n) for n in notes],
         "tasks_by_project": {
             str(pid): [schemas.TaskOut.model_validate(t) for t in tasks]
             for pid, tasks in tasks_by_project.items()
@@ -1266,6 +1330,17 @@ def timeline(limit: int = Query(default=100, ge=1, le=500), db: Session = Depend
                 body=j.content,
                 tags=j.related_entity,
                 entity_id=j.id,
+            )
+        )
+    for n in db.query(models.Note).all():
+        items.append(
+            schemas.TimelineItem(
+                kind="note",
+                date=n.updated_at.date(),
+                title=n.title,
+                body=n.content,
+                tags=n.tags,
+                entity_id=n.id,
             )
         )
     for t in db.query(models.Task).all():

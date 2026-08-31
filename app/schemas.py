@@ -334,4 +334,38 @@ class TreeOut(BaseModel):
     roots: list[TreeNode] = []
 
 
+class NoteBase(BaseModel):
+    title: str
+    content: str = ""
+    tags: str = ""
+
+    @field_validator("title")
+    @classmethod
+    def _title(cls, v: str) -> str:
+        return clean_title(v)
+
+
+class NoteCreate(NoteBase):
+    pass
+
+
+class NoteUpdate(BaseModel):
+    title: str | None = None
+    content: str | None = None
+    tags: str | None = None
+
+    @field_validator("title")
+    @classmethod
+    def _title(cls, v: str | None) -> str | None:
+        return clean_title(v) if v is not None else v
+
+
+class NoteOut(NoteBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
 TreeNode.model_rebuild()

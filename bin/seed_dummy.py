@@ -96,12 +96,19 @@ sessions = [
     session(b_planned, 1800),  # 0.5h
     session(a_done, 7200, start_days_ago=3),  # done task, 2.0h (not summed because task done)
 ]
-db.add_all(sessions)
+notes = [
+    models.Note(
+        title="DUMMY-NOTE-1",
+        content="This is a dummy note to verify the frontend rendering of the new notes section.",
+        tags="dummy,testing",
+    )
+]
+db.add_all(sessions + notes)
 db.commit()
 
 open_tasks = [t for t in tasks if t.status != "done"]
 print(f"Seeded 2 dummy projects, {len(tasks)} tasks ({len(open_tasks)} open), "
-      f"and {len(sessions)} tracked sessions.")
+      f"{len(sessions)} tracked sessions, and {len(notes)} dummy notes.")
 print("Current task (hero):", a_current.title, "-> 3.5h tracked")
 for t in open_tasks:
     secs = sum(s.duration_seconds or 0 for s in sessions if s.task_id == t.id)

@@ -4,13 +4,14 @@ set -euo pipefail
 BASE="${LIFE_DASH_URL:-http://127.0.0.1:8000}"
 
 if [ "$#" -lt 2 ]; then
-  echo "Usage: $0 <project|task|goal|learning|journal> '<json>'"
+  echo "Usage: $0 <project|task|goal|learning|journal|note> '<json>'"
   echo "       $0 task <project_id> '<json>'"
-  echo "       $0 update <project|task|goal|learning|journal> <id> '<json>'"
-  echo "       $0 list <project|task|goal|learning|journal> [filters]"
-  echo "       $0 delete <project|task|goal|learning|journal> <id>"
+  echo "       $0 update <project|task|goal|learning|journal|note> <id> '<json>'"
+  echo "       $0 list <project|task|goal|learning|journal|note> [filters]"
+  echo "       $0 delete <project|task|goal|learning|journal|note> <id>"
   echo ""
   echo "Examples:"
+  echo "  $0 note '{\"title\":\"My Note\",\"content\":\"details\",\"tags\":\"tag1\"}'"
   echo "  $0 learning '{\"title\":\"Learned X\",\"content\":\"...\",\"tags\":\"python\"}'"
   echo "  $0 project '{\"title\":\"Build site\",\"status\":\"backlog\",\"priority\":\"high\"}'"
   echo "  $0 task 1 '{\"title\":\"Wire up API\",\"status\":\"planned\",\"priority\":\"high\"}'"
@@ -46,6 +47,8 @@ case "$cmd" in
     ENDPOINT="learnings" ;;
   journal|journals)
     ENDPOINT="journal" ;;
+  note|notes)
+    ENDPOINT="notes" ;;
   list)
     case "$1" in
       project|projects) ENDPOINT="projects" ;;
@@ -53,6 +56,7 @@ case "$cmd" in
       goal|goals) ENDPOINT="goals" ;;
       learning|learnings) ENDPOINT="learnings" ;;
       journal|journals) ENDPOINT="journal" ;;
+      note|notes) ENDPOINT="notes" ;;
       *) echo "Unknown entity: $1" >&2; exit 1 ;;
     esac
     shift
@@ -68,6 +72,7 @@ case "$cmd" in
       goal|goals) ENDPOINT="goals" ;;
       learning|learnings) ENDPOINT="learnings" ;;
       journal|journals) ENDPOINT="journal" ;;
+      note|notes) ENDPOINT="notes" ;;
       *) echo "Unknown entity: $1" >&2; exit 1 ;;
     esac
     ID="$2"
@@ -85,6 +90,7 @@ case "$cmd" in
       goal|goals) ENDPOINT="goals" ;;
       learning|learnings) ENDPOINT="learnings" ;;
       journal|journals) ENDPOINT="journal" ;;
+      note|notes) ENDPOINT="notes" ;;
       *) echo "Unknown entity: $1" >&2; exit 1 ;;
     esac
     curl -s -X DELETE "$BASE/api/$ENDPOINT/$2"

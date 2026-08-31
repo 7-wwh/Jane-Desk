@@ -15,9 +15,11 @@ engine = create_engine(
 @event.listens_for(engine, "connect")
 def _sqlite_fk_on(dbapi_conn, record):
     """SQLite disables foreign keys per-connection by default; enable them so
-    ondelete=CASCADE actually works (projects → tasks → sessions)."""
+    ondelete=CASCADE actually works (projects → tasks → sessions). Also enable
+    WAL mode to guard against corruption."""
     cursor = dbapi_conn.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.execute("PRAGMA journal_mode=WAL")
     cursor.close()
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 

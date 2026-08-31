@@ -118,7 +118,20 @@ journal = [
     ),
 ]
 
-db.add_all(projects + goals + learnings + journal)
+notes = [
+    models.Note(
+        title="Welcome to Jane-Desk Notes",
+        content="This is a dedicated notes section for logging quick reference information via agents.",
+        tags="welcome,tutorial",
+    ),
+    models.Note(
+        title="FastAPI Cheat Sheet",
+        content="Path parameters: /api/notes/{id}\nQuery parameters: /api/notes?q=search\nBody: JSON payload.",
+        tags="fastapi,cheat-sheet",
+    ),
+]
+
+db.add_all(projects + goals + learnings + journal + notes)
 db.commit()
-print(f"Seeded {len(projects)} projects, {len(goals)} goals, {len(learnings)} learnings, {len(journal)} journal entries.")
+print(f"Seeded {len(projects)} projects, {len(goals)} goals, {len(learnings)} learnings, {len(journal)} journal entries, {len(notes)} notes.")
 db.close()

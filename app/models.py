@@ -110,3 +110,14 @@ class DailySnapshot(Base):
     tasks_due: Mapped[int] = mapped_column(Integer, default=0)
     work_seconds: Mapped[float] = mapped_column(Float, default=0.0)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=NOW, onupdate=NOW)
+
+
+class Note(Base):
+    __tablename__ = "notes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    content: Mapped[str] = mapped_column(Text, default="")
+    tags: Mapped[str] = mapped_column(String(200), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=NOW)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=NOW, onupdate=NOW)

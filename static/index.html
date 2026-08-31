@@ -123,6 +123,18 @@
 </section>
 
 <section>
+  <h2>NOTES <small>/api/notes</small></h2>
+  <form class="add" id="form-note">
+    <input name="title" placeholder="title *" required size="18">
+    <input name="content" placeholder="content" size="30">
+    <input name="tags" placeholder="tags" size="8">
+    <button type="submit">POST note</button>
+  </form>
+  <div id="notes"></div>
+  <details><summary>raw json</summary><pre class="json" id="json-notes"></pre></details>
+</section>
+
+<section>
   <h2>TIMELINE <small>GET /api/timeline?limit=25</small></h2>
   <ul class="plain" id="timeline"></ul>
 </section>
@@ -260,6 +272,15 @@ function renderGoals(items) {
   return html + "</table>";
 }
 
+function renderNotes(items) {
+  if (!items.length) return '<p class="muted">(none in DB)</p>';
+  let html = "<table><tr><th>id</th><th>date</th><th>title</th><th>content</th><th>tags</th><th>actions</th></tr>";
+  for (const n of items.slice().reverse()) {
+    html += "<tr><td>" + n.id + "</td><td>" + esc(n.created_at) + "</td><td>" + esc(n.title) + "</td><td>" + esc(n.content).slice(0, 120) + "</td><td>" + esc(n.tags || "") + "</td><td>" + rowBtn('note-del', n.id, 'del') + "</td></tr>";
+  }
+  return html + "</table>";
+}
+
 function renderLearnings(items) {
   if (!items.length) return '<p class="muted">(none in DB)</p>';
   let html = "<table><tr><th>id</th><th>date</th><th>title</th><th>content</th><th>tags</th><th>actions</th></tr>";
@@ -390,6 +411,11 @@ async function refresh() {
   $("#learnings").innerHTML = renderLearnings(learningsR.ok ? learningsR.data : []);
   $("#journal").innerHTML = renderJournal(journalR.ok ? journalR.data : []);
   $("#work").innerHTML = renderWork(workData);
+// fetch dashboard for recent notes
+  const dashboardR = await api("/dashboard");
+  $("#notes").innerHTML = renderNotes(dashboardR.ok ? dashboardR.data.recent_notes || [] : []);
+  setJSON("#json-notes", dashboardR.ok ? dashboardR.data.recent_notes : []);
+  // existing timeline rendering
   $("#timeline").innerHTML = renderTimeline(timelineR.ok ? timelineR.data : []);
 
   const st = settingsR.ok ? settingsR.data.settings : {};
@@ -456,6 +482,9 @@ document.addEventListener("click", async (e) => {
   } else if (act === "setting-del") {
     await stepLog("DELETE /settings/" + id,
       () => api("/settings/" + encodeURIComponent(id), { method: "DELETE" }));
+  } else if (act === "note-del") {
+    if (!confirm("Delete note " + id + "?")) return;
+    await stepLog("DELETE /notes/" + id, () => api("/notes/" + id, { method: "DELETE" }));
   } else if (act === "smoke") {
     return runSmokeTest();
   }
@@ -520,6 +549,15 @@ document.getElementById("form-journal").addEventListener("submit", async (e) => 
   const f = e.target.elements;
   await stepLog("POST /journal", () =>
     api("/journal", { method: "POST", body: { type: f.type.value, content: f.content.value } }));
+  e.target.reset(); await refresh();
+});
+
+// ---------- notes form ----------
+document.getElementById("form-note").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target.elements;
+  await stepLog("POST /notes", () =>
+    api("/notes", { method: "POST", body: { title: f.title.value, content: f.content.value, tags: f.tags.value } }));
   e.target.reset(); await refresh();
 });
 
