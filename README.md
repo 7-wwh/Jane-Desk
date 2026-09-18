@@ -19,6 +19,8 @@
 10. [Running & deployment](#10-running--deployment)
 11. [Learning exercises & glossary](#11-learning-exercises--glossary)
 
+For an illustrated guide to the agent-skill system, see [explainer.md](explainer.md).
+
 ---
 
 ## 1. What this project is
@@ -37,7 +39,7 @@ Two audiences use it:
 
 | Audience | Uses |
 | :--- | :--- |
-| **Agents** (opencode, codex, claude…) | `POST` JSON to the API to log learnings, update project status, add goals, journal moments. They also load a packaged set of **skills** (`skills/main-skill.md` → `skills/*`) that teach them *how* to use the dashboard. |
+| **Agents** (opencode, codex, claude…) | Use the local API to log learnings, update project status, add goals, and journal moments. They begin with the portable **`jane-desk-main`** skill, which routes to specialized skills. |
 | **Human** (phone/laptop, anywhere) | Read the rendered dashboard over Tailscale. |
 
 This repo is two products in one: the **dashboard app** (backend + frontend) and the **agent skill package** (instructions that make agents productive with it).
@@ -56,7 +58,7 @@ The interface is **CHECK BOX**, a warm "vibrant light" theme (*CHECK BOX DAYLIGH
    codex      HTTP  │     │  /api/projects   ─▶ router ─▶ validate ─▶  │
    claude     JSON  ├────▶│  /api/goals      ─▶ router ─▶ validate ─▶  │
    curl             │     │  /api/journal    ─▶ router ─▶ validate ─▶  │
-   bin/post.sh      │     │  /api/dashboard  ─▶ aggregate query         │
+   agent_write.py   │     │  /api/dashboard  ─▶ aggregate query         │
    ─────────────────┘     │  /api/timeline   ─▶ merged feed             │
                           └──────────────────┬─────────────────────────┘
                                              │ SQLAlchemy (ORM)
@@ -95,9 +97,14 @@ life-at-a-glance/
 ├── AGENTS.md                       ← instructions for AI agents on how to write data
 ├── DESIGN.md                       ← the CHECK BOX design specification (palette, layout, cards)
 ├── QUESTION.md                     ← open design questions + confirmed decisions
-├── skills/                         ← agent skills (loaded by agents to work with the dashboard)
-│   ├── main-skill.md               ←   dispatcher/router: classifies a message → routes to a sub-skill
-│   └── task-master.md              ←   fills task/project/goal forms from prose, confirms with the user before logging; its "Appendix: Eval suite" verifies the flow (run by a spawned subagent)
+├── explainer.md                    ← illustrated guide to the cross-agent skill system
+├── skills/                         ← portable, source-controlled agent skill bundle
+│   ├── jane-desk-main/             ←   primary entry point and dispatcher
+│   ├── jane-desk-task-master/      ←   natural-language task/project/goal specialist
+│   ├── jane-desk-data/             ←   API write, validation, and verification specialist
+│   ├── jane-desk-router/           ←   compatibility alias for older integrations
+│   ├── install.sh                  ←   installs the bundle for Codex or Hermes
+│   └── hermes/                     ←   Hermes session-start catalog hook
 ├── requirements.txt                ← Python dependencies (declared, installable)
 ├── .gitignore                      ← what NOT to commit (database, cache files, screenshots)
 │
@@ -131,7 +138,8 @@ life-at-a-glance/
 │       └── app.js                  ←   API wiring: fetches /api/* and re-renders the views
 │
 ├── bin/                            ← OPERATIONS scripts (run manually / by agents)
-│   ├── post.sh                     ← one-command helper for agents to add entries
+│   ├── agent_write.py              ← guarded API writer for agents (validate + verify)
+│   ├── post.sh                     ← manual convenience helper
 │   ├── run_api_evals.py            ← deterministic API guard evals (asserts HTTP status codes)
 │   └── run.sh                      ← starts the dev server
 │
@@ -188,7 +196,7 @@ Trade-off acknowledged: frameworks give you state management and components; van
 
 ### 4.4 Operational folders: `bin/` and `deploy/`
 
-- **`bin/`** holds *scripts people and agents run* (`post.sh`, `run.sh`) — the "command line interface" of the project.
+- **`bin/`** holds scripts people and agents run. `agent_write.py` is the guarded agent write path; `post.sh` is a manual convenience helper.
 - **`deploy/`** holds *how the project runs in production* (the systemd unit). Keeping it separate from code means deploying is "copy the service file + start it", a repeatable, documented operation.
 
 ### 4.5 Why `data/life.db` is gitignored
@@ -219,8 +227,8 @@ This project deliberately follows standard practice for a **FastAPI + SQLAlchemy
 | **Code-first schema** | `Base.metadata.create_all()` builds tables from ORM classes — good for prototypes; production teams switch to migrations. |
 | **Config & secrets hygiene** | No secrets in code; DB is gitignored; no auth is a *documented* MVP trade-off. |
 | **Deployment via init system** | systemd user service + `loginctl enable-linger` = survive reboots, no login required. |
-| **Agent-friendly interface** | `AGENTS.md` + `bin/post.sh` are a machine-readable contract, like an SDK for LLMs. |
-| **Skill package** | `skills/main-skill.md` → `skills/*` split procedural guidance by task, so agents load only what they need. |
+| **Agent-friendly interface** | `AGENTS.md` + `bin/agent_write.py` form a machine-readable contract with validation and persistence verification. |
+| **Skill package** | `jane-desk-main` routes agents to focused specialist skills, so each agent loads only the instructions it needs. |
 | **Task hierarchy** | Tasks are a child table of projects (FK + `ON DELETE CASCADE`) — the same pattern as "issues under a board" in GitHub. |
 
 ### What a bigger production project would add
@@ -490,21 +498,19 @@ called by `onclick`/`onsubmit` attributes now resolve to the API-backed versions
 
 ## 9. The agent write path
 
-The whole point: **agents feed the dashboard**. Two entry points:
+The whole point: **agents feed the dashboard safely**. The recommended entry point is the portable skill bundle; it eventually uses the guarded writer below.
 
-### `bin/post.sh` (easiest)
+### `bin/agent_write.py` (recommended for agents)
 
 ```bash
-bin/post.sh learning '{"title":"Learned X","content":"details","tags":"python"}'
-bin/post.sh project '{"title":"New idea","status":"backlog","priority":"high"}'
-bin/post.sh task 1 '{"title":"Wire up the API","status":"planned","priority":"high"}'
-bin/post.sh goal '{"area":"health","title":"Run 5km","progress":40}'
-bin/post.sh journal '{"type":"milestone","content":"Shipped it"}'
-bin/post.sh list projects
-bin/post.sh delete learning 3
+bin/agent_write.py learning '{"title":"Learned X","content":"details","tags":"python"}'
+bin/agent_write.py project '{"title":"New idea","status":"backlog","priority":"high"}'
+bin/agent_write.py task 1 '{"title":"Wire up the API","status":"planned","priority":"high"}'
+bin/agent_write.py goal '{"area":"health","title":"Run 5km","progress":40}'
+bin/agent_write.py journal '{"type":"milestone","content":"Shipped it"}'
 ```
 
-The script maps friendly names (`learning`, `project`, …) to API endpoints and `POST`s JSON via curl. It's the "SDK" for LLMs — one command per entry, no HTTP knowledge required.
+The writer checks API health, validates task/project/goal payloads, rejects failed HTTP requests, and fetches the saved record to verify the fields. It never accesses `data/life.db` directly. `bin/post.sh` remains available for manual convenience operations such as listing and deletion, but agents should prefer the guarded writer.
 
 ### The REST API (full power)
 
@@ -529,17 +535,21 @@ This is a *documented contract between humans and machines* — the same idea as
 
 ### The skill package (`skills/`)
 
-Beyond the API, the repo ships **agent skills** — Markdown instructions agents can load to do dashboard work well:
+Beyond the API, the repo ships a portable skill bundle:
 
-- **`skills/main-skill.md`** — the **dispatcher/router**. Agents that arrive with a message read this first, classify the intent, and are routed to the right sub-skill (today: `task-master.md`). It enforces the human-in-the-loop rule: no database writes without explicit user approval.
-- **`skills/task-master.md`** — turns a natural-language message into **fill-in-the-blank forms** for tasks, projects, and goals. Each box shows its exact JSON key and allowed values (`title`, `status`, `priority`, `begin_date`/`due_date`/`target_date`, `duration` in hours, `branch_path`, goal `area`/`progress`), so blanks stay blank and nothing is invented. It classifies the intent (create vs. update — "I finished X", "push the deadline", "set progress to 50%"), matches existing records (`matched_to`), shows the filled form as a confirmation preview, and only writes to the API after explicit user approval. Every payload is self-checked box-by-box before logging; `data/life.db` is never edited directly. Its **"Appendix: Eval suite"** (Layers A–C: extraction, format conformance, confirmation gate) is run by a **spawned subagent** that verifies each fixture and returns a pass/fail table. Complements `bin/run_api_evals.py`, which deterministically checks the server-side guards.
+- **`skills/jane-desk-main/SKILL.md`** — the primary cross-agent entry point. It routes a request to the appropriate specialist.
+- **`skills/jane-desk-task-master/SKILL.md`** — resolves natural-language task, project, and goal requests; it searches for existing records and asks when the target or parent project is unclear.
+- **`skills/jane-desk-data/SKILL.md`** — owns API endpoint selection, payload validation, and post-write verification for every entity.
+- **`skills/jane-desk-router/SKILL.md`** — compatibility alias for previous integrations; it delegates to the main skill.
+
+Install the bundle with `skills/install.sh codex`, `skills/install.sh hermes`, or `skills/install.sh all`. For another agent platform, copy the four `jane-desk-*` directories into that platform's documented skill location and configure it to begin with `jane-desk-main`. See [explainer.md](explainer.md) for diagrams and the full flow.
 
 The split mirrors how agents actually think: a general "how do I work on this repo" instruction plus focused playbooks for specific tasks. Health status rules are intentionally *external to the UI* — the dashboard shows what's happening; the rules for judging it live in the skills.
 
 ### 9.1 How the task-tracker skill was optimized for this project
 
-The task-capture logic now lives in **`skills/task-master.md`** (the dispatcher is
-`skills/main-skill.md`). It started life as an
+The task-capture logic now lives in **`skills/jane-desk-task-master/SKILL.md`** and is
+reached through **`skills/jane-desk-main/SKILL.md`**. It started life as an
 external, self-contained task-tracking skill (`task-tracker-v4`) that managed tasks in **JSON
 files inside an Obsidian vault** with a cron-installed daily brief. When the user pointed out it
 was "the skill for part of the project", it was brought into this repo and then **re-optimized to
@@ -549,7 +559,7 @@ speak the project's actual language**. That optimization had three moves:
    The original read/wrote three JSON files (`tasks.json`, `active-tasks.json`, `knowledge.json`)
    under `/home/ubuntu/Documents/ObsidianVault/...` with a daily-brief log. The rewritten skill
    documents the real source of truth — one SQLite database (`data/life.db`) written exclusively
-   through the FastAPI REST API, plus `bin/post.sh` for agents. No file editing, ever.
+   through the FastAPI REST API, with `bin/agent_write.py` as the guarded agent writer. No file editing, ever.
 
 2. **Schema: the skill's model → the dashboard's model.**
    The external skill spoke `pending/active/blocked/done/cancelled` statuses,
@@ -652,7 +662,7 @@ Note it's a **user** service (`--user`), not a system service — no root needed
 
 Try these to solidify the mental model:
 
-1. **Trace a write**: `bin/post.sh learning '{"title":"X","content":"Y"}'` → `post.sh` curls `/api/learnings` → `create_learning()` validates → `models.Learning(**data)` → `db.commit()` → JSON back. Where is each step in `app/main.py`?
+1. **Trace a write**: `bin/agent_write.py learning '{"title":"X","content":"Y"}'` → health check and payload handling → `/api/learnings` → `create_learning()` validates → `models.Learning(**data)` → `db.commit()` → verification GET → JSON back. Where is each step in `app/`?
 2. **Trace a read**: browser loads `/` → `App.boot()` → `injectParts()` + `refreshAll()` → `GET /api/work` + `/api/tree` → `renderWork()` writes the DOM. Which files own each step?
 3. **Add a filter**: make `/api/goals` also filter by `progress >= X`. Which files change (`main.py` only) and which don't (models, schemas, frontend)? Why?
 4. **Why not an enum column?** Re-read section 6. What breaks for agents if `status` became a DB enum? (Hint: what does an LLM need to send in JSON?)
@@ -680,7 +690,7 @@ Try these to solidify the mental model:
 | **Project Tree** | The Projects-tab panel: per-project progress bars with status/priority dots and overdue flags. |
 | **Atom ledger** | The Knowledge-tab grouping of learnings by `related_project` — the dashboard's version of the skill's knowledge atoms. |
 | **Gantt** | The signature Projects Timeline: one stadium-pill bar per project across a 30-day window. |
-| **Master skill** | `skills/main-skill.md` (dispatcher) + `skills/task-master.md` (task extraction & push) — the project's agent skills for storage, API, and task logic. |
+| **Main skill** | `skills/jane-desk-main/SKILL.md` — the cross-agent entry point that routes to task-master and data-writing specialists. |
 
 ---
 

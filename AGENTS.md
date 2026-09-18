@@ -38,23 +38,26 @@ the `skills/task-master.md` "Appendix: Eval suite" (run by spawning a subagent) 
 
 ## How to write entries (agents)
 
-Use `bin/post.sh` — one command per entry:
+For agent-written data, use `bin/agent_write.py` — it validates task/project/goal
+payloads, fails on API errors, and reads the saved record back before reporting success.
+Use `bin/post.sh` only for manual convenience work where its unguarded output is acceptable.
+One command per entry:
 
 ```bash
 # Log a learning (daily knowledge)
-bin/post.sh learning '{"title":"SQLAlchemy 2.0 uses Mapped[] syntax","content":"...","tags":"python,sqlalchemy","related_project":"life-at-a-glance"}'
+bin/agent_write.py learning '{"title":"SQLAlchemy 2.0 uses Mapped[] syntax","content":"...","tags":"python,sqlalchemy","related_project":"life-at-a-glance"}'
 
 # Add a project
-bin/post.sh project '{"title":"Launch personal site","description":"...","status":"backlog","priority":"high","target_date":"2026-09-01","tags":"web"}'
+bin/agent_write.py project '{"title":"Launch personal site","description":"...","status":"backlog","priority":"high","target_date":"2026-09-01","tags":"web"}'
 
 # Add a goal
-bin/post.sh goal '{"area":"health","title":"Run 5km","progress":40,"target_date":"2026-12-31"}'
+bin/agent_write.py goal '{"area":"health","title":"Run 5km","progress":40,"target_date":"2026-12-31"}'
 
 # Add a journal entry
-bin/post.sh journal '{"type":"milestone","content":"Finished first dashboard prototype","date":"2026-08-02"}'
+bin/agent_write.py journal '{"type":"milestone","content":"Finished first dashboard prototype","date":"2026-08-02"}'
 
 # Add a task under a project (project_id from /api/projects)
-bin/post.sh task 1 '{"title":"Wire up task API","status":"planned","priority":"high"}'
+bin/agent_write.py task 1 '{"title":"Wire up task API","status":"planned","priority":"high"}'
 ```
 
 Or use curl directly (JSON body, `Content-Type: application/json`). See the API

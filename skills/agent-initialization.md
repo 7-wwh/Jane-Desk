@@ -1,19 +1,19 @@
 ---
 name: agent-initialization
-description: One-time setup/installer for the Jane-Desk (Life-at-a-Glance) project on a machine running Hermes Agent. Installs the project skills into ~/.hermes/skills/jane-desk/ and registers a gateway event hook that injects the available skill/tool catalog into every new conversation so the agent never forgets or hallucinates its tools. Triggers - "initialize this project", "set up this project for hermes", "install the hooks", "run agent initialization", first run on a fresh machine.
+description: One-time installer for the native Jane-Desk skills on Codex or Hermes. Installs the source-controlled skill directories and, for Hermes, its conversation-start catalog hook. Triggers - "initialize this project", "set up this project", "install the hooks", "run agent initialization", first run on a fresh machine.
 ---
 
-# Agent Initialization — Hermes Setup
+# Agent Initialization — Codex and Hermes Setup
 
-**You are the installing agent.** Execute every step below, in order, **on this
-machine** — the machine where this repository was downloaded and where Hermes runs.
-Do not skip verification. All steps are idempotent (safe to re-run). Never modify
-anything under `~/.hermes` except what these steps explicitly tell you to create.
+The source of truth is this repository's `skills/jane-desk-*/SKILL.md` directories.
+Install from the repository rather than copying the legacy standalone `.md` files.
+The installer is idempotent. It replaces only the Jane-Desk skill folders and its named
+Hermes hook.
 
 ## What this installs
 
-1. Project skills → `~/.hermes/skills/jane-desk/<skill-name>/SKILL.md`
-   (Hermes' native skill index picks them up automatically).
+1. Codex skills → `${CODEX_HOME:-~/.codex}/skills/jane-desk-*/SKILL.md`, or Hermes
+   skills → `~/.hermes/skills/jane-desk/jane-desk-*/SKILL.md`.
 2. One gateway event hook (`session:start` + `session:reset`) that refreshes the
    skill/tool catalog inside `~/.hermes/SOUL.md`, which Hermes loads into the system
    prompt of **every new conversation** — so the agent always knows which tools are
@@ -21,58 +21,29 @@ anything under `~/.hermes` except what these steps explicitly tell you to create
 
 No Python packages, no config edits, no plugins. Dependencies: `bash`, `python3`.
 
-## Step 1 — Detect Hermes
+## Install
+
+From the repository root:
 
 ```bash
-[[ -d "$HOME/.hermes" ]] && command -v hermes >/dev/null && echo OK
+skills/install.sh codex     # default; install for Codex
+skills/install.sh hermes    # install native skills plus the Hermes catalog hook
+skills/install.sh all       # install both
 ```
 
-If this fails, Hermes Agent is not installed on this machine. Stop and report that
-this project currently ships Hermes integration only; nothing was modified.
+The Codex destination honors `CODEX_HOME`; Hermes honors `HERMES_HOME`. The installer
+does not touch database data or application code.
 
-## Step 2 — Resolve the repository root
+## Hermes hook
 
-Set `REPO_ROOT` to the absolute path of this repository (the folder containing
-`skills/agent-initialization.md`). For example:
-
-```bash
-REPO_ROOT="/home/YOURUSER/Jane-Desk"   # adjust to the actual clone location
-[[ -f "$REPO_ROOT/skills/agent-initialization.md" ]] && echo OK
-```
-
-## Step 3 — Install the skills
-
-Hermes requires each skill as `<folder>/SKILL.md`. Convert and copy:
-
-```bash
-mkdir -p "$HOME/.hermes/skills/jane-desk/main-skill" \
-         "$HOME/.hermes/skills/jane-desk/task-master"
-cp "$REPO_ROOT/skills/main-skill.md"  "$HOME/.hermes/skills/jane-desk/main-skill/SKILL.md"
-cp "$REPO_ROOT/skills/task-master.md" "$HOME/.hermes/skills/jane-desk/task-master/SKILL.md"
-```
-
-Future skills added to the bundle get copied the same way (one folder per skill).
-Do NOT copy `agent-initialization.md` itself.
-
-## Step 4 — Install the gateway hook
-
-Copy the bundled hook directory into Hermes' hooks folder:
-
-```bash
-mkdir -p "$HOME/.hermes/hooks"
-rm -rf "$HOME/.hermes/hooks/jane-desk-tool-loader"
-cp -r "$REPO_ROOT/skills/hermes/jane-desk-tool-loader" "$HOME/.hermes/hooks/"
-ls "$HOME/.hermes/hooks/jane-desk-tool-loader/"   # expect: HOOK.yaml  handler.py
-```
-
-What the hook does: on `session:start` and `session:reset` (i.e. every new
+The Hermes installation includes the bundled hook. On `session:start` and `session:reset` (i.e. every new
 conversation) its `handler.py` scans `$HOME/.hermes/skills/jane-desk/*/SKILL.md`
 frontmatter and rewrites **only the block between** `<!-- jane-desk:tools:start -->`
 and `<!-- jane-desk:tools:end -->` markers inside `$HOME/.hermes/SOUL.md`.
 Everything else in SOUL.md is preserved. New skills dropped into the jane-desk
 skills folder are advertised automatically — the handler never needs editing.
 
-## Step 5 — Restart the gateway
+## Restart Hermes
 
 Gateway hooks are discovered at startup:
 
@@ -80,7 +51,7 @@ Gateway hooks are discovered at startup:
 hermes gateway restart
 ```
 
-## Step 6 — Verify
+## Verify
 
 1. Hook loads:
 
@@ -98,12 +69,12 @@ hermes gateway restart
    grep -A5 "jane-desk:tools:start" "$HOME/.hermes/SOUL.md"
    ```
 
-   Expect `main-skill` and `task-master` with their descriptions.
+   Expect `jane-desk-main`, `jane-desk-task-master`, and `jane-desk-data` with their descriptions.
 
 3. Native skill index also picked them up:
 
    ```bash
-   hermes skills list | grep -E "main-skill|task-master"
+   hermes skills list | grep -E "jane-desk-main|jane-desk-task-master|jane-desk-data"
    ```
 
 4. End-to-end: ask the agent *"what tools do you have?"* in a fresh conversation —

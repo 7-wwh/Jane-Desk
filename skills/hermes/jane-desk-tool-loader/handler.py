@@ -1,13 +1,4 @@
-"""jane-desk-tool-loader — Hermes gateway event hook.
-
-Fires on session:start / session:reset (every new conversation) and refreshes the
-Life-at-a-Glance (Jane-Desk) skill/tool catalog inside $HERMES_HOME/SOUL.md, which
-Hermes loads verbatim into the system prompt of every session. This keeps the agent
-aware of which skills/tools exist so it uses them instead of hallucinating.
-
-Only content between the managed marker comments is touched; everything else in
-SOUL.md is preserved byte-for-byte.
-"""
+"""Refresh the Jane-Desk skill catalog in Hermes' session context."""
 
 import logging
 import os
@@ -15,14 +6,9 @@ import re
 from pathlib import Path
 
 logger = logging.getLogger("hooks.jane-desk-tool-loader")
-
 MARKER_START = "<!-- jane-desk:tools:start -->"
 MARKER_END = "<!-- jane-desk:tools:end -->"
-
-HEADER = (
-    "[Life-at-a-Glance / Jane-Desk] The following skills and tools ARE available "
-    "to you:"
-)
+HEADER = "[Life-at-a-Glance / Jane-Desk] The following skills and tools ARE available to you:"
 FOOTER = (
     "When a user message matches one of these skills, load it (skill_view by name, "
     "or read its SKILL.md) and follow its workflow before acting. Search this list "
@@ -47,7 +33,7 @@ def _parse_frontmatter(text: str):
     description = desc.group(1).strip() if desc else "(no description)"
     if len(description) > DESC_MAX_CHARS:
         description = description[: DESC_MAX_CHARS - 3] + "..."
-    return (name.group(1).strip() if name else "", description)
+    return name.group(1).strip() if name else "", description
 
 
 def _build_catalog():
@@ -57,23 +43,15 @@ def _build_catalog():
         return lines
     for skill_md in sorted(skills_dir.glob("*/SKILL.md")):
         try:
-            parsed = _parse_frontmatter(
-                skill_md.read_text(encoding="utf-8", errors="replace")
-            )
+            parsed = _parse_frontmatter(skill_md.read_text(encoding="utf-8", errors="replace"))
         except OSError as err:
             logger.warning("jane-desk-tool-loader: cannot read %s: %s", skill_md, err)
             continue
         if not parsed:
             continue
         name, description = parsed
-        rel = "/".join(skill_md.parts[-3:])
-        lines.append("- {}: {} ({})".format(name or skill_md.parent.name, description, rel))
+        lines.append("- {}: {} ({})".format(name or skill_md.parent.name, description, "/".join(skill_md.parts[-3:])))
     return lines
-
-
-def _catalog_block(lines) -> str:
-    body = "\n".join([HEADER] + lines + ["", FOOTER])
-    return "{}\n{}\n{}".format(MARKER_START, body, MARKER_END)
 
 
 def _upsert_soul(block: str) -> int:
@@ -83,15 +61,10 @@ def _upsert_soul(block: str) -> int:
     except OSError as err:
         logger.error("jane-desk-tool-loader: cannot read %s: %s", soul_path, err)
         return 0
-    pattern = re.compile(
-        re.escape(MARKER_START) + r".*?" + re.escape(MARKER_END), re.S
+    pattern = re.compile(re.escape(MARKER_START) + r".*?" + re.escape(MARKER_END), re.S)
+    updated = pattern.sub(lambda _: block, existing) if pattern.search(existing) else (
+        existing.rstrip() + "\n\n" + block + "\n" if existing.strip() else block + "\n"
     )
-    if pattern.search(existing):
-        updated = pattern.sub(lambda _match: block, existing)
-    elif existing.strip():
-        updated = existing.rstrip() + "\n\n" + block + "\n"
-    else:
-        updated = block + "\n"
     try:
         soul_path.write_text(updated, encoding="utf-8")
     except OSError as err:
@@ -102,24 +75,15 @@ def _upsert_soul(block: str) -> int:
 
 async def handle(event_type: str, context: dict) -> None:
     """Entry point required by Hermes gateway hooks. Never raises."""
-    del context  # unused; kept for the documented signature
+    del context
     try:
         lines = _build_catalog()
         if not lines:
-            logger.info(
-                "jane-desk-tool-loader: no jane-desk skills installed; "
-                "nothing injected (%s)",
-                event_type,
-            )
+            logger.info("jane-desk-tool-loader: no jane-desk skills installed; nothing injected (%s)", event_type)
             return
-        size = _upsert_soul(_catalog_block(lines))
+        block = "{}\n{}\n\n{}\n{}".format(MARKER_START, "\n".join([HEADER] + lines), FOOTER, MARKER_END)
+        size = _upsert_soul(block)
         if size:
-            logger.info(
-                "jane-desk-tool-loader: refreshed tool catalog in SOUL.md "
-                "(%d skills, %d chars, %s)",
-                len(lines),
-                size,
-                event_type,
-            )
-    except Exception as err:  # noqa: BLE001 — hooks must never crash the agent
+            logger.info("jane-desk-tool-loader: refreshed tool catalog in SOUL.md (%d skills, %d chars, %s)", len(lines), size, event_type)
+    except Exception as err:  # hooks must never crash the agent
         logger.error("jane-desk-tool-loader failed: %s", err)
